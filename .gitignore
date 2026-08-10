@@ -1,0 +1,24 @@
+# Quartus 臨時資料夾
+/db/
+/incremental_db/
+/simulation/
+/greybox/
+/hc_output/
+
+# Quartus 輸出與報告檔
+*.rpt
+*.summary
+*.smsg
+*.done
+*.pin
+*.jdi
+*.eqn
+*.qws
+
+# 編譯產生的燒錄檔
+// *.sof
+*.pof
+
+# 備份檔與日誌
+*.bak
+*.qarlog
