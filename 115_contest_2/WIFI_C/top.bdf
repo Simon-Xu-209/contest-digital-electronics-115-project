@@ -38,7 +38,7 @@ applicable agreement for further details.
 )
 (pin
 	(input)
-	(rect 560 376 728 392)
+	(rect 528 360 696 376)
 	(text "INPUT" (rect 125 0 161 13)(font "Arial" (font_size 6)))
 	(text "rx_c" (rect 5 0 30 15)(font "Arial" ))
 	(pt 168 8)
@@ -953,10 +953,6 @@ applicable agreement for further details.
 	(pt 704 320)
 )
 (connector
-	(pt 728 384)
-	(pt 736 384)
-)
-(connector
 	(pt 1320 320)
 	(pt 1376 320)
 )
@@ -1099,10 +1095,6 @@ applicable agreement for further details.
 	(pt 704 304)
 )
 (connector
-	(pt 736 384)
-	(pt 736 368)
-)
-(connector
 	(pt 1320 304)
 	(pt 1280 304)
 )
@@ -1148,10 +1140,6 @@ applicable agreement for further details.
 	(bus)
 )
 (connector
-	(pt 736 368)
-	(pt 1072 368)
-)
-(connector
 	(pt 1184 776)
 	(pt 1296 776)
 	(bus)
@@ -1170,6 +1158,10 @@ applicable agreement for further details.
 	(pt 1296 352)
 	(pt 1408 352)
 	(bus)
+)
+(connector
+	(pt 696 368)
+	(pt 1072 368)
 )
 (junction (pt 1712 568))
 (junction (pt 1728 552))

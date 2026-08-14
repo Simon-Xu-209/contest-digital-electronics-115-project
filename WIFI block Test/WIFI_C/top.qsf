@@ -62,8 +62,8 @@ set_location_assignment PIN_76 -to key_r[3]
 set_location_assignment PIN_72 -to key_r[2]
 set_location_assignment PIN_70 -to key_r[1]
 set_location_assignment PIN_145 -to res
-set_location_assignment PIN_160 -to rx_c
-set_location_assignment PIN_161 -to tx_c
+set_location_assignment PIN_164 -to rx_c
+set_location_assignment PIN_166 -to tx_c
 set_location_assignment PIN_167 -to txd
 set_global_assignment -name VERILOG_FILE AT_ROM.v
 set_global_assignment -name VERILOG_FILE mod_button.v
@@ -75,4 +75,12 @@ set_global_assignment -name VERILOG_FILE UART_Client.v
 set_global_assignment -name VERILOG_FILE uart_rx2.v
 set_global_assignment -name VERILOG_FILE uart_tx2.v
 set_global_assignment -name BDF_FILE top.bdf
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -entity UART_Server -section_id Top
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -entity mod_wific -section_id Top
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -entity UART_Server -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -entity UART_Server -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -entity UART_Server -section_id Top
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -entity mod_wific -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -entity mod_wific -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -entity mod_wific -section_id Top
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

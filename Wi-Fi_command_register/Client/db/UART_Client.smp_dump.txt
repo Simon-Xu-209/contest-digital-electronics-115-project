@@ -1,0 +1,42 @@
+
+State Machine - |UART_Client|next_state_after_wait
+Name next_state_after_wait.S_SEND_DATA next_state_after_wait.S_READY next_state_after_wait.S_CIPSTART next_state_after_wait.S_CWJAP next_state_after_wait.S_CWMODE next_state_after_wait.S_IDLE 
+next_state_after_wait.S_IDLE 0 0 0 0 0 0 
+next_state_after_wait.S_CWMODE 0 0 0 0 1 1 
+next_state_after_wait.S_CWJAP 0 0 0 1 0 1 
+next_state_after_wait.S_CIPSTART 0 0 1 0 0 1 
+next_state_after_wait.S_READY 0 1 0 0 0 1 
+next_state_after_wait.S_SEND_DATA 1 0 0 0 0 1 
+
+State Machine - |UART_Client|state
+Name state.S_SEND_DATA state.S_CIPSEND state.S_READY state.S_CIPSTART state.S_CWJAP state.S_CWMODE state.S_AT_RST state.S_IDLE state.S_WAIT_DONE 
+state.S_IDLE 0 0 0 0 0 0 0 0 0 
+state.S_AT_RST 0 0 0 0 0 0 1 1 0 
+state.S_CWMODE 0 0 0 0 0 1 0 1 0 
+state.S_CWJAP 0 0 0 0 1 0 0 1 0 
+state.S_CIPSTART 0 0 0 1 0 0 0 1 0 
+state.S_READY 0 0 1 0 0 0 0 1 0 
+state.S_CIPSEND 0 1 0 0 0 0 0 1 0 
+state.S_SEND_DATA 1 0 0 0 0 0 0 1 0 
+state.S_WAIT_DONE 0 0 0 0 0 0 0 1 1 
+
+State Machine - |UART_Client|receiver_OK:u_receiver_ok|state
+Name state.011 state.010 state.001 state.000 
+state.000 0 0 0 0 
+state.001 0 0 1 1 
+state.010 0 1 0 1 
+state.011 1 0 0 1 
+
+State Machine - |UART_Client|uart_rx:u_rx|state
+Name state.S_STOP state.S_DATA state.S_START state.S_IDLE 
+state.S_IDLE 0 0 0 0 
+state.S_START 0 0 1 1 
+state.S_DATA 0 1 0 1 
+state.S_STOP 1 0 0 1 
+
+State Machine - |UART_Client|uart_tx_string:u_tx|state
+Name state.S_STOP state.S_DATA state.S_START state.S_IDLE 
+state.S_IDLE 0 0 0 0 
+state.S_START 0 0 1 1 
+state.S_DATA 0 1 0 1 
+state.S_STOP 1 0 0 1 
