@@ -16,7 +16,7 @@
 -- PROGRAM "Quartus II 64-Bit"
 -- VERSION "Version 13.1.0 Build 162 10/23/2013 SJ Web Edition"
 
--- DATE "08/04/2026 11:22:03"
+-- DATE "08/18/2026 11:33:58"
 
 -- 
 -- Device: Altera EP3C40Q240C8 Package PQFP240
@@ -73,8 +73,8 @@ END top;
 
 -- Design Ports Information
 -- SCL	=>  Location: PIN_137,	 I/O Standard: 2.5 V,	 Current Strength: Default
--- column_3x3[2]	=>  Location: PIN_63,	 I/O Standard: 2.5 V,	 Current Strength: Default
--- column_3x3[1]	=>  Location: PIN_56,	 I/O Standard: 2.5 V,	 Current Strength: Default
+-- column_3x3[2]	=>  Location: PIN_56,	 I/O Standard: 2.5 V,	 Current Strength: Default
+-- column_3x3[1]	=>  Location: PIN_63,	 I/O Standard: 2.5 V,	 Current Strength: Default
 -- column_3x3[0]	=>  Location: PIN_69,	 I/O Standard: 2.5 V,	 Current Strength: Default
 -- switch[7]	=>  Location: PIN_70,	 I/O Standard: 2.5 V,	 Current Strength: Default
 -- switch[6]	=>  Location: PIN_76,	 I/O Standard: 2.5 V,	 Current Strength: Default
@@ -58943,7 +58943,7 @@ PORT MAP (
 	devpor => ww_devpor,
 	q => \inst1|u_7seg|seg_data\(0));
 
--- Location: IOIBUF_X3_Y0_N15
+-- Location: IOIBUF_X0_Y4_N22
 \column_3x3[2]~input\ : cycloneiii_io_ibuf
 -- pragma translate_off
 GENERIC MAP (
@@ -58954,7 +58954,7 @@ PORT MAP (
 	i => ww_column_3x3(2),
 	o => \column_3x3[2]~input_o\);
 
--- Location: IOIBUF_X0_Y4_N22
+-- Location: IOIBUF_X3_Y0_N15
 \column_3x3[1]~input\ : cycloneiii_io_ibuf
 -- pragma translate_off
 GENERIC MAP (

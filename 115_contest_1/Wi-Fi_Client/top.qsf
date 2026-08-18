@@ -59,8 +59,8 @@ set_location_assignment PIN_149 -to ck
 set_location_assignment PIN_145 -to rst_n
 set_location_assignment PIN_164 -to rx
 set_location_assignment PIN_161 -to tx
-set_location_assignment PIN_63 -to column[2]
-set_location_assignment PIN_56 -to column[1]
+set_location_assignment PIN_56 -to column[2]
+set_location_assignment PIN_63 -to column[1]
 set_location_assignment PIN_69 -to column[0]
 set_location_assignment PIN_46 -to row[2]
 set_location_assignment PIN_50 -to row[1]

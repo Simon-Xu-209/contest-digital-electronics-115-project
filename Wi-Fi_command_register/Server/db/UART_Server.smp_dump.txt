@@ -17,6 +17,24 @@ cmd_step.1100 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1
 cmd_step.1101 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1 
 cmd_step.1110 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 
 
+State Machine - |UART_Server|ipd_parser:u_ipd_parser|state
+Name state.S_GET_DATA state.S_PARSE_LEN state.S_PARSE_ID state.S_WAIT_COMMA state.S_CHECK_D state.S_CHECK_P state.S_CHECK_I state.S_IDLE state.S_WAIT_NL 
+state.S_IDLE 0 0 0 0 0 0 0 0 0 
+state.S_CHECK_I 0 0 0 0 0 0 1 1 0 
+state.S_CHECK_P 0 0 0 0 0 1 0 1 0 
+state.S_CHECK_D 0 0 0 0 1 0 0 1 0 
+state.S_WAIT_COMMA 0 0 0 1 0 0 0 1 0 
+state.S_PARSE_ID 0 0 1 0 0 0 0 1 0 
+state.S_PARSE_LEN 0 1 0 0 0 0 0 1 0 
+state.S_GET_DATA 1 0 0 0 0 0 0 1 0 
+state.S_WAIT_NL 0 0 0 0 0 0 0 1 1 
+
+State Machine - |UART_Server|ipd_parser:u_ipd_parser|rx_state
+Name rx_state.RX_IDLE rx_state.RX_STOP rx_state.RX_DATA 
+rx_state.RX_IDLE 0 0 0 
+rx_state.RX_DATA 1 0 1 
+rx_state.RX_STOP 1 1 0 
+
 State Machine - |UART_Server|uart_rx_string:uart_rx_u1|state
 Name state.S_IDLE state.S_STOP state.S_DATA 
 state.S_IDLE 0 0 0 

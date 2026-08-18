@@ -1,0 +1,47 @@
+
+State Machine - |UART_Server|cmd_step
+Name cmd_step.1110 cmd_step.1101 cmd_step.1100 cmd_step.1011 cmd_step.1010 cmd_step.1001 cmd_step.1000 cmd_step.0111 cmd_step.0110 cmd_step.0101 cmd_step.0100 cmd_step.0011 cmd_step.0010 cmd_step.0001 cmd_step.0000 
+cmd_step.0000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+cmd_step.0001 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 
+cmd_step.0010 0 0 0 0 0 0 0 0 0 0 0 0 1 0 1 
+cmd_step.0011 0 0 0 0 0 0 0 0 0 0 0 1 0 0 1 
+cmd_step.0100 0 0 0 0 0 0 0 0 0 0 1 0 0 0 1 
+cmd_step.0101 0 0 0 0 0 0 0 0 0 1 0 0 0 0 1 
+cmd_step.0110 0 0 0 0 0 0 0 0 1 0 0 0 0 0 1 
+cmd_step.0111 0 0 0 0 0 0 0 1 0 0 0 0 0 0 1 
+cmd_step.1000 0 0 0 0 0 0 1 0 0 0 0 0 0 0 1 
+cmd_step.1001 0 0 0 0 0 1 0 0 0 0 0 0 0 0 1 
+cmd_step.1010 0 0 0 0 1 0 0 0 0 0 0 0 0 0 1 
+cmd_step.1011 0 0 0 1 0 0 0 0 0 0 0 0 0 0 1 
+cmd_step.1100 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1 
+cmd_step.1101 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1 
+cmd_step.1110 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 
+
+State Machine - |UART_Server|uart_rx_string:u_uart_rx|ipd_step
+Name ipd_step.11 ipd_step.10 ipd_step.01 ipd_step.00 
+ipd_step.00 0 0 0 0 
+ipd_step.01 0 0 1 1 
+ipd_step.10 0 1 0 1 
+ipd_step.11 1 0 0 1 
+
+State Machine - |UART_Server|uart_rx_string:u_uart_rx|parse_state
+Name parse_state.S_PARSE_LEN parse_state.S_PARSE_ID parse_state.S_MATCH_IPD parse_state.S_SEARCH_PLUS parse_state.S_RECV_DATA 
+parse_state.S_SEARCH_PLUS 0 0 0 0 0 
+parse_state.S_MATCH_IPD 0 0 1 1 0 
+parse_state.S_PARSE_ID 0 1 0 1 0 
+parse_state.S_PARSE_LEN 1 0 0 1 0 
+parse_state.S_RECV_DATA 0 0 0 1 1 
+
+State Machine - |UART_Server|uart_rx_string:u_uart_rx|rx_state
+Name rx_state.RX_STOP rx_state.RX_DATA rx_state.RX_START rx_state.RX_IDLE 
+rx_state.RX_IDLE 0 0 0 0 
+rx_state.RX_START 0 0 1 1 
+rx_state.RX_DATA 0 1 0 1 
+rx_state.RX_STOP 1 0 0 1 
+
+State Machine - |UART_Server|uart_tx_string:uart_tx_u1|state
+Name state.S_STOP state.S_DATA state.S_START state.S_IDLE 
+state.S_IDLE 0 0 0 0 
+state.S_START 0 0 1 1 
+state.S_DATA 0 1 0 1 
+state.S_STOP 1 0 0 1 

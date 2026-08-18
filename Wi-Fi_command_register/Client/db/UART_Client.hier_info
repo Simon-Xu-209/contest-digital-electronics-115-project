@@ -1,14 +1,12 @@
 |UART_Client
-clk => clk.IN4
+clk => clk.IN6
 rst_n => rst_n.IN3
-kcol[1] => kcol[1].IN1
-kcol[2] => kcol[2].IN1
-kcol[3] => kcol[3].IN1
-kcol[4] => kcol[4].IN1
-krow[1] << mod_button:u_button.krow
-krow[2] << mod_button:u_button.krow
-krow[3] << mod_button:u_button.krow
-krow[4] << mod_button:u_button.krow
+column[0] => column[0].IN1
+column[1] => column[1].IN1
+column[2] => column[2].IN1
+row[0] << button_3x3:u_button_3x3.row
+row[1] << button_3x3:u_button_3x3.row
+row[2] << button_3x3:u_button_3x3.row
 rx => rx.IN1
 tx << uart_tx_string:u_tx.tx
 Client_WiFi_txd << rx.DB_MAX_OUTPUT_PORT_TYPE
@@ -2702,7 +2700,7 @@ tx_busy <= tx_busy~reg0.DB_MAX_OUTPUT_PORT_TYPE
 cmd_done <= cmd_done~reg0.DB_MAX_OUTPUT_PORT_TYPE
 
 
-|UART_Client|mod_button:u_button
+|UART_Client|button_2x2:u_button_2x2
 clk => clk_cnt[0].CLK
 clk => clk_cnt[1].CLK
 clk => clk_cnt[2].CLK
@@ -2722,32 +2720,117 @@ clk => clk_cnt[15].CLK
 clk => clk_cnt[16].CLK
 clk => clk_cnt[17].CLK
 clk => clk_cnt[18].CLK
-kcol[1] => Decoder0.IN3
-kcol[1] => Mux0.IN7
-kcol[1] => Mux1.IN7
-kcol[1] => Equal0.IN3
-kcol[2] => Decoder0.IN2
-kcol[2] => Mux0.IN6
-kcol[2] => Mux1.IN6
-kcol[2] => Equal0.IN2
-kcol[3] => Decoder0.IN1
-kcol[3] => Mux0.IN5
-kcol[3] => Mux1.IN5
-kcol[3] => Equal0.IN1
-kcol[4] => Decoder0.IN0
-kcol[4] => Mux0.IN4
-kcol[4] => Mux1.IN4
-kcol[4] => Equal0.IN0
-krow[1] <= krow[1]~reg0.DB_MAX_OUTPUT_PORT_TYPE
-krow[2] <= krow[2]~reg0.DB_MAX_OUTPUT_PORT_TYPE
-krow[3] <= krow[3]~reg0.DB_MAX_OUTPUT_PORT_TYPE
-krow[4] <= krow[4]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+column[0] => Equal2.IN3
+column[0] => Equal3.IN3
+column[0] => Equal0.IN1
+column[1] => Equal2.IN2
+column[1] => Equal3.IN2
+column[1] => Equal0.IN0
+row[0] <= row[0]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+row[1] <= row[1]~reg0.DB_MAX_OUTPUT_PORT_TYPE
 key[0] <= key[0]~reg0.DB_MAX_OUTPUT_PORT_TYPE
 key[1] <= key[1]~reg0.DB_MAX_OUTPUT_PORT_TYPE
 key[2] <= key[2]~reg0.DB_MAX_OUTPUT_PORT_TYPE
 key[3] <= key[3]~reg0.DB_MAX_OUTPUT_PORT_TYPE
 key[4] <= key[4]~reg0.DB_MAX_OUTPUT_PORT_TYPE
-t <= t~reg0.DB_MAX_OUTPUT_PORT_TYPE
+pressed <= pressed~reg0.DB_MAX_OUTPUT_PORT_TYPE
+
+
+|UART_Client|button_3x3:u_button_3x3
+clk => clk_cnt[0].CLK
+clk => clk_cnt[1].CLK
+clk => clk_cnt[2].CLK
+clk => clk_cnt[3].CLK
+clk => clk_cnt[4].CLK
+clk => clk_cnt[5].CLK
+clk => clk_cnt[6].CLK
+clk => clk_cnt[7].CLK
+clk => clk_cnt[8].CLK
+clk => clk_cnt[9].CLK
+clk => clk_cnt[10].CLK
+clk => clk_cnt[11].CLK
+clk => clk_cnt[12].CLK
+clk => clk_cnt[13].CLK
+clk => clk_cnt[14].CLK
+clk => clk_cnt[15].CLK
+clk => clk_cnt[16].CLK
+clk => clk_cnt[17].CLK
+clk => clk_cnt[18].CLK
+column[0] => Mux0.IN5
+column[0] => Mux1.IN5
+column[0] => Mux2.IN5
+column[0] => Mux3.IN5
+column[0] => Mux4.IN3
+column[0] => Equal0.IN2
+column[1] => Mux0.IN4
+column[1] => Mux1.IN4
+column[1] => Mux2.IN4
+column[1] => Mux3.IN4
+column[1] => Mux4.IN2
+column[1] => Equal0.IN1
+column[2] => Mux0.IN3
+column[2] => Mux1.IN3
+column[2] => Mux2.IN3
+column[2] => Mux3.IN3
+column[2] => Mux4.IN1
+column[2] => Equal0.IN0
+row[0] <= row[0]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+row[1] <= row[1]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+row[2] <= row[2]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+key[0] <= key[0]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+key[1] <= key[1]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+key[2] <= key[2]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+key[3] <= key[3]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+key[4] <= key[4]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+pressed <= pressed~reg0.DB_MAX_OUTPUT_PORT_TYPE
+
+
+|UART_Client|button_4x4:u_button_4x4
+clk => clk_cnt[0].CLK
+clk => clk_cnt[1].CLK
+clk => clk_cnt[2].CLK
+clk => clk_cnt[3].CLK
+clk => clk_cnt[4].CLK
+clk => clk_cnt[5].CLK
+clk => clk_cnt[6].CLK
+clk => clk_cnt[7].CLK
+clk => clk_cnt[8].CLK
+clk => clk_cnt[9].CLK
+clk => clk_cnt[10].CLK
+clk => clk_cnt[11].CLK
+clk => clk_cnt[12].CLK
+clk => clk_cnt[13].CLK
+clk => clk_cnt[14].CLK
+clk => clk_cnt[15].CLK
+clk => clk_cnt[16].CLK
+clk => clk_cnt[17].CLK
+clk => clk_cnt[18].CLK
+column[0] => Decoder0.IN3
+column[0] => Mux0.IN7
+column[0] => Mux1.IN7
+column[0] => Equal0.IN3
+column[1] => Decoder0.IN2
+column[1] => Mux0.IN6
+column[1] => Mux1.IN6
+column[1] => Equal0.IN2
+column[2] => Decoder0.IN1
+column[2] => Mux0.IN5
+column[2] => Mux1.IN5
+column[2] => Equal0.IN1
+column[3] => Decoder0.IN0
+column[3] => Mux0.IN4
+column[3] => Mux1.IN4
+column[3] => Equal0.IN0
+row[0] <= row[0]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+row[1] <= row[1]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+row[2] <= row[2]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+row[3] <= row[3]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+key[0] <= key[0]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+key[1] <= key[1]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+key[2] <= key[2]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+key[3] <= key[3]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+key[4] <= key[4]~reg0.DB_MAX_OUTPUT_PORT_TYPE
+pressed <= pressed~reg0.DB_MAX_OUTPUT_PORT_TYPE
 
 
 |UART_Client|uart_rx:u_rx

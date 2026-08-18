@@ -37,7 +37,7 @@
 
 
 set_global_assignment -name FAMILY "Cyclone III"
-set_global_assignment -name DEVICE EP3C16Q240C8
+set_global_assignment -name DEVICE EP3C40Q240C8
 set_global_assignment -name TOP_LEVEL_ENTITY UART_Server
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 13.1
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "08:57:38  AUGUST 11, 2026"
@@ -46,7 +46,6 @@ set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
-set_global_assignment -name NOMINAL_CORE_SUPPLY_VOLTAGE 1.2V
 set_global_assignment -name EDA_SIMULATION_TOOL "ModelSim-Altera (VHDL)"
 set_global_assignment -name EDA_OUTPUT_DATA_FORMAT VHDL -section_id eda_simulation
 set_global_assignment -name VERILOG_FILE UART_Server.v
@@ -57,18 +56,31 @@ set_global_assignment -name VERILOG_FILE uart_tx_string.v
 set_global_assignment -name VERILOG_FILE uart_rx_string.v
 set_global_assignment -name VERILOG_FILE mode_LED.v
 set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
-set_location_assignment PIN_166 -to tx
-set_location_assignment PIN_164 -to rx
-set_location_assignment PIN_161 -to RST_WiFi
-set_location_assignment PIN_142 -to LED[7]
-set_location_assignment PIN_139 -to LED[6]
-set_location_assignment PIN_137 -to LED[5]
-set_location_assignment PIN_135 -to LED[4]
-set_location_assignment PIN_134 -to LED[3]
-set_location_assignment PIN_133 -to LED[2]
-set_location_assignment PIN_132 -to LED[1]
-set_location_assignment PIN_131 -to LED[0]
+set_location_assignment PIN_164 -to tx
+set_location_assignment PIN_161 -to rx
+set_location_assignment PIN_160 -to RST_WiFi
 set_location_assignment PIN_149 -to clk
-set_location_assignment PIN_167 -to Server_WiFi_txd
+set_location_assignment PIN_166 -to Server_WiFi_txd
 set_location_assignment PIN_145 -to rst_n
+set_global_assignment -name VERILOG_FILE seven_segment_display.v
+set_location_assignment PIN_232 -to seg_com[7]
+set_location_assignment PIN_236 -to seg_com[6]
+set_location_assignment PIN_240 -to seg_com[5]
+set_location_assignment PIN_9 -to seg_com[4]
+set_location_assignment PIN_18 -to seg_com[3]
+set_location_assignment PIN_22 -to seg_com[2]
+set_location_assignment PIN_38 -to seg_com[1]
+set_location_assignment PIN_41 -to seg_com[0]
+set_location_assignment PIN_39 -to seg_data[7]
+set_location_assignment PIN_37 -to seg_data[6]
+set_location_assignment PIN_21 -to seg_data[5]
+set_location_assignment PIN_13 -to seg_data[4]
+set_location_assignment PIN_6 -to seg_data[3]
+set_location_assignment PIN_239 -to seg_data[2]
+set_location_assignment PIN_235 -to seg_data[1]
+set_location_assignment PIN_231 -to seg_data[0]
+set_global_assignment -name VERILOG_FILE ipd_parser.v
+set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
