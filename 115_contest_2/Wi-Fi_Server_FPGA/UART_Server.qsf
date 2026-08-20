@@ -108,4 +108,6 @@ set_location_assignment PIN_83 -to switch_8bit[3]
 set_location_assignment PIN_81 -to switch_8bit[2]
 set_location_assignment PIN_78 -to switch_8bit[1]
 set_location_assignment PIN_73 -to switch_8bit[0]
+set_global_assignment -name VERILOG_FILE connect_detector.v
+set_global_assignment -name VERILOG_FILE tx_buffer_controller.v
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

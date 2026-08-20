@@ -17,6 +17,28 @@ cmd_step.1100 0 0 1 0 0 0 0 0 0 0 0 0 0 0 1
 cmd_step.1101 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1 
 cmd_step.1110 1 0 0 0 0 0 0 0 0 0 0 0 0 0 1 
 
+State Machine - |UART_Server|connect_detector:u_connect_detector|parse_state
+Name parse_state.ST_ED parse_state.ST_S parse_state.ST_L parse_state.ST_T parse_state.ST_C2 parse_state.ST_E parse_state.ST_N2 parse_state.ST_N1 parse_state.ST_O parse_state.ST_C parse_state.ST_COMMA parse_state.ST_IDLE 
+parse_state.ST_IDLE 0 0 0 0 0 0 0 0 0 0 0 0 
+parse_state.ST_COMMA 0 0 0 0 0 0 0 0 0 0 1 1 
+parse_state.ST_C 0 0 0 0 0 0 0 0 0 1 0 1 
+parse_state.ST_O 0 0 0 0 0 0 0 0 1 0 0 1 
+parse_state.ST_N1 0 0 0 0 0 0 0 1 0 0 0 1 
+parse_state.ST_N2 0 0 0 0 0 0 1 0 0 0 0 1 
+parse_state.ST_E 0 0 0 0 0 1 0 0 0 0 0 1 
+parse_state.ST_C2 0 0 0 0 1 0 0 0 0 0 0 1 
+parse_state.ST_T 0 0 0 1 0 0 0 0 0 0 0 1 
+parse_state.ST_L 0 0 1 0 0 0 0 0 0 0 0 1 
+parse_state.ST_S 0 1 0 0 0 0 0 0 0 0 0 1 
+parse_state.ST_ED 1 0 0 0 0 0 0 0 0 0 0 1 
+
+State Machine - |UART_Server|connect_detector:u_connect_detector|rx_state
+Name rx_state.S_STOP rx_state.S_DATA rx_state.S_START rx_state.S_IDLE 
+rx_state.S_IDLE 0 0 0 0 
+rx_state.S_START 0 0 1 1 
+rx_state.S_DATA 0 1 0 1 
+rx_state.S_STOP 1 0 0 1 
+
 State Machine - |UART_Server|uart_rx_string:u_uart_rx|ipd_step
 Name ipd_step.11 ipd_step.10 ipd_step.01 ipd_step.00 
 ipd_step.00 0 0 0 0 
@@ -38,6 +60,12 @@ rx_state.RX_IDLE 0 0 0 0
 rx_state.RX_START 0 0 1 1 
 rx_state.RX_DATA 0 1 0 1 
 rx_state.RX_STOP 1 0 0 1 
+
+State Machine - |UART_Server|tx_buffer_controller:u_tx_buffer_ctrl|state
+Name state.S_WAIT_CIPSEND state.S_IDLE state.S_SEND_PAYLOAD 
+state.S_IDLE 0 0 0 
+state.S_WAIT_CIPSEND 1 1 0 
+state.S_SEND_PAYLOAD 0 1 1 
 
 State Machine - |UART_Server|uart_tx_string:uart_tx_u1|state
 Name state.S_STOP state.S_DATA state.S_START state.S_IDLE 

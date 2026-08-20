@@ -1,38 +1,4 @@
 
-State Machine - |top|UART_Server:inst6|mode_LED:mode_LED_u1|state_recv
-Name state_recv.0101 state_recv.0100 state_recv.0011 state_recv.0010 state_recv.0001 state_recv.0000 
-state_recv.0000 0 0 0 0 0 0 
-state_recv.0001 0 0 0 0 1 1 
-state_recv.0010 0 0 0 1 0 1 
-state_recv.0011 0 0 1 0 0 1 
-state_recv.0100 0 1 0 0 0 1 
-state_recv.0101 1 0 0 0 0 1 
-
-State Machine - |top|UART_Server:inst6|receiver_OK_ser:receiver_OK_ser_u1|state
-Name state.011 state.010 state.001 state.000 
-state.000 0 0 0 0 
-state.001 0 0 1 1 
-state.010 0 1 0 1 
-state.011 1 0 0 1 
-
-State Machine - |top|UART_Server:inst6|uart_rx1:uart_rx_u1|stage_rx
-Name stage_rx.START stage_rx.STOP stage_rx.RECEIVE_DATA 
-stage_rx.START 0 0 0 
-stage_rx.RECEIVE_DATA 1 0 1 
-stage_rx.STOP 1 1 0 
-
-State Machine - |top|UART_Server:inst6|uart_tx1:uart_tx_u1|stage_tx
-Name stage_tx.STOP stage_tx.SEND_DATA stage_tx.START stage_tx.IDLE 
-stage_tx.IDLE 0 0 0 0 
-stage_tx.START 0 0 1 1 
-stage_tx.SEND_DATA 0 1 0 1 
-stage_tx.STOP 1 0 0 1 
-
-State Machine - |top|UART_Server:inst6|uart_tx1:uart_tx_u1|ROM
-Name ROM.10100000 
-ROM.00000000 0 
-ROM.10100000 1 
-
 State Machine - |top|Joystick_top:inst1|ads1115_control:u_adc|current_state
 Name current_state.STATE_READ_CH1 current_state.STATE_WAIT_CH1 current_state.STATE_WRITE_CH1 current_state.STATE_READ_CH0 current_state.STATE_WAIT_CH0 current_state.STATE_WRITE_CH0 current_state.STATE_IDLE 
 current_state.STATE_IDLE 0 0 0 0 0 0 0 
@@ -76,6 +42,40 @@ Name sys_mode.MODE_CLEAR sys_mode.MODE_CONTROL sys_mode.MODE_ANIMATION
 sys_mode.MODE_CLEAR 0 0 0 
 sys_mode.MODE_ANIMATION 1 0 1 
 sys_mode.MODE_CONTROL 1 1 0 
+
+State Machine - |top|UART_Server:inst6|mode_LED:mode_LED_u1|state_recv
+Name state_recv.0101 state_recv.0100 state_recv.0011 state_recv.0010 state_recv.0001 state_recv.0000 
+state_recv.0000 0 0 0 0 0 0 
+state_recv.0001 0 0 0 0 1 1 
+state_recv.0010 0 0 0 1 0 1 
+state_recv.0011 0 0 1 0 0 1 
+state_recv.0100 0 1 0 0 0 1 
+state_recv.0101 1 0 0 0 0 1 
+
+State Machine - |top|UART_Server:inst6|receiver_OK_ser:receiver_OK_ser_u1|state
+Name state.011 state.010 state.001 state.000 
+state.000 0 0 0 0 
+state.001 0 0 1 1 
+state.010 0 1 0 1 
+state.011 1 0 0 1 
+
+State Machine - |top|UART_Server:inst6|uart_rx1:uart_rx_u1|stage_rx
+Name stage_rx.START stage_rx.STOP stage_rx.RECEIVE_DATA 
+stage_rx.START 0 0 0 
+stage_rx.RECEIVE_DATA 1 0 1 
+stage_rx.STOP 1 1 0 
+
+State Machine - |top|UART_Server:inst6|uart_tx1:uart_tx_u1|stage_tx
+Name stage_tx.STOP stage_tx.SEND_DATA stage_tx.START stage_tx.IDLE 
+stage_tx.IDLE 0 0 0 0 
+stage_tx.START 0 0 1 1 
+stage_tx.SEND_DATA 0 1 0 1 
+stage_tx.STOP 1 0 0 1 
+
+State Machine - |top|UART_Server:inst6|uart_tx1:uart_tx_u1|ROM
+Name ROM.10100000 
+ROM.00000000 0 
+ROM.10100000 1 
 
 State Machine - |top|TFT_LCD:inst4|clk_div
 Name clk_div.0001 

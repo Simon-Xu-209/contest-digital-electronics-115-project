@@ -24,7 +24,7 @@ endgenerate
 
 reg [31:0] orderID_reg;
 integer i;
-always @(*) begin
+always @(posedge clk) begin
 	orderID_reg = 32'd0; // 預設值（防止產生 Latch）
 	for (i = 6; i < MAX_RX_LEN; i = i + 1) begin
 		if ((bytes[i] == "I") && (bytes[i-1] == "D") && (bytes[i-2] == ":")) begin

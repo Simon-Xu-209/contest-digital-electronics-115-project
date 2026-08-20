@@ -87,11 +87,43 @@ uart_tx_string #(
 ) uart_tx_u1 (
 	.clk     (clk),
 	.rst_n   (rst_n),
-	.tx_start(tx_start),
-	.tx_cmd  (tx_cmd_mux),
+	.tx_start(final_tx_start),
+	.tx_cmd  (final_tx_cmd),
 	.tx      (tx),
 	.tx_busy (tx_busy),
 	.cmd_done(cmd_done)
+);
+
+// 初始化未完成時，聽開機狀態機 (current_cmd / tx_start)
+// 初始化完成後，聽暫存控制器 (tx_data_reg / tx_reg_flag)
+wire [8*MAX_CMD_LEN-1:0] final_tx_cmd   = init_done ? tx_data_reg : current_cmd;
+wire                     final_tx_start = init_done ? tx_reg_flag : tx_start;
+
+// 宣告控制訊號
+wire                     ctrl_tx_start;
+wire [8*MAX_CMD_LEN-1:0] ctrl_tx_cmd;
+wire                     tx_reg_busy;
+wire                     tx_reg_flag;
+wire [8*MAX_CMD_LEN-1:0] tx_data_reg;
+
+// 實體化傳送暫存器控制器
+tx_buffer_controller #(
+	.MAX_BYTES(MAX_CMD_LEN)
+) u_tx_buffer_ctrl (
+	.clk          (clk),
+	.rst_n        (rst_n),
+	
+	// --- 外包介面：直連 connect_detector 或其他外設 ---
+	.send_req     (client_connected), // 當偵測到新連線時驅動一次
+	.target_id    (client_id),        // connect_detector 解析到的 ID (0~4)
+	.payload_len  (8'd9),             // "WELCOME\r\n" 長度為 9 位元組
+	.payload_data ("WELCOME\r\n"),     // 欲發送的內容
+	
+	// --- 狀態與對接介面 ---
+	.tx_reg_busy  (tx_reg_busy),
+	.uart_tx_start(ctrl_tx_start),    // 輸出至 final_tx_start
+	.uart_tx_cmd  (ctrl_tx_cmd),      // 輸出至 final_tx_cmd
+	.cmd_done     (cmd_done)          // 接收 UART 傳送完畢訊號
 );
 
 wire rx_ready;
@@ -167,6 +199,24 @@ always @(posedge clk or negedge rst_n) begin
 		end
 	end
 end
+
+wire [3:0] client_id;
+wire       client_connected;
+wire       client_closed;
+
+connect_detector #(
+	.CLK_FREQ(50_000_000),
+	.BAUD_RATE(115200)
+) u_connect_detector (
+	.clk             (clk),
+	.rst_n           (rst_n),
+	.rx              (rx_sync2),
+	.init_done       (init_done),
+	.client_id       (client_id),
+	.client_connected(client_connected), // 連線脈衝
+	.client_closed   (client_closed)     // 斷線脈衝
+);
+
 
 
 wire [31:0] orderID;       // 訂單 ID
