@@ -4,7 +4,7 @@ JedecChain;
 	DefaultMfr(6E);
 
 	P ActionCode(Cfg)
-		Device PartName(EP3C40Q240) Path("C:/Users/student/Desktop/WS2812/output_files/") File("WS2812.sof") MfrSpec(OpMask(1));
+		Device PartName(EP3C40Q240) Path("C:/Users/adminuser/Desktop/115 project/WS2812/output_files/") File("WS2812.sof") MfrSpec(OpMask(1));
 
 ChainEnd;
 
