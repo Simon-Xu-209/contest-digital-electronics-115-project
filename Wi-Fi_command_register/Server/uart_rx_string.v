@@ -1,154 +1,174 @@
 module uart_rx_string #(
-    parameter MAX_BYTES = 32,               // 接收 Buffer 最大位元組數 (32 Byte)
-    parameter CLK_FREQ  = 50_000_000,
-    parameter BAUD_RATE = 115200
+	parameter MAX_BYTES = 32,
+	parameter CLK_FREQ  = 50_000_000,
+	parameter BAUD_RATE = 115200
 )(
-    input  wire                   clk,
-    input  wire                   rst_n,
-    input  wire                   rx,
-    output reg [8*MAX_BYTES-1:0]  rx_buf,    // 對外輸出的平坦化 256-bit 向量
-    output reg                    rx_ready,  // 資料接收完整旗標 (收到 '\n' 亮起 1 個週期)
-    output reg                    buf_busy   // 1: 正在寫入 Buffer 中，禁止外部讀取
+	input  wire                   clk,
+	input  wire                   rst_n,
+	input  wire                   rx,
+	output reg  [3:0]             link_ID,         // Wi-Fi 連線 ID
+	output reg  [15:0]            rx_Data_len,     // 資料位元組長度
+	output reg  [8*MAX_BYTES-1:0] rx_Data_reg,     // 傳輸資料本身 (Payload)
+	output reg                    rx_ready,        // 接收完成脈衝
+	output reg                    Data_reg_busy    // 接收中旗標
 );
 
-localparam DIV_NUM = CLK_FREQ / BAUD_RATE;
+// =========================================================
+// 1. UART 核心採樣引擎
+// =========================================================
+localparam SAMPLE_TICKS = CLK_FREQ / BAUD_RATE;
 
-// 同步化去除亞穩態 (Metastability)
-reg rx_sync0, rx_sync1;
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) 
-        {rx_sync1, rx_sync0} <= 2'b11;
-    else        
-        {rx_sync1, rx_sync0} <= {rx_sync0, rx};
-end
+reg [15:0] cnt;
+reg [3:0]  bit_cnt;
+reg [7:0]  rdata;
+reg [1:0]  rx_state;
+reg        rx_done;
+reg [7:0]  rx_byte;
 
-wire fall_edge = (rx_sync1 == 1'b1 && rx_sync0 == 1'b0); // 檢測 Start bit 下降沿
-
-// 波特率計數器
-reg [15:0] baud_cnt;
-reg        rx_busy;
-wire       sample_tick = (baud_cnt == DIV_NUM / 2);     // 在 Bit 中間點採樣
-wire       baud_tick   = (baud_cnt == DIV_NUM - 1);
-
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) 
-        baud_cnt <= 16'd0;
-    else if (rx_busy) begin
-        if (baud_tick) 
-            baud_cnt <= 16'd0;
-        else 
-            baud_cnt <= baud_cnt + 1'b1;
-    end else 
-        baud_cnt <= 16'd0;
-end
-
-// 接收 FSM 狀態機
-localparam S_IDLE = 2'd0, 
-           S_DATA = 2'd1, 
-           S_STOP = 2'd2;
-
-reg [1:0] state;
-reg [2:0] bit_idx;
-reg [7:0] rx_byte;
-reg [7:0] byte_cnt; // 計算目前寫入至第幾個 Byte
-
-// 一維陣列：共 MAX_BYTES 個 Byte，每個 Byte 寬度為 8-bit
-// rx_array[0] 儲存字串的第一個字元 (最高位字元)
-reg [7:0] rx_array [0:MAX_BYTES-1];
-
-// 逾時計數器 (防卡死: 放寬至約 50ms 無新 byte 才釋放 busy)
-reg [22:0] timeout_cnt;
-
-integer i;
+localparam RX_IDLE  = 2'd0,
+           RX_START = 2'd1,
+           RX_DATA  = 2'd2,
+           RX_STOP  = 2'd3;
 
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        state       <= S_IDLE;
-        rx_busy     <= 1'b0;
-        rx_ready    <= 1'b0;
-        buf_busy    <= 1'b0;
-        bit_idx     <= 3'd0;
-        byte_cnt    <= 8'd0;
-        rx_byte     <= 8'd0;
-        timeout_cnt <= 23'd0;
-        rx_buf      <= {8*MAX_BYTES{1'b0}};
-
-        for (i = 0; i < MAX_BYTES; i = i + 1) begin
-            rx_array[i] <= 8'h00;
-        end
+        cnt      <= 16'd0;
+        bit_cnt  <= 4'd0;
+        rdata    <= 8'd0;
+        rx_done  <= 1'b0;
+        rx_state <= RX_IDLE;
+        rx_byte  <= 8'd0;
     end else begin
-        rx_ready <= 1'b0; // 預設拉低 ready 脈衝
-
-        // 防護機制：非接收期間停滯超過 50ms 強制解鎖
-        if (buf_busy && !rx_busy) begin
-            if (timeout_cnt < 23'd2_500_000)
-                timeout_cnt <= timeout_cnt + 1'b1;
-            else begin
-                buf_busy    <= 1'b0;
-                timeout_cnt <= 23'd0;
-            end
-        end else begin
-            timeout_cnt <= 23'd0;
-        end
-
-        case (state)
-            S_IDLE: begin
-                if (fall_edge) begin
-                    rx_busy <= 1'b1;
-                    state   <= S_DATA;
-                    bit_idx <= 3'd0;
-
-                    // 當開啟新傳輸時，清空陣列與對外 Buffer
-                    if (!buf_busy) begin
-                        byte_cnt <= 8'd0;
-                        buf_busy <= 1'b1;
-                        rx_buf   <= {8*MAX_BYTES{1'b0}};
-                        for (i = 0; i < MAX_BYTES; i = i + 1) begin
-                            rx_array[i] <= 8'h00;
-                        end
-                    end
+        rx_done <= 1'b0;
+        case (rx_state)
+            RX_IDLE: begin
+                if (!rx) begin
+                    rx_state <= RX_START;
+                    cnt      <= SAMPLE_TICKS / 2;
                 end
             end
-
-            S_DATA: begin
-                if (sample_tick) begin
-                    rx_byte[bit_idx] <= rx_sync1;
-                end
-                
-                if (baud_tick) begin
-                    if (bit_idx == 3'd7) begin
-                        state <= S_STOP;
-                    end else begin
-                        bit_idx <= bit_idx + 1'b1;
-                    end
-                end
+            RX_START: begin
+                if (cnt == SAMPLE_TICKS - 1) begin
+                    cnt      <= 16'd0;
+                    bit_cnt  <= 4'd0;
+                    rx_state <= RX_DATA;
+                end else cnt <= cnt + 1'b1;
             end
-
-            S_STOP: begin
-                if (baud_tick) begin
-                    rx_busy <= 1'b0;
-                    state   <= S_IDLE;
-
-                    // 1. 寫入一維陣列 (索引從 0 開始，依序往後儲存)
-                    if (byte_cnt < MAX_BYTES) begin
-                        rx_array[byte_cnt] <= rx_byte;
-
-                        // 2. 同步將字元寫入對外 Port (rx_buf) 的高位元處 (MSB -> LSB)
-                        rx_buf[8*(MAX_BYTES - byte_cnt) - 1 -: 8] <= rx_byte;
-
-                        byte_cnt <= byte_cnt + 1'b1;
-                    end
-
-                    // 3. 收到 '\n' (0x0A) 或 陣列溢位時結束寫入
-                    if (rx_byte == 8'h0A || byte_cnt + 1'b1 >= MAX_BYTES) begin
-                        rx_ready <= 1'b1;
-                        buf_busy <= 1'b0;
-                    end
-                end
+            RX_DATA: begin
+                if (cnt == SAMPLE_TICKS - 1) begin
+                    cnt            <= 16'd0;
+                    rdata[bit_cnt] <= rx;
+                    bit_cnt        <= bit_cnt + 1'b1;
+                    if (bit_cnt == 4'd7)
+                        rx_state <= RX_STOP;
+                end else cnt <= cnt + 1'b1;
             end
-
-            default: state <= S_IDLE;
+            RX_STOP: begin
+                if (cnt == SAMPLE_TICKS - 1) begin
+                    cnt      <= 16'd0;
+                    rx_byte  <= rdata;
+                    rx_done  <= 1'b1;
+                    rx_state <= RX_IDLE;
+                end else cnt <= cnt + 1'b1;
+            end
+            default: rx_state <= RX_IDLE;
         endcase
+    end
+end
+
+// =========================================================
+// 2. 嚴謹的 IPD 狀態機
+// =========================================================
+localparam S_SEARCH_PLUS = 3'd0,
+           S_MATCH_IPD   = 3'd1,
+           S_PARSE_ID    = 3'd2,
+           S_PARSE_LEN   = 3'd3,
+           S_RECV_DATA   = 3'd4;
+
+reg [2:0]  parse_state;
+reg [1:0]  ipd_step;
+reg [15:0] data_cnt;
+
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        parse_state     <= S_SEARCH_PLUS;
+        ipd_step        <= 2'd0;
+        link_ID         <= 4'd0;
+        rx_Data_len     <= 16'd0;
+        rx_Data_reg     <= {8*MAX_BYTES{1'b0}};
+        data_cnt        <= 16'd0;
+        rx_ready        <= 1'b0;
+        Data_reg_busy   <= 1'b0;
+    end else begin
+        rx_ready <= 1'b0;
+
+        if (rx_done) begin
+            case (parse_state)
+                S_SEARCH_PLUS: begin
+                    if (rx_byte == "+") begin
+                        Data_reg_busy <= 1'b1;
+                        ipd_step      <= 2'd0;
+                        parse_state   <= S_MATCH_IPD;
+                    end else begin
+                        Data_reg_busy <= 1'b0;
+                    end
+                end
+
+                S_MATCH_IPD: begin
+                    case (ipd_step)
+                        2'd0: if (rx_byte == "I") ipd_step <= 2'd1; else parse_state <= S_SEARCH_PLUS;
+                        2'd1: if (rx_byte == "P") ipd_step <= 2'd2; else parse_state <= S_SEARCH_PLUS;
+                        2'd2: if (rx_byte == "D") ipd_step <= 2'd3; else parse_state <= S_SEARCH_PLUS;
+                        2'd3: begin
+                            if (rx_byte == ",") begin
+                                link_ID     <= 4'd0;
+                                parse_state <= S_PARSE_ID;
+                            end else begin
+                                parse_state <= S_SEARCH_PLUS;
+                            end
+                        end
+                    endcase
+                end
+
+                S_PARSE_ID: begin
+                    if (rx_byte >= "0" && rx_byte <= "9") begin
+                        link_ID <= rx_byte - "0";
+                    end else if (rx_byte == ",") begin
+                        rx_Data_len <= 16'd0;
+                        parse_state <= S_PARSE_LEN;
+                    end else begin
+                        parse_state <= S_SEARCH_PLUS;
+                    end
+                end
+
+                S_PARSE_LEN: begin
+                    if (rx_byte >= "0" && rx_byte <= "9") begin
+                        rx_Data_len <= (rx_Data_len * 10) + (rx_byte - "0");
+                    end else if (rx_byte == ":") begin
+                        data_cnt <= 16'd0;
+                        rx_Data_reg <= {8*MAX_BYTES{1'b0}}; // 開始接收 Payload 前清空暫存器
+                        parse_state <= S_RECV_DATA;
+                    end else begin
+                        parse_state <= S_SEARCH_PLUS;
+                    end
+                end
+
+                S_RECV_DATA: begin
+                    // 採用左移方式依序存入，新資料始終落在最低位元 (LSB)
+                    rx_Data_reg <= {rx_Data_reg[8*(MAX_BYTES-1)-1:0], rx_byte};
+
+                    if (data_cnt + 1'b1 >= rx_Data_len || data_cnt + 1'b1 >= MAX_BYTES) begin
+                        rx_ready      <= 1'b1;
+                        Data_reg_busy <= 1'b0;
+                        parse_state   <= S_SEARCH_PLUS;
+                    end else begin
+                        data_cnt <= data_cnt + 1'b1;
+                    end
+                end
+
+                default: parse_state <= S_SEARCH_PLUS;
+            endcase
+        end
     end
 end
 

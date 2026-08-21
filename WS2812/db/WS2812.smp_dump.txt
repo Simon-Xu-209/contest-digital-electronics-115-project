@@ -1,0 +1,16 @@
+
+State Machine - |WS2812|draw_mode
+Name draw_mode.MODE_ANIMATION 
+draw_mode.MODE_CLEAR 0 
+draw_mode.MODE_ANIMATION 1 
+
+State Machine - |WS2812|state
+Name state.STATE_IDLE state.STATE_SEND state.STATE_RESET 
+state.STATE_IDLE 0 0 0 
+state.STATE_RESET 1 0 1 
+state.STATE_SEND 1 1 0 
+
+State Machine - |WS2812|sys_mode
+Name sys_mode.MODE_ANIMATION 
+sys_mode.MODE_CLEAR 0 
+sys_mode.MODE_ANIMATION 1 

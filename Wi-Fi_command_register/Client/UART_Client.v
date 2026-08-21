@@ -140,8 +140,8 @@ always @(posedge clk or negedge rst_n) begin
 			// 連接 WiFi (AT+CWJAP)
 			S_CWJAP: begin
 				if (!tx_busy && !tx_start) begin
-					current_cmd           <= "AT+CWJAP=\"ESP87\",\"048778414\"\r\n";
-					cmd_len               <= 6'd30;
+					current_cmd           <= "AT+CWJAP=\"WiFi_FPGA\",\"048778414\"\r\n";
+					cmd_len               <= 6'd34;
 					tx_start              <= 1'b1;
 					receive_ok_en         <= 1'b0; // 清除舊的 OK
 					delay_cnt             <= 28'd0;
@@ -251,7 +251,6 @@ uart_tx_string #(
 	.rst_n   (rst_n),
 	.tx_start(tx_start),
 	.tx_cmd  (current_cmd),
-	.cmd_len (cmd_len),
 	.tx      (tx),
 	.tx_busy (tx_busy),
 	.cmd_done(cmd_done)

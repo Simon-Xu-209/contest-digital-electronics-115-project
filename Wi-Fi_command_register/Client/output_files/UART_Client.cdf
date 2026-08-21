@@ -4,7 +4,7 @@ JedecChain;
 	DefaultMfr(6E);
 
 	P ActionCode(Cfg)
-		Device PartName(EP3C40Q240) Path("C:/Users/adminuser/Desktop/Wi-Fi_command_register/Client/output_files/") File("UART_Client.sof") MfrSpec(OpMask(1));
+		Device PartName(EP3C40Q240) Path("C:/Users/student/Desktop/115 Project/Wi-Fi_command_register/Client/output_files/") File("UART_Client.sof") MfrSpec(OpMask(1));
 
 ChainEnd;
 
