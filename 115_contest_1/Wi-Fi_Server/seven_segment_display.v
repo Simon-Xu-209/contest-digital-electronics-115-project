@@ -11,8 +11,10 @@ module seven_segment_display(
 	output reg [7:0] seg_com
 );
 
+/*
 reg [3:0] PB_buffer;
 reg [8:0] KEY_buffer;
+*/
 
 reg [25:0]Counter;
 always@(posedge ck) begin
@@ -26,22 +28,12 @@ always@(posedge ck or negedge rst_n) begin
 		for(i = 0;i < 8;i = i + 1) begin
 			seg_com_data[i] <= {1'b0, 7'b000_0000};
 		end
-		KEY_buffer <= 9'b0;
 	end else begin
-		if (KEY[0]) begin
-			KEY_buffer <= 9'b0_0000_0001;
-		end else if (KEY[1]) begin
-			KEY_buffer <= 9'b0_0000_0010;
-		end else if (KEY[2]) begin
-			KEY_buffer <= 9'b0_0000_0100;
-		end else if (KEY[3]) begin
-			KEY_buffer <= 9'b0_0000_1000;
-		end
 		if (switch_8bit == 8'b0_0_000_0_01) begin
 			for(i = 0;i < 8;i = i + 1) begin
 				seg_com_data[i] <= {1'b0, text[36]};
 			end
-			if (KEY_buffer[0]) begin
+			if (WiFi_signal == 16'd0) begin
 				seg_com_data[7] <= {1'b0, text[18]}; //I
 				seg_com_data[6] <= {1'b0, text[23]}; //N
 				seg_com_data[5] <= {1'b0, text[15]}; //F
@@ -50,7 +42,7 @@ always@(posedge ck or negedge rst_n) begin
 				seg_com_data[2] <= {1'b0, text[36]}; // 
 				seg_com_data[1] <= {1'b0, text[0]};  //0
 				seg_com_data[0] <= {1'b0, text[0]};  //0
-			end else if (KEY_buffer[1]) begin
+			end else if (WiFi_signal == 16'd1) begin
 				seg_com_data[7] <= {1'b0, text[18]}; //I
 				seg_com_data[6] <= {1'b0, text[23]}; //N
 				seg_com_data[5] <= {1'b0, text[15]}; //F
@@ -59,7 +51,7 @@ always@(posedge ck or negedge rst_n) begin
 				seg_com_data[2] <= {1'b0, text[36]}; // 
 				seg_com_data[1] <= {1'b0, text[0]};  //0
 				seg_com_data[0] <= {1'b0, text[1]};  //1
-			end else if (KEY_buffer[2]) begin
+			end else if (WiFi_signal == 16'd2) begin
 				seg_com_data[7] <= {1'b0, text[18]}; //I
 				seg_com_data[6] <= {1'b0, text[23]}; //N
 				seg_com_data[5] <= {1'b0, text[15]}; //F
@@ -68,7 +60,7 @@ always@(posedge ck or negedge rst_n) begin
 				seg_com_data[2] <= {1'b0, text[36]}; // 
 				seg_com_data[1] <= {1'b0, text[0]};  //0
 				seg_com_data[0] <= {1'b0, text[2]};  //2
-			end else if (KEY_buffer[3]) begin
+			end else if (WiFi_signal == 16'd3) begin
 				seg_com_data[7] <= {1'b0, text[18]}; //I
 				seg_com_data[6] <= {1'b0, text[23]}; //N
 				seg_com_data[5] <= {1'b0, text[15]}; //F

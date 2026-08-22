@@ -1,158 +1,89 @@
-module mode_LED(
-	input iCLK,RST_n,
-	input RECEIVE_END,
-	input [7:0] rxd,
-	input SEND_END_cmd,
-	output reg [7:0] LED,
-	output reg [15:0] LED_select
+module mode_LED #(
+    parameter MAX_RX_LEN = 32
+)(
+    input  wire                    clk,
+    input  wire                    rst_n,
+    input  wire                    RECEIVE_END,
+    input  wire                    Data_reg_busy,
+    input  wire [8*MAX_RX_LEN-1:0] rx_Data_reg,
+    input  wire                    SEND_END_cmd,
+    output reg  [7:0]              LED,
+    output reg  [15:0]             WiFi_signal
 );
 
-reg LED_en;
-reg [7:0] rx_reg;
-reg [3:0] state_recv;
+// =========================================================
+// 拆解 32 個 Byte (bytes[MAX_RX_LEN-1] 為最早收到的字元)
+// =========================================================
+wire [7:0] bytes[0:MAX_RX_LEN-1];
+genvar g;
+generate
+    for (g = 0; g < MAX_RX_LEN; g = g + 1) begin : BYTE_ASSIGN
+        assign bytes[g] = rx_Data_reg[8*g +: 8];
+    end
+endgenerate
 
-//輸出亮哪顆LED
-always@(posedge iCLK or negedge RST_n)
-begin
-	if(!RST_n)
-		begin
-			LED[0] <= 1'd0;	LED[1] <= 1'd0;
-			LED[2] <= 1'd0;	LED[3] <= 1'd0;
-			LED[4] <= 1'd0;	LED[5] <= 1'd0;
-			LED[6] <= 1'd0;	LED[7] <= 1'd0;
-		end
-	else
-		begin
-			case(LED_select)
-				4'd0: begin
-					LED[0] <= 1'd0;	LED[1] <= 1'd0;
-					LED[2] <= 1'd0;	LED[3] <= 1'd0;
-					LED[4] <= 1'd0;	LED[5] <= 1'd0;
-					LED[6] <= 1'd0;	LED[7] <= 1'd0;
-				end
-				4'd1: begin
-					LED[0] <= 1'd1;	LED[1] <= 1'd0;
-					LED[2] <= 1'd0;	LED[3] <= 1'd0;
-					LED[4] <= 1'd0;	LED[5] <= 1'd0;
-					LED[6] <= 1'd0;	LED[7] <= 1'd0;
-				end
-				4'd2: begin
-					LED[0] <= 1'd0;	LED[1] <= 1'd1;
-					LED[2] <= 1'd0;	LED[3] <= 1'd0;
-					LED[4] <= 1'd0;	LED[5] <= 1'd0;
-					LED[6] <= 1'd0;	LED[7] <= 1'd0;
-				end
-				4'd3: begin
-					LED[0] <= 1'd0;	LED[1] <= 1'd0;
-					LED[2] <= 1'd1;	LED[3] <= 1'd0;
-					LED[4] <= 1'd0;	LED[5] <= 1'd0;
-					LED[6] <= 1'd0;	LED[7] <= 1'd0;
-				end
-				4'd4: begin
-					LED[0] <= 1'd0;	LED[1] <= 1'd0;
-					LED[2] <= 1'd0;	LED[3] <= 1'd1;
-					LED[4] <= 1'd0;	LED[5] <= 1'd0;
-					LED[6] <= 1'd0;	LED[7] <= 1'd0;
-				end
-				4'd5: begin
-					LED[0] <= 1'd0;	LED[1] <= 1'd0;
-					LED[2] <= 1'd0;	LED[3] <= 1'd0;
-					LED[4] <= 1'd1;	LED[5] <= 1'd0;
-					LED[6] <= 1'd0;	LED[7] <= 1'd0;
-				end
-				4'd6: begin
-					LED[0] <= 1'd0;	LED[1] <= 1'd0;
-					LED[2] <= 1'd0;	LED[3] <= 1'd0;
-					LED[4] <= 1'd0;	LED[5] <= 1'd1;
-					LED[6] <= 1'd0;	LED[7] <= 1'd0;
-				end
-				4'd7: begin
-					LED[0] <= 1'd0;	LED[1] <= 1'd0;
-					LED[2] <= 1'd0;	LED[3] <= 1'd0;
-					LED[4] <= 1'd0;	LED[5] <= 1'd0;
-					LED[6] <= 1'd1;	LED[7] <= 1'd0;
-				end
-				default: begin
-					LED[0] <= 1'd0;	LED[1] <= 1'd0;
-					LED[2] <= 1'd0;	LED[3] <= 1'd0;
-					LED[4] <= 1'd0;	LED[5] <= 1'd0;
-					LED[6] <= 1'd0;	LED[7] <= 1'd0;
-				end
-			endcase
-		end
+// =========================================================
+// 全域平行比對 "Num:" 標頭
+// =========================================================
+wire [MAX_RX_LEN-1:0] match_num;
+
+generate
+    // 必須預留 4 個位元組讀取數值 (bytes[g-4])，故從 g = 4 開始比對
+    for (g = 4; g < MAX_RX_LEN; g = g + 1) begin : MATCH_GEN
+        assign match_num[g] = (bytes[g]   == "N") && 
+                              (bytes[g-1] == "u") && 
+                              (bytes[g-2] == "m") && 
+                              (bytes[g-3] == ":");
+    end
+    
+    // 邊界保護：低於 4 的索引不可能組成 "Num:" 後接數值
+    for (g = 0; g < 4; g = g + 1) begin : MATCH_ZERO
+        assign match_num[g] = 1'b0;
+    end
+endgenerate
+
+// =========================================================
+// 動態提取數值字元 (ASCII -> Hex 數值)
+// =========================================================
+reg [7:0] val_char;
+reg [15:0] detected_val;
+integer idx;
+
+always @(*) begin
+    val_char     = 8'h00;
+    detected_val = 16'hFFFF; // 預設無有效資料
+
+    if (|match_num) begin
+        // 從最舊的資料開始搜尋到最新的資料
+        for (idx = 4; idx < MAX_RX_LEN; idx = idx + 1) begin
+            if (match_num[idx]) begin
+                val_char = bytes[idx-4]; // 提取冒號後面的 Byte
+            end
+        end
+
+        // ASCII 轉 16 進制數值
+        if (val_char >= "0" && val_char <= "9")
+            detected_val = val_char - "0";
+        else if (val_char >= "A" && val_char <= "F")
+            detected_val = val_char - "A" + 10;
+        else if (val_char >= "a" && val_char <= "f")
+            detected_val = val_char - "a" + 10;
+    end
 end
 
-//判斷是否為0-7
-always@(posedge iCLK or negedge RST_n)
-begin
-	if(!RST_n)
-		begin
-			rx_reg <= 8'd0;
-			LED_select <= 16'd0;
-			state_recv <= 4'd0;
-		end
-	else if(RECEIVE_END == 1'd1 && SEND_END_cmd == 1'd1)
-		begin
-			case(state_recv)
-				4'd0: begin
-					if(rxd==8'h2c)								//,
-						state_recv <= 4'd1;
-					else
-						state_recv <= 4'd0;
-				end
-				4'd1: begin
-					if(rxd==8'h32)								//2
-						state_recv <= 4'd2;
-					else
-						state_recv <= 4'd0;
-				end
-				4'd2: begin
-					if(rxd==8'h3a)								//:
-						state_recv <= 4'd3;
-					else
-						state_recv <= 4'd0;
-				end
-				4'd3: begin
-					if(rxd>=8'h30 && rxd<=8'h47) begin	//0~16
-						state_recv <= 4'd4;
-						rx_reg <= rxd;
-					end
-					else begin
-						state_recv <= 4'd0;
-					end
-				end
-				4'd4: begin
-					state_recv <= 4'd5;
-					if(rxd == 8'h0d) begin
-						case(rx_reg)
-							8'h30:LED_select = 16'd0;
-							8'h31:LED_select = 16'd1;
-							8'h32:LED_select = 16'd2;
-							8'h33:LED_select = 16'd3;
-							8'h34:LED_select = 16'd4;
-							8'h35:LED_select = 16'd5;
-							8'h36:LED_select = 16'd6;
-							8'h37:LED_select = 16'd7;
-							8'h38:LED_select = 16'd8;
-							8'h39:LED_select = 16'd9;
-							8'h41:LED_select = 16'd10;
-							8'h42:LED_select = 16'd11;
-							8'h43:LED_select = 16'd12;
-							8'h44:LED_select = 16'd13;
-							8'h45:LED_select = 16'd14;
-							8'h46:LED_select = 16'd15;
-							8'h47:LED_select = 16'd16;
-							default;
-						endcase
-					end
-				end
-				4'd5:begin
-					state_recv <= 4'd0;
-					LED_select <= 16'b1111_1111_1111_1111;
-				end
-				default:state_recv <= 4'd0;
-			endcase
-		end
+// =========================================================
+// 時序邏輯區塊：接收完成時更新 WiFi_signal 與 LED
+// =========================================================
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        WiFi_signal <= 16'hFFFF;
+        LED         <= 8'h00;
+    end else if (RECEIVE_END) begin
+        WiFi_signal <= detected_val;
+        if (detected_val != 16'hFFFF) begin
+            LED <= detected_val[7:0];
+        end
+    end
 end
 
 endmodule

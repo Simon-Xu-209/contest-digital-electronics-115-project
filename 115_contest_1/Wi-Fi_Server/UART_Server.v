@@ -1,17 +1,18 @@
 module UART_Server(
-	input         clk,      // 50MHz
-	input         rst_n,    // Reset (Low Active)
+	input         clk,       // 50MHz
+	input         rst_n,     // FPGA 板上的 Reset 按鍵 (Low Active)
 	input         tx_en,
 	input         rx,
 	output        tx,
 	output [7:0]  LED,
 	output        Server_WiFi_txd,
-	output reg    RST_WiFi
-	// output        rse_wifi,
+	output reg    RST_WiFi,  // 連接到 Wi-Fi 模組的 RST 腳位
+	//output        rse_wifi,
+	output [15:0] WiFi_signal
 );
 
 assign Server_WiFi_txd = rx;
-// assign rse_wifi        = rst_n;
+//assign rse_wifi = rst_n;
 
 reg rx_sync1, rx_sync2;
 always @(posedge clk or negedge rst_n) begin
@@ -26,6 +27,7 @@ end
 
 // -------------------------------------------------------------
 // Wi-Fi 硬體 Reset 延遲產生器
+// 產生約 20ms 的乾淨低電位 Reset 脈衝，然後拉高
 // -------------------------------------------------------------
 reg [20:0] rst_cnt;
 reg        wifi_rst_done;
@@ -33,23 +35,31 @@ reg        wifi_rst_done;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		rst_cnt       <= 21'd0;
-		RST_WiFi      <= 1'b0;
+		RST_WiFi      <= 1'b0; // 保持低電位，觸發 Wi-Fi 重置
 		wifi_rst_done <= 1'b0;
 	end else begin
-		if (rst_cnt < 21'd1_000_000) begin // 20ms
+		if (rst_cnt < 21'd1_000_000) begin // 50MHz 下約 20ms (1,000,000 * 20ns)
 			rst_cnt       <= rst_cnt + 1'b1;
 			RST_WiFi      <= 1'b0;
 			wifi_rst_done <= 1'b0;
 		end else begin
-			RST_WiFi      <= 1'b1;
-			wifi_rst_done <= 1'b1;
+			RST_WiFi      <= 1'b1; // 釋放 Reset，拉高
+			wifi_rst_done <= 1'b1; // 重置完成
 		end
 	end
 end
 
 // -------------------------------------------------------------
-// Boot Delay
+// AT 指令發送狀態機 (等待 Wi-Fi 重置完成 + 延遲後才開始發送)
 // -------------------------------------------------------------
+parameter MAX_CMD_LEN = 64;
+reg [8*MAX_CMD_LEN-1:0] current_cmd;
+    
+reg        tx_start;
+wire       tx_busy;
+wire       cmd_done;
+
+// 啟動延遲計數器 (Wi-Fi 重置後需等待約 500ms 讓 ESP 開機完成吐出 ready)
 reg [24:0] boot_delay_cnt;
 reg        boot_ready;
 
@@ -58,7 +68,7 @@ always @(posedge clk or negedge rst_n) begin
 		boot_delay_cnt <= 0;
 		boot_ready     <= 0;
 	end else if (wifi_rst_done) begin
-		if (boot_delay_cnt < 25'd25_000_000) begin // 500ms
+		if (boot_delay_cnt < 25'd25_000_000) begin // 50MHz 下約 500ms
 			boot_delay_cnt <= boot_delay_cnt + 1'b1;
 			boot_ready     <= 1'b0;
 		end else begin
@@ -67,60 +77,21 @@ always @(posedge clk or negedge rst_n) begin
 	end
 end
 
-// -------------------------------------------------------------
-// UART TX / RX 宣告與控制 (AT 指令處理)
-// -------------------------------------------------------------
-parameter MAX_CMD_LEN = 64;
-reg [8*MAX_CMD_LEN-1:0] current_cmd;
-parameter MAX_RX_LEN = 32;
-reg        tx_start;
-wire       tx_busy;
-wire       cmd_done;
-
+// UART TX 發送模組
 uart_tx_string #(
 	.MAX_BYTES(MAX_CMD_LEN)
 ) uart_tx_u1 (
-	.clk     (clk),
+	.clk    (clk),
 	.rst_n   (rst_n),
-	.tx_start(final_tx_start),
-	.tx_cmd  (final_tx_cmd),
+	.tx_start(tx_start),
+	.tx_cmd  (current_cmd),
 	.tx      (tx),
 	.tx_busy (tx_busy),
 	.cmd_done(cmd_done)
 );
 
-// 初始化未完成時，聽開機狀態機 (current_cmd / tx_start)
-// 初始化完成後，聽暫存控制器 (tx_data_reg / tx_reg_flag)
-wire [8*MAX_CMD_LEN-1:0] final_tx_cmd   = init_done ? tx_data_reg : current_cmd;
-wire                     final_tx_start = init_done ? tx_reg_flag : tx_start;
-
-// 宣告控制訊號
-wire                     ctrl_tx_start;
-wire [8*MAX_CMD_LEN-1:0] ctrl_tx_cmd;
-wire                     tx_reg_busy;
-wire                     tx_reg_flag;
-wire [8*MAX_CMD_LEN-1:0] tx_data_reg;
-
-// 實體化傳送暫存器控制器
-tx_buffer_controller #(
-	.MAX_BYTES(MAX_CMD_LEN)
-) u_tx_buffer_ctrl (
-	.clk          (clk),
-	.rst_n        (rst_n),
-	
-	// --- 外包介面：直連 connect_detector 或其他外設 ---
-	.send_req     (client_connected), // 當偵測到新連線時驅動一次
-	.target_id    (client_id),        // connect_detector 解析到的 ID (0~4)
-	.payload_len  (8'd9),             // "WELCOME\r\n" 長度為 9 位元組
-	.payload_data ("WELCOME\r\n"),     // 欲發送的內容
-	
-	// --- 狀態與對接介面 ---
-	.tx_reg_busy  (tx_reg_busy),
-	.uart_tx_start(ctrl_tx_start),    // 輸出至 final_tx_start
-	.uart_tx_cmd  (ctrl_tx_cmd),      // 輸出至 final_tx_cmd
-	.cmd_done     (cmd_done)          // 接收 UART 傳送完畢訊號
-);
-
+// UART RX 接收模組
+parameter MAX_RX_LEN = 32;
 wire rx_ready;
 wire [3:0] link_ID;
 wire [15:0] rx_Data_len;
@@ -142,9 +113,6 @@ uart_rx_string #(
 	.Data_reg_busy(Data_reg_busy) // 忙碌旗標
 );
 
-reg [8*MAX_CMD_LEN-1:0] resp_cmd;
-reg                      resp_tx_start;
-wire [8*MAX_CMD_LEN-1:0] tx_cmd_mux = init_done ? resp_cmd : current_cmd;
 
 // -------------------------------------------------------------
 // AT 初始化指令狀態機
@@ -197,41 +165,25 @@ end
 
 
 
-// -------------------------------------------------------------
-// 外設模組連接
-// -------------------------------------------------------------
-
 /*
-// IPD 專用解析器 (負責解析 +IPD 內容並輸出連線 ID 與訊號狀態)
-wire w_id_valid;
-ipd_parser #(
-	.CLK_FREQ(50_000_000),
-	.BAUD_RATE(115200)
-) u_ipd_parser (
-	.clk        (clk),
-	.rst_n      (rst_n),
-	.rx         (rx_sync2),
-	.init_done  (init_done),
-	.link_ID    (),            // 視後續需求決定是否牽線
-	.rx_Data_len(),            // 視後續需求決定是否牽線
-	.orderID    (orderID), // 拋出解析完畢的 4 Bytes 訂單 ID
-	.id_valid   (w_id_valid),  // 解析成功旗標
-	.WiFi_signal()  // 直接輸出至頂層的 WiFi_signal 供七段顯示器使用
-);
+reg [255:0] rx_Data_reg_test;
+always @(*) begin
+    rx_Data_reg_test = "                           Num:F"; 
+end
 */
-/*
+
+// LED 模組
 mode_LED #(
 	.MAX_RX_LEN(MAX_RX_LEN)
-)mode_LED_u1(
-	.clk         (clk),
-	.rst_n       (rst_n),
-	.RECEIVE_END (w_rx_ready),   // 只在 w_rx_ready == 1 時才觸發解析
+) mode_LED_u1(
+	.clk          (clk),
+	.rst_n        (rst_n),
+	.RECEIVE_END  (rx_ready),
 	.Data_reg_busy(Data_reg_busy),
-	.rx_Data_reg (rx_Data_reg), // 傳入穩定的資料暫存器
-	.SEND_END_cmd(init_done),
-	.LED         (LED),
-	.WiFi_signal (WiFi_signal)
+	.rx_Data_reg  (rx_Data_reg),
+	.SEND_END_cmd (init_done),
+	.LED          (LED),
+	.WiFi_signal  (WiFi_signal)
 );
-*/
 
 endmodule
