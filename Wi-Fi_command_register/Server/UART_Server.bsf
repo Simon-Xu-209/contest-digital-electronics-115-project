@@ -82,16 +82,9 @@ applicable agreement for further details.
 	(port
 		(pt 192 96)
 		(output)
-		(text "rse_wifi" (rect 0 0 30 12)(font "Arial" ))
-		(text "rse_wifi" (rect 141 91 171 103)(font "Arial" ))
-		(line (pt 192 96)(pt 176 96)(line_width 1))
-	)
-	(port
-		(pt 192 112)
-		(output)
 		(text "WiFi_signal[15..0]" (rect 0 0 69 12)(font "Arial" ))
-		(text "WiFi_signal[15..0]" (rect 102 107 171 119)(font "Arial" ))
-		(line (pt 192 112)(pt 176 112)(line_width 3))
+		(text "WiFi_signal[15..0]" (rect 102 91 171 103)(font "Arial" ))
+		(line (pt 192 96)(pt 176 96)(line_width 3))
 	)
 	(parameter
 		"MAX_CMD_LEN"

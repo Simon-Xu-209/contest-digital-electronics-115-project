@@ -16,7 +16,7 @@ Public Class Form1
     Private ServerIP As String = "192.168.4.1"
     Private ServerPort As String = "80"
     Private Sub Form1_Load(ByVal sender As Object, ByVal e As EventArgs) Handles MyBase.Load
-        SerialPort1.PortName = "COM4"
+        SerialPort1.PortName = "COM3"
         SerialPort1.BaudRate = 115200
         SerialPort1.DataBits = 8
         SerialPort1.StopBits = StopBits.One

@@ -1,5 +1,5 @@
 module UART_Server(
-	input         clk,      // 50MHz
+	input         clk,       // 50MHz
 	input         rst_n,     // FPGA 板上的 Reset 按鍵 (Low Active)
 	input         tx_en,
 	input         rx,
@@ -9,12 +9,21 @@ module UART_Server(
 	output reg    RST_WiFi,  // 連接到 Wi-Fi 模組的 RST 腳位
 	//output        rse_wifi,
 	output [15:0] WiFi_signal
-	//output wire [15:0] seg_data,
-	//output wire [7:0] seg_com
 );
 
 assign Server_WiFi_txd = rx;
-//assign rse_wifi        = rst_n;
+//assign rse_wifi = rst_n;
+
+reg rx_sync1, rx_sync2;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		rx_sync1 <= 1'b1;
+		rx_sync2 <= 1'b1;
+	end else begin
+	rx_sync1 <= rx;
+	rx_sync2 <= rx_sync1;
+	end
+end
 
 // -------------------------------------------------------------
 // Wi-Fi 硬體 Reset 延遲產生器
@@ -96,7 +105,7 @@ uart_rx_string #(
 ) u_uart_rx (
 	.clk          (clk),
 	.rst_n        (rst_n),
-	.rx           (rx),
+	.rx           (rx_sync2),
 	.link_ID      (link_ID),      // Wi-Fi 連線 ID 暫存器
 	.rx_Data_len  (rx_Data_len),  // 資料長度暫存器(位元組)
 	.rx_Data_reg  (rx_Data_reg),  // 輸出穩定的正式資料暫存器
@@ -154,8 +163,19 @@ always @(posedge clk or negedge rst_n) begin
 	end
 end
 
+
+
+/*
+reg [255:0] rx_Data_reg_test;
+always @(*) begin
+    rx_Data_reg_test = "                           Num:F"; 
+end
+*/
+
 // LED 模組
-mode_LED mode_LED_u1(
+mode_LED #(
+	.MAX_RX_LEN(MAX_RX_LEN)
+) mode_LED_u1(
 	.clk          (clk),
 	.rst_n        (rst_n),
 	.RECEIVE_END  (rx_ready),
@@ -165,36 +185,5 @@ mode_LED mode_LED_u1(
 	.LED          (LED),
 	.WiFi_signal  (WiFi_signal)
 );
-/*
-seven_segment_display seven_segment_display_1(
-	.clk(clk),
-	.rst_n(rst_n),
-	.WiFi_signal(WiFi_signal),
-	.seg_data(seg_data),
-	.seg_com(seg_com)
-);
-*/
-
-/*
-wire [3:0] current_link_id;
-wire [7:0] current_data_len;
-wire [7:0] parsed_cmd;
-wire       data_valid;
-
-ipd_parser #(
-    .CLK_FREQ (50_000_000),
-    .BAUD_RATE(115200)
-) u_ipd_parser (
-	.clk        (clk),
-	.rst_n      (rst_n),
-	.rx         (rx),
-	.init_done  (init_done),
-	.link_id    (current_link_id),
-	.data_len   (current_data_len),
-	.cmd_data   (parsed_cmd),
-	.data_valid (data_valid),
-	.WiFi_signal(WiFi_signal)
-);
-*/
 
 endmodule

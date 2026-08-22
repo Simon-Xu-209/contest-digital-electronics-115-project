@@ -24,9 +24,10 @@ wire key_pressed = (column != 3'b111); // 有任何按鈕按下
 
 always @(posedge T20ms) begin
 	if (!key_pressed) begin
-		bond <= bond + 1'b1;
 		if (bond == 2'b10) begin
 			bond <= 2'b0;
+		end else begin
+			bond <= bond + 1'b1;
 		end
 		pressed <= 1'b0;
 		key <= 5'd16;

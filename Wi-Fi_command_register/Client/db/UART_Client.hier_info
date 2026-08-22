@@ -4,13 +4,13 @@ rst_n => rst_n.IN3
 column[0] => column[0].IN1
 column[1] => column[1].IN1
 column[2] => column[2].IN1
-row[0] <= button_3x3:u_button_3x3.row
-row[1] <= button_3x3:u_button_3x3.row
-row[2] <= button_3x3:u_button_3x3.row
+row[0] << button_3x3:u_button_3x3.row
+row[1] << button_3x3:u_button_3x3.row
+row[2] << button_3x3:u_button_3x3.row
 rx => rx.IN1
-tx <= uart_tx_string:u_tx.tx
-Client_WiFi_txd <= rx.DB_MAX_OUTPUT_PORT_TYPE
-RST_WiFi <= RST_WiFi~reg0.DB_MAX_OUTPUT_PORT_TYPE
+tx << uart_tx_string:u_tx.tx
+Client_WiFi_txd << rx.DB_MAX_OUTPUT_PORT_TYPE
+RST_WiFi << RST_WiFi~reg0.DB_MAX_OUTPUT_PORT_TYPE
 
 
 |UART_Client|uart_tx_string:u_tx

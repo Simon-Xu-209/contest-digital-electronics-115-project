@@ -102,8 +102,8 @@ set_location_assignment PIN_127 -to J10_SCL
 set_location_assignment PIN_118 -to J10_SDA
 set_location_assignment PIN_114 -to J11_SW
 set_location_assignment PIN_160 -to rst_wifi
-set_location_assignment PIN_164 -to rx
-set_location_assignment PIN_161 -to tx
+set_location_assignment PIN_161 -to rx
+set_location_assignment PIN_164 -to tx
 set_location_assignment PIN_166 -to txd
 set_location_assignment PIN_202 -to J2_Y[9]
 set_location_assignment PIN_200 -to J2_Y[8]

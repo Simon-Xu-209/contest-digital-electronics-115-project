@@ -185,7 +185,7 @@ always @(posedge clk or negedge rst_n) begin
 			// 發送 AT+CIPSEND=3
 			S_CIPSEND: begin
 				if (!tx_busy && !tx_start) begin
-					current_cmd           <= "AT+CIPSEND=3\r\n";
+					current_cmd           <= "AT+CIPSEND=7\r\n";
 					cmd_len               <= 6'd15;
 					tx_start              <= 1'b1;
 					receive_ok_en         <= 1'b0; // 清除舊的 OK
@@ -199,23 +199,23 @@ always @(posedge clk or negedge rst_n) begin
 			S_SEND_DATA: begin
 				if (!tx_busy && !tx_start) begin
 					case (key)
-						5'd0:  current_cmd <= "0\r\n";
-						5'd1:  current_cmd <= "1\r\n";
-						5'd2:  current_cmd <= "2\r\n";
-						5'd3:  current_cmd <= "3\r\n";
-						5'd4:  current_cmd <= "4\r\n";
-						5'd5:  current_cmd <= "5\r\n";
-						5'd6:  current_cmd <= "6\r\n";
-						5'd7:  current_cmd <= "7\r\n";
-						5'd8:  current_cmd <= "8\r\n";
-						5'd9:  current_cmd <= "9\r\n";
-						5'd10: current_cmd <= "A\r\n";
-						5'd11: current_cmd <= "B\r\n";
-						5'd12: current_cmd <= "C\r\n";
-						5'd13: current_cmd <= "D\r\n";
-						5'd14: current_cmd <= "E\r\n";
-						5'd15: current_cmd <= "F\r\n";
-						default: current_cmd <= " \r\n";
+						5'd0:  current_cmd <= "Num:0\r\n";
+						5'd1:  current_cmd <= "Num:1\r\n";
+						5'd2:  current_cmd <= "Num:2\r\n";
+						5'd3:  current_cmd <= "Num:3\r\n";
+						5'd4:  current_cmd <= "Num:4\r\n";
+						5'd5:  current_cmd <= "Num:5\r\n";
+						5'd6:  current_cmd <= "Num:6\r\n";
+						5'd7:  current_cmd <= "Num:7\r\n";
+						5'd8:  current_cmd <= "Num:8\r\n";
+						5'd9:  current_cmd <= "Num:9\r\n";
+						5'd10: current_cmd <= "Num:A\r\n";
+						5'd11: current_cmd <= "Num:B\r\n";
+						5'd12: current_cmd <= "Num:C\r\n";
+						5'd13: current_cmd <= "Num:D\r\n";
+						5'd14: current_cmd <= "Num:E\r\n";
+						5'd15: current_cmd <= "Num:F\r\n";
+						default: current_cmd <= "Num: \r\n";
 					endcase
 					cmd_len               <= 6'd3;
 					tx_start              <= 1'b1;

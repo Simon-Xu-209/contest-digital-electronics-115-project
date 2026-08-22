@@ -4,6 +4,14 @@ set_location_assignment PIN_160 -to RST_WiFi
 set_location_assignment PIN_149 -to clk
 set_location_assignment PIN_166 -to Server_WiFi_txd
 set_location_assignment PIN_145 -to rst_n
+set_location_assignment PIN_196 -to WiFi_signal[7]
+set_location_assignment PIN_194 -to WiFi_signal[6]
+set_location_assignment PIN_188 -to WiFi_signal[5]
+set_location_assignment PIN_186 -to WiFi_signal[4]
+set_location_assignment PIN_184 -to WiFi_signal[3]
+set_location_assignment PIN_177 -to WiFi_signal[2]
+set_location_assignment PIN_173 -to WiFi_signal[1]
+set_location_assignment PIN_169 -to WiFi_signal[0]
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
 set_global_assignment -name FAMILY "Cyclone III"
 set_global_assignment -name DEVICE EP3C40Q240C8
@@ -25,3 +33,8 @@ set_global_assignment -name VERILOG_FILE uart_tx_string.v
 set_global_assignment -name VERILOG_FILE uart_rx_string.v
 set_global_assignment -name VERILOG_FILE mode_LED.v
 set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
+set_global_assignment -name VERILOG_FILE seven_segment_display.v
+set_global_assignment -name VERILOG_FILE ipd_parser.v
+set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
