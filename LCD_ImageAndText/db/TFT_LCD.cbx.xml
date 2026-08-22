@@ -1,6 +1,0 @@
-<?xml version="1.0" ?>
-<LOG_ROOT>
-	<PROJECT NAME="TFT_LCD">
-		<CBX_INST_ENTRY INSTANCE_NAME="|TFT_LCD|altsyncram:image_rom_rtl_0" CBX_FILE_NAME="altsyncram_1471.tdf"/>
-	</PROJECT>
-</LOG_ROOT>

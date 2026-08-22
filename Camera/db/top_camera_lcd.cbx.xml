@@ -1,6 +1,0 @@
-<?xml version="1.0" ?>
-<LOG_ROOT>
-	<PROJECT NAME="top_camera_lcd">
-		<CBX_INST_ENTRY INSTANCE_NAME="|top_camera_lcd|frame_buffer:u_buffer|altsyncram:mem_rtl_0" CBX_FILE_NAME="altsyncram_07f1.tdf"/>
-	</PROJECT>
-</LOG_ROOT>

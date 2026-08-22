@@ -1,24 +1,50 @@
-# Quartus 臨時資料夾
-/db/
-/incremental_db/
-/simulation/
-/greybox/
-/hc_output/
+# Quartus II / Prime Project Files
+# 保留專案設定與腳位定義
+*.qpf
+*.qsf
+*.qsf.bak
+*.qpf.bak
 
-# Quartus 輸出與報告檔
+# 保留程式燒錄檔 (視需求決定是否納入，若要 Clone 後直接燒錄則保留)
+*.sof
+*.pof
+*.jic
+*.hex
+*.ttf
+*.jam
+*.jbc
+
+# 忽略編譯產生與記錄檔案
+db/
+incremental_db/
+output_files/
+.qsys_edit/
+PLLJ_PLLSPE_INFO.txt
 *.rpt
 *.summary
 *.smsg
 *.done
 *.pin
-*.jdi
-*.eqn
-*.qws
-
-# 編譯產生的燒錄檔
-// *.sof
-*.pof
-
-# 備份檔與日誌
+*.qdf
 *.bak
-*.qarlog
+*.log
+*.jdi
+*.sld
+*.sopcinfo
+*.html
+*.eqn
+*.qmsg
+*.svf
+*.map
+*.asm.rpt
+*.fit.rpt
+*.sta.rpt
+*.eda.rpt
+hdl_sim/
+simulation/
+timing/
+.tmp/
+
+# 其他常見的編譯暫存
+*~
+*.bak

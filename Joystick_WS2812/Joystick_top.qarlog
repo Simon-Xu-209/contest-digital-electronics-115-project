@@ -1,0 +1,23 @@
+Quartus II Archive log --	C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/Joystick_top.qarlog
+
+Archive:	C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/Joystick_top.qar
+Date:		Fri Aug 21 17:13:59 2026
+Quartus II 64-Bit		13.1.0 Build 162 10/23/2013 SJ Web Edition
+
+	=========== Files Selected: ===========
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/Joystick_display.v
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/Joystick_top.qpf
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/Joystick_top.qsf
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/Joystick_top.v
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/WS2812.v
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/ads1115_control.v
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/db/Joystick_top.cmp.hdb
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/db/Joystick_top.db_info
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/i2c_master.v
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/incremental_db/compiled_partitions/Joystick_top.db_info
+C:/Users/adminuser/Desktop/115 project/Joystick_WS2812/joystick_button.v
+c:/altera/13.1/quartus/bin64/assignment_defaults.qdf
+	======= Total: 12 files to archive =======
+
+	================ Status: ===============
+All files archived successfully.
