@@ -1,32 +1,40 @@
-# Quartus II / Prime Project Files
-# 保留專案設定與腳位定義
-*.qpf
-*.qsf
-*.qsf.bak
-*.qpf.bak
+# =============================================
+# 忽略整個 output_files 底下的所有編譯暫存
+# (使用 output_files/* 保留資料夾結構，才能用 ! 救回燒錄檔)
+# =============================================
+output_files/*
 
-# 保留程式燒錄檔 (視需求決定是否納入，若要 Clone 後直接燒錄則保留)
-*.sof
-*.pof
-*.jic
-*.hex
-*.ttf
-*.jam
-*.jbc
+# 強制保留 output_files 底下的燒錄檔與腳位報告
+!output_files/*.sof
+!output_files/*.pof
+!output_files/*.jic
+!output_files/*.hex
+!output_files/*.ttf
+!output_files/*.jam
+!output_files/*.jbc
+!output_files/*.pin
 
-# 忽略編譯產生與記錄檔案
+# =============================================
+# 忽略 Quartus 大型編譯資料庫與暫存目錄
+# =============================================
 db/
 incremental_db/
-output_files/
+simulation/
+greybox/
+hc_output/
 .qsys_edit/
-PLLJ_PLLSPE_INFO.txt
+hdl_sim/
+timing/
+.tmp/
+
+# =============================================
+# 忽略各種編譯記錄檔、報告與系統暫存檔
+# =============================================
 *.rpt
 *.summary
 *.smsg
 *.done
-*.pin
 *.qdf
-*.bak
 *.log
 *.jdi
 *.sld
@@ -40,11 +48,17 @@ PLLJ_PLLSPE_INFO.txt
 *.fit.rpt
 *.sta.rpt
 *.eda.rpt
-hdl_sim/
-simulation/
-timing/
-.tmp/
 
-# 其他常見的編譯暫存
-*~
+# 備份檔與使用者工作區紀錄
 *.bak
+*.qarlog
+*.qws
+*~
+
+# =============================================
+# 白名單：明確保留核心專案、腳位與特定網表檔
+# =============================================
+!*.qpf
+!*.qsf
+!atom_netlists/
+!atom_netlists/**
