@@ -20,9 +20,9 @@ applicable agreement for further details.
 */
 (header "symbol" (version "1.1"))
 (symbol
-	(rect 16 16 208 160)
+	(rect 16 16 208 192)
 	(text "TFT_LCD" (rect 5 0 48 12)(font "Arial" ))
-	(text "inst" (rect 8 128 20 140)(font "Arial" ))
+	(text "inst" (rect 8 160 20 172)(font "Arial" ))
 	(port
 		(pt 0 32)
 		(input)
@@ -61,9 +61,23 @@ applicable agreement for further details.
 	(port
 		(pt 0 112)
 		(input)
-		(text "WiFi_signal[15..0]" (rect 0 0 69 12)(font "Arial" ))
-		(text "WiFi_signal[15..0]" (rect 21 107 90 119)(font "Arial" ))
+		(text "LED_row[2..0]" (rect 0 0 60 12)(font "Arial" ))
+		(text "LED_row[2..0]" (rect 21 107 81 119)(font "Arial" ))
 		(line (pt 0 112)(pt 16 112)(line_width 3))
+	)
+	(port
+		(pt 0 128)
+		(input)
+		(text "LED_col[2..0]" (rect 0 0 56 12)(font "Arial" ))
+		(text "LED_col[2..0]" (rect 21 123 77 135)(font "Arial" ))
+		(line (pt 0 128)(pt 16 128)(line_width 3))
+	)
+	(port
+		(pt 0 144)
+		(input)
+		(text "WiFi_signal[15..0]" (rect 0 0 69 12)(font "Arial" ))
+		(text "WiFi_signal[15..0]" (rect 21 139 90 151)(font "Arial" ))
+		(line (pt 0 144)(pt 16 144)(line_width 3))
 	)
 	(port
 		(pt 192 32)
@@ -213,7 +227,7 @@ applicable agreement for further details.
 		""
 		(type "PARAMETER_UNSIGNED_BIN")	)
 	(drawing
-		(rectangle (rect 16 16 176 128)(line_width 1))
+		(rectangle (rect 16 16 176 160)(line_width 1))
 	)
 	(annotation_block (parameter)(rect 208 -64 308 16))
 )

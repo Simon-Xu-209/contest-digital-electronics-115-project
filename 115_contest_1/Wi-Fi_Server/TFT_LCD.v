@@ -4,6 +4,8 @@ module TFT_LCD (
 	input wire [7:0] switch_8bit,
 	input wire [3:0] PB,  // 2x2
 	input wire [8:0] KEY, // 3x3
+	input wire [2:0] LED_row, // WS2812B 橫座標
+	input wire [2:0] LED_col, // WS2812B 縱座標
 	input wire [15:0] WiFi_signal,
 	output reg  SCL, SDA, RES, DC, CS, BLK
 );
@@ -142,9 +144,9 @@ always @(posedge clk or negedge rst_n) begin
 			char_scale[2] <= 2'd2; char_ascii[2] <= "C";
 			char_scale[3] <= 2'd2; char_ascii[3] <= "D";
 			char_scale[4] <= 2'd1; char_ascii[4] <= "["; char_x[4] <= 8'd24; char_y[4] <= 8'd65;
-			char_scale[5] <= 2'd1; char_ascii[5] <= " "; char_x[5] <= 8'd40; char_y[5] <= 8'd65; //
+			char_scale[5] <= 2'd1; char_ascii[5] <= 8'd48 + LED_row; char_x[5] <= 8'd40; char_y[5] <= 8'd65; //
 			char_scale[6] <= 2'd1; char_ascii[6] <= ","; char_x[6] <= 8'd56; char_y[6] <= 8'd65;
-			char_scale[7] <= 2'd1; char_ascii[7] <= " "; char_x[7] <= 8'd72; char_y[7] <= 8'd65; //
+			char_scale[7] <= 2'd1; char_ascii[7] <= 8'd48 + LED_col; char_x[7] <= 8'd72; char_y[7] <= 8'd65; //
 			char_scale[8] <= 2'd1; char_ascii[8] <= "]"; char_x[8] <= 8'd88; char_y[8] <= 8'd65;
 		end else begin
 			char_group_cnt <= 0;
