@@ -8,11 +8,13 @@ module UART_Server(
 	input         rx,
 	output        tx,
 	output [7:0]  LED,
-	output        Server_WiFi_txd,
+	output wire   Server_WiFi_txd,
 	output reg    RST_WiFi,
 	// output        rse_wifi,
 	output wire [15:0] seg_data,
-	output wire [7:0]  seg_com
+	output wire [7:0]  seg_com,
+	output wire DIN,
+	output SCL, SDA, RES, DC, CS, BLK
 );
 
 assign Server_WiFi_txd = rx;
@@ -244,12 +246,12 @@ Order_processor #(
 // -------------------------------------------------------------
 
 wire pressed;
-wire [4:0] key;
+wire [3:0] key;
 button_3x3 button_3x3_u1(
-	.clk(clk),
-	.column(column_3x3),
-	.row(row_3x3),
-	.key(key),        // 按鍵值
+	.clk    (clk),
+	.column (column_3x3),
+	.row    (row_3x3),
+	.key    (key),        // 按鍵值
 	.pressed(pressed) // 1 表示已按下
 );
 
@@ -261,6 +263,27 @@ seven_segment_display #(
 	.rx_Data_reg(rx_Data_reg), // 直接連接收到的 64 Bytes Payload
 	.seg_data   (seg_data),
 	.seg_com    (seg_com)
+);
+
+LED_Matrix_8x8 LED_Matrix_8x8_u1(
+	.clk        (clk),
+	.rst_n      (rst_n),
+	.switch_8bit(switch_8bit),
+	.KEY        (),
+	.DIN        (DIN)
+);
+
+TFT_LCD TFT_LCD_u1(
+	.clk        (clk),
+	.rst_n      (rst_n),
+	.switch_8bit(switch_8bit),
+	.KEY        (key),
+	.SCL        (SCL),
+	.SDA        (SDA),
+	.RES        (RES),
+	.DC         (DC),
+	.CS         (CS),
+	.BLK        (BLK)
 );
 
 /*

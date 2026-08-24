@@ -2,7 +2,7 @@ module button_3x3(
 	input            clk,    // 50MHz 時脈
 	input      [2:0] column, // 矩陣鍵盤「行」輸入 (Column 1~3)
 	output reg [2:0] row,    // 矩陣鍵盤「列」輸出 (Row 1~3)
-	output reg [4:0] key,    // 輸出的按鍵值 (0~8, 無按鍵為 9)
+	output reg [3:0] key,    // 輸出的按鍵值 (0~8, 無按鍵為 9)
 	output reg       pressed // 按鍵按下觸發訊號 (0: 無動作, 1: 按下觸發)
 );
 
@@ -29,7 +29,7 @@ always @(posedge T20ms) begin
 			bond <= 2'b0;
 		end
 		pressed <= 1'b0;
-		key <= 5'd16;
+		key <= 4'b1111;
 	end else begin
 		pressed <= 1'b1;
 		case (column)
