@@ -4,9 +4,11 @@ module TFT_LCD (
 	input wire [7:0] switch_8bit,
 	//input wire [3:0] PB,  // 2x2
 	input wire [3:0] KEY, // 3x3
-	input wire [2:0] LED_row, // WS2812B 橫座標
-	input wire [2:0] LED_col, // WS2812B 縱座標
-	input wire [15:0] WiFi_signal,
+	input [31:0] orderID,       // 訂單 ID
+	input [63:0] orderQuantity, // 訂購數量 (高位元組4Byte是02 / 低位元組4Byte是01)
+	input [63:0] bidAmount,     // 出價金額
+	input [63:0] productQuota,  // 商品配額
+	input [31:0] grandTotal,    // 付款總額
 	output reg  SCL, SDA, RES, DC, CS, BLK
 );
 

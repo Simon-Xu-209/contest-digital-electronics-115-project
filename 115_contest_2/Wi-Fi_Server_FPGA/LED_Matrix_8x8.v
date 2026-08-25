@@ -3,14 +3,19 @@ module LED_Matrix_8x8 (
 	input  wire        rst_n,
 	input  wire [7:0]  switch_8bit, // 指撥開關
 	input  wire [3:0]  KEY,         // 按鈕
-	output reg         DIN          // WS2812B 資料輸出
+	output reg         DIN,         // WS2812B 資料輸出
+	input [31:0] orderID,       // 訂單 ID
+	input [63:0] orderQuantity, // 訂購數量
+	input [63:0] bidAmount,     // 出價金額
+	input [31:0] productQuota,  // 商品配額
+	input [31:0] grandTotal     // 付款總額
 );
 
 // =========================================================================
 // 參數定義
 // =========================================================================
 localparam FREQ_HZ        = 50_000_000;
-localparam CNT_INIT_10US  = (FREQ_HZ / 100000) - 1; // 10 微秒週期
+localparam CNT_INIT_10US  = (FREQ_HZ / 10000) - 1; // 100 微秒週期
 //localparam CNT_ANIM_0_3S  = (FREQ_HZ * 3 / 10) - 1; // 0.3 秒週期
 //localparam CNT_JOY_0_2S   = (FREQ_HZ * 2 / 10) - 1; // 0.2 秒週期
 
@@ -21,10 +26,10 @@ localparam T1H_CYCLES     = 45;
 localparam RESET_CYCLES   = 5000;
 
 // 系統模式定義
-localparam MODE_CLEAR    = 2'd0;
+localparam MODE_CLEAR   = 2'd0;
 localparam MODE_INITIAL = 2'd1;
-localparam MODE_CONTROL  = 2'd2;
-localparam MODE_SETTING  = 2'd3; // 新增：座標設定模式 (switch == 2'b11)
+localparam MODE_IDLE    = 2'd2;
+localparam MODE_SETTING = 2'd3; // 新增：座標設定模式 (switch == 2'b11)
 
 // 顏色定義 (24-bit: G-R-B)
 localparam COLOR_WHITE = 24'hFF_FF_FF;
@@ -43,9 +48,16 @@ reg [2:0]  anim_row, anim_col;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		sys_mode   <= MODE_CLEAR;
+		anim_timer <= 0;
 	end else begin
 		if (switch_8bit == 8'b0) begin
-			sys_mode <= MODE_INITIAL;
+			if (sys_mode != MODE_IDLE && anim_timer < FREQ_HZ*4) begin
+				sys_mode <= MODE_INITIAL;
+				anim_timer <= anim_timer + 1;
+			end else begin
+				sys_mode <= MODE_IDLE;
+				anim_timer <= 0;
+			end
 		end else begin
 			sys_mode <= MODE_CLEAR;
 		end
@@ -61,46 +73,38 @@ end
 reg  [23:0] current_color;
 wire [2:0]  pixel_row = led_idx[5:3];
 wire [2:0]  pixel_col = led_idx[2:0];
-reg  [8:0]  refresh_timer;
+reg  [31:0] refresh_timer;
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		anim_timer <= 0;
+		current_color <= 0;
 	end else begin
 		case (draw_mode)
+		
 			MODE_CLEAR: begin
 				current_color = COLOR_BLACK;
 			end
+			
 			MODE_INITIAL: begin
-				if (anim_timer <= FREQ_HZ) begin
+				if (anim_timer < FREQ_HZ) begin
 					current_color = COLOR_RED;
-					anim_timer <= anim_timer + 1;
-				end else if (anim_timer <= FREQ_HZ*2) begin
+				end else if (anim_timer < FREQ_HZ*2) begin
 					current_color = COLOR_GREEN;
-					anim_timer <= anim_timer + 1;
-				end else if (anim_timer <= FREQ_HZ*3) begin
+				end else if (anim_timer < FREQ_HZ*3) begin
 					current_color = COLOR_BLUE;
-					anim_timer <= anim_timer + 1;
-				end else begin
-					if (pixel_row == draw_row) begin
-						if (pixel_col == draw_col) begin
-							current_color = COLOR_WHITE;
-						end else begin
-							current_color = COLOR_BLACK;
-						end
-					end else begin
-						current_color = COLOR_BLACK;
-					end
+				end else if (anim_timer < FREQ_HZ*4) begin
+					current_color = COLOR_BLACK;
 				end
-				/*if (pixel_row == draw_row) begin
-					if (pixel_col == draw_col) begin
-						current_color = COLOR_WHITE;
-					end else begin
-						current_color = COLOR_WHITE;
-					end
-				end else begin
+			end
+			
+			MODE_IDLE: begin
+				if (pixel_col == 3'd7 && pixel_row < (orderQuantity[15:8] - "0")) begin
 					current_color = COLOR_RED;
-				end*/
+				end else if (pixel_col == 3'd4 && pixel_row < (orderQuantity[47:40] - "0")) begin
+					current_color = COLOR_RED;
+				end else begin
+					current_color = COLOR_BLACK;
+				end
 			end
 
 			default: current_color = COLOR_BLACK; // MODE_CLEAR
@@ -142,7 +146,7 @@ always @(posedge clk or negedge rst_n) begin
 				// 根據不同模式選擇鎖存座標來源
 				/*case (sys_mode)
 					MODE_INITIAL: begin draw_row <= anim_row; draw_col <= anim_col; end
-					MODE_CONTROL:   begin draw_row <= ctrl_row; draw_col <= ctrl_col; end
+					MODE_IDLE:   begin draw_row <= ctrl_row; draw_col <= ctrl_col; end
 					MODE_SETTING:   begin draw_row <= set_row;  draw_col <= set_col;  end
 					default:        begin draw_row <= 3'd0;     draw_col <= 3'd0;     end
 				endcase*/

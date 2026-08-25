@@ -4,11 +4,11 @@ module Order_processor #(
 	input clk,
 	input rst_n,
 	input  [8*MAX_RX_LEN-1:0] rx_Data_reg, // 資料暫存器
-	output [31:0] orderID,       // 訂單 ID
-	output [31:0] orderQuantity, // 訂購數量
-	output [31:0] bidAmount,     // 出價金額
-	output [31:0] productQuota,  // 商品配額
-	output [31:0] grandTotal     // 付款總額
+	output reg [31:0] orderID,       // 訂單 ID
+	output reg [63:0] orderQuantity, // 訂購數量
+	output reg [63:0] bidAmount,     // 出價金額
+	output reg [31:0] productQuota,  // 商品配額
+	output reg [31:0] grandTotal     // 付款總額
 );
 
 // =========================================================
@@ -33,7 +33,11 @@ always @(posedge clk) begin
 	end
 end
 
-
+initial begin
+	//"0000", "0000" [63:56], [55:48], [47:40], [39:32] ||| [31:24], [23:16], [15:8], [7:0]
+	orderQuantity[31:0] = "0065"; orderQuantity[63:32] = "0040";
+	bidAmount[31:0]     = "0070"; bidAmount[63:32]     = "0030";
+end
 
 
 endmodule
