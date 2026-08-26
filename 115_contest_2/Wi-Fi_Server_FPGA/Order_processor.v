@@ -34,6 +34,7 @@ always @(posedge clk) begin
 end
 
 initial begin
+	orderID = "0102";
 	//"0000", "0000" [63:56], [55:48], [47:40], [39:32] ||| [31:24], [23:16], [15:8], [7:0]
 	orderQuantity[31:0] = "0065"; orderQuantity[63:32] = "0040";
 	bidAmount[31:0]     = "0070"; bidAmount[63:32]     = "0030";

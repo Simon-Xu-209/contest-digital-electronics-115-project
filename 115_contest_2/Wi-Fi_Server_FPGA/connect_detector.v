@@ -6,9 +6,10 @@ module connect_detector #(
     input  wire       rst_n,
     input  wire       rx,                // UART RX 輸入
     input  wire       init_done,         // AT 初始化完成旗標
-    output reg  [3:0] client_id,         // 連線的 Client ID (0~4)
-    output reg        client_connected,  // 連線成功脈衝 (高電位 1 cycle)
-    output reg        client_closed      // 斷線脈衝 (高電位 1 cycle)
+    output reg  [3:0] client_id,         // 當前連線/斷線的 Client ID (0~4)
+    output reg        is_connected,      // 連線狀態暫存器：連線時高電位(1)，斷線時低電位(0)
+    output reg        conn_pulse,        // 偵測到連線時發出的單週期觸發脈衝 (1 Cycle)
+    output reg        client_closed      // 偵測到斷線時發出的單週期脈衝 (1 Cycle)
 );
 
 // =========================================================
@@ -26,18 +27,18 @@ reg [7:0]  rx_byte;
 localparam S_IDLE  = 2'd0,
            S_START = 2'd1,
            S_DATA  = 2'd2,
-           S_STOP  = 3'd3;
+           S_STOP  = 2'd3;
 
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        cnt      <= 0;
-        bit_cnt  <= 0;
-        rdata    <= 0;
-        rx_done  <= 0;
+        cnt      <= 16'd0;
+        bit_cnt  <= 4'd0;
+        rdata    <= 8'd0;
+        rx_done  <= 1'b0;
         rx_state <= S_IDLE;
-        rx_byte  <= 0;
+        rx_byte  <= 8'd0;
     end else begin
-        rx_done <= 0;
+        rx_done <= 1'b0;
         case (rx_state)
             S_IDLE: begin
                 if (!rx) begin
@@ -47,23 +48,23 @@ always @(posedge clk or negedge rst_n) begin
             end
             S_START: begin
                 if (cnt == SAMPLE_TICKS - 1) begin
-                    cnt      <= 0;
-                    bit_cnt  <= 0;
+                    cnt      <= 16'd0;
+                    bit_cnt  <= 4'd0;
                     rx_state <= S_DATA;
                 end else cnt <= cnt + 1'b1;
             end
             S_DATA: begin
                 if (cnt == SAMPLE_TICKS - 1) begin
-                    cnt            <= 0;
+                    cnt            <= 16'd0;
                     rdata[bit_cnt] <= rx;
                     bit_cnt        <= bit_cnt + 1'b1;
-                    if (bit_cnt == 7)
+                    if (bit_cnt == 4'd7)
                         rx_state <= S_STOP;
                 end else cnt <= cnt + 1'b1;
             end
             S_STOP: begin
                 if (cnt == SAMPLE_TICKS - 1) begin
-                    cnt      <= 0;
+                    cnt      <= 16'd0;
                     rx_byte  <= rdata;
                     rx_done  <= 1'b1;
                     rx_state <= S_IDLE;
@@ -81,7 +82,6 @@ reg [3:0] parse_state;
 reg [3:0] temp_id;
 
 localparam ST_IDLE    = 4'd0,
-           ST_ID      = 4'd1,
            ST_COMMA   = 4'd2,
            ST_C       = 4'd3,
            ST_O       = 4'd4,
@@ -96,14 +96,16 @@ localparam ST_IDLE    = 4'd0,
 
 always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-        parse_state      <= ST_IDLE;
-        temp_id          <= 4'd0;
-        client_id        <= 4'd0;
-        client_connected <= 1'b0;
-        client_closed    <= 1'b0;
+        parse_state   <= ST_IDLE;
+        temp_id       <= 4'd0;
+        client_id     <= 4'd0;
+        is_connected  <= 1'b0; // 系統復位時預設無連線
+        conn_pulse    <= 1'b0;
+        client_closed <= 1'b0;
     end else begin
-        client_connected <= 1'b0;
-        client_closed    <= 1'b0;
+        // 預設將脈衝訊號清空 (保持單一週期)
+        conn_pulse    <= 1'b0;
+        client_closed <= 1'b0;
 
         if (init_done && rx_done) begin
             case (parse_state)
@@ -139,8 +141,9 @@ always @(posedge clk or negedge rst_n) begin
                 ST_C2: begin if (rx_byte == "C") parse_state <= ST_T;  else parse_state <= ST_IDLE; end
                 ST_T:  begin
                     if (rx_byte == "T") begin
-                        client_id        <= temp_id;
-                        client_connected <= 1'b1; // 成功偵測到連線
+                        client_id    <= temp_id;
+                        is_connected <= 1'b1; // 電位訊號拉高（保持）
+                        conn_pulse   <= 1'b1; // 發送單週期連線脈衝
                     end
                     parse_state <= ST_IDLE;
                 end
@@ -151,7 +154,8 @@ always @(posedge clk or negedge rst_n) begin
                 ST_ED: begin
                     if (rx_byte == "E") begin
                         client_id     <= temp_id;
-                        client_closed <= 1'b1; // 成功偵測到斷線
+                        is_connected  <= 1'b0; // 電位訊號拉低
+                        client_closed <= 1'b1; // 發送單週期斷線脈衝
                     end
                     parse_state <= ST_IDLE;
                 end

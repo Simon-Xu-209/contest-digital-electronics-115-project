@@ -14,12 +14,40 @@ module seven_segment_display #(
 	input [31:0] grandTotal     // 付款總額
 );
 
+localparam FREQ_HZ        = 50_000_000;
+localparam CNT_INIT_100US = (FREQ_HZ / 10000) - 1; // 100 微秒週期
+
 // =========================================================
 // 動態掃描計數器
 // =========================================================
 reg [25:0] Counter;
 always @(posedge clk) begin
     Counter <= Counter + 1'b1;
+end
+
+// 系統模式定義
+localparam MODE_CLEAR        = 2'd0;
+localparam MODE_INITIAL      = 2'd0;
+localparam MODE_IDLE         = 2'd1;
+localparam MODE_CONNECT_TEST = 2'd2;
+
+reg [1:0]  sys_mode;
+reg [31:0] cnt_timer;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		sys_mode   <= MODE_CLEAR;
+		cnt_timer <= 0;
+	end else begin
+		if (switch_8bit == 8'b0 || switch_8bit == 8'b0001_0000) begin
+			if (sys_mode != MODE_IDLE && cnt_timer < FREQ_HZ*4) begin
+				sys_mode <= MODE_INITIAL;
+				cnt_timer <= cnt_timer + 1;
+			end else begin
+				sys_mode <= MODE_IDLE;
+				cnt_timer <= 0;
+			end
+		end
+	end
 end
 
 // =========================================================
@@ -34,16 +62,40 @@ always @(posedge clk or negedge rst_n) begin
 			seg_com_data[i] <= {1'b0, 7'b000_0000};
 		end
 	end else begin
-		if (switch_8bit == 8'b0) begin
-			seg_com_data[7] <= {1'b1, text[36]}; // '.'
-			seg_com_data[6] <= {1'b1, text[36]}; // '.'
-			seg_com_data[5] <= {1'b0, text[32]}; // 'W'
-			seg_com_data[4] <= {1'b0, text[10]}; // 'A'
-			seg_com_data[3] <= {1'b0, text[18]}; // 'I'
-			seg_com_data[2] <= {1'b0, text[29]}; // 'T'
-			seg_com_data[1] <= {1'b1, text[36]}; // '.'
-			seg_com_data[0] <= {1'b1, text[36]}; // '.'
-		end
+		case(sys_mode)
+		
+			MODE_CLEAR: begin
+				for (i = 0; i < 8; i = i + 1) begin
+					seg_com_data[i] <= {1'b0, 7'b000_0000};
+				end
+			end
+			
+			MODE_INITIAL: begin
+				seg_com_data[7] <= {1'b1, text[36]}; // '.'
+				seg_com_data[6] <= {1'b1, text[36]}; // '.'
+				seg_com_data[5] <= {1'b0, text[32]}; // 'W'
+				seg_com_data[4] <= {1'b0, text[10]}; // 'A'
+				seg_com_data[3] <= {1'b0, text[18]}; // 'I'
+				seg_com_data[2] <= {1'b0, text[29]}; // 'T'
+				seg_com_data[1] <= {1'b1, text[36]}; // '.'
+				seg_com_data[0] <= {1'b1, text[36]}; // '.'
+			end
+			
+			MODE_IDLE: begin
+				seg_com_data[7] <= {1'b0, 7'b100_0000}; // '-'
+				seg_com_data[6] <= {1'b0, text[bidAmount[15:8] - "0"]}; // '7'
+				seg_com_data[5] <= {1'b0, text[bidAmount[7:0] - "0"]};  // '0'
+				seg_com_data[4] <= {1'b0, 7'b100_0000}; // '-'
+				seg_com_data[3] <= {1'b0, 7'b100_0000}; // '-'
+				seg_com_data[2] <= {1'b0, text[bidAmount[47:40] - "0"]}; // '3'
+				seg_com_data[1] <= {1'b0, text[bidAmount[39:32] - "0"]}; // '0'
+				seg_com_data[0] <= {1'b0, 7'b100_0000}; // '-'
+			end
+			
+			MODE_CONNECT_TEST: begin end
+			
+			default:;
+		endcase
 	end
 end
 

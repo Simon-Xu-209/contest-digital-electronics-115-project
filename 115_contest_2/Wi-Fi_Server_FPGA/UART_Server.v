@@ -7,13 +7,13 @@ module UART_Server(
 	input         tx_en,
 	input         rx,
 	output        tx,
-	output [7:0]  LED,
 	output wire   Server_WiFi_txd,
 	output reg    RST_WiFi,
 	output wire [15:0] seg_data,
 	output wire [7:0]  seg_com,
 	output wire DIN,
-	output SCL, SDA, RES, DC, CS, BLK
+	output SCL, SDA, RES, DC, CS, BLK,
+	output wire CONNECETED
 );
 
 assign Server_WiFi_txd = rx;
@@ -82,6 +82,14 @@ reg        tx_start;
 wire       tx_busy;
 wire       cmd_done;
 
+// 宣告控制訊號 (來自 tx_buffer_controller)
+wire                     ctrl_tx_start;
+wire [8*MAX_CMD_LEN-1:0] ctrl_tx_cmd;
+wire                     tx_reg_busy;
+
+wire [8*MAX_CMD_LEN-1:0] final_tx_cmd   = init_done ? ctrl_tx_cmd   : current_cmd;
+wire                     final_tx_start = init_done ? ctrl_tx_start : tx_start;
+
 uart_tx_string #(
 	.MAX_BYTES(MAX_CMD_LEN)
 ) uart_tx_u1 (
@@ -94,18 +102,6 @@ uart_tx_string #(
 	.cmd_done(cmd_done)
 );
 
-// 初始化未完成時，聽開機狀態機 (current_cmd / tx_start)
-// 初始化完成後，聽暫存控制器 (tx_data_reg / tx_reg_flag)
-wire [8*MAX_CMD_LEN-1:0] final_tx_cmd   = init_done ? tx_data_reg : current_cmd;
-wire                     final_tx_start = init_done ? tx_reg_flag : tx_start;
-
-// 宣告控制訊號
-wire                     ctrl_tx_start;
-wire [8*MAX_CMD_LEN-1:0] ctrl_tx_cmd;
-wire                     tx_reg_busy;
-wire                     tx_reg_flag;
-wire [8*MAX_CMD_LEN-1:0] tx_data_reg;
-
 // 實體化傳送暫存器控制器
 tx_buffer_controller #(
 	.MAX_BYTES(MAX_CMD_LEN)
@@ -113,17 +109,17 @@ tx_buffer_controller #(
 	.clk          (clk),
 	.rst_n        (rst_n),
 	
-	// --- 外包介面：直連 connect_detector 或其他外設 ---
-	.send_req     (client_connected), // 當偵測到新連線時驅動一次
-	.target_id    (client_id),        // connect_detector 解析到的 ID (0~4)
-	.payload_len  (8'd9),             // "WELCOME\r\n" 長度為 9 位元組
-	.payload_data ("WELCOME\r\n"),     // 欲發送的內容
+	// --- 外包介面：改為接 conn_pulse ---
+	.send_req     (conn_pulse),       // 只有在剛連線瞬間發起一次 send_req
+	.target_id    (client_id),        // connect_detector 解析到的 ID
+	.payload_len  (8'd9),
+	.payload_data ({"ID:", orderID, "\r\n"}),
 	
 	// --- 狀態與對接介面 ---
 	.tx_reg_busy  (tx_reg_busy),
-	.uart_tx_start(ctrl_tx_start),    // 輸出至 final_tx_start
-	.uart_tx_cmd  (ctrl_tx_cmd),      // 輸出至 final_tx_cmd
-	.cmd_done     (cmd_done)          // 接收 UART 傳送完畢訊號
+	.uart_tx_start(ctrl_tx_start),
+	.uart_tx_cmd  (ctrl_tx_cmd),
+	.cmd_done     (cmd_done)
 );
 
 wire rx_ready;
@@ -146,10 +142,6 @@ uart_rx_string #(
 	.rx_ready     (rx_ready),     // 接收完成脈衝
 	.Data_reg_busy(Data_reg_busy) // 忙碌旗標
 );
-
-reg [8*MAX_CMD_LEN-1:0] resp_cmd;
-reg                      resp_tx_start;
-wire [8*MAX_CMD_LEN-1:0] tx_cmd_mux = init_done ? resp_cmd : current_cmd;
 
 // -------------------------------------------------------------
 // AT 初始化指令狀態機
@@ -201,8 +193,11 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 wire [3:0] client_id;
-wire       client_connected;
+wire       is_connected;   // 改為連線狀態電位
+wire       conn_pulse;     // 連線觸發脈衝
 wire       client_closed;
+
+assign CONNECETED = is_connected;
 
 connect_detector #(
 	.CLK_FREQ(50_000_000),
@@ -213,8 +208,9 @@ connect_detector #(
 	.rx              (rx_sync2),
 	.init_done       (init_done),
 	.client_id       (client_id),
-	.client_connected(client_connected), // 連線脈衝
-	.client_closed   (client_closed)     // 斷線脈衝
+	.is_connected    (is_connected),  // 狀態旗標 (高位代表連線中)
+	.conn_pulse      (conn_pulse),    // 觸發脈衝
+	.client_closed   (client_closed)
 );
 
 
@@ -262,7 +258,7 @@ seven_segment_display #(
 	.switch_8bit  (switch_8bit),
 	.seg_data     (seg_data),
 	.seg_com      (seg_com),
-	.orderID       (orderID),      // 訂單 ID
+	.orderID      (orderID),      // 訂單 ID
 	.orderQuantity(orderQuantity), // 訂購數量
 	.bidAmount    (bidAmount),     // 出價金額
 	.productQuota (productQuota),  // 商品配額

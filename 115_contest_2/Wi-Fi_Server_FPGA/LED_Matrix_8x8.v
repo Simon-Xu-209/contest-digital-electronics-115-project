@@ -14,10 +14,10 @@ module LED_Matrix_8x8 (
 // =========================================================================
 // 參數定義
 // =========================================================================
-localparam FREQ_HZ        = 50_000_000;
-localparam CNT_INIT_10US  = (FREQ_HZ / 10000) - 1; // 100 微秒週期
-//localparam CNT_ANIM_0_3S  = (FREQ_HZ * 3 / 10) - 1; // 0.3 秒週期
-//localparam CNT_JOY_0_2S   = (FREQ_HZ * 2 / 10) - 1; // 0.2 秒週期
+localparam FREQ_HZ         = 50_000_000;
+localparam CNT_INIT_100US  = (FREQ_HZ / 10000) - 1; // 100 微秒週期
+//localparam CNT_ANIM_0_3S = (FREQ_HZ * 3 / 10) - 1; // 0.3 秒週期
+//localparam CNT_JOY_0_2S  = (FREQ_HZ * 2 / 10) - 1; // 0.2 秒週期
 
 // WS2812B 時序參數 (50MHz clk)
 localparam T0H_CYCLES     = 17;
@@ -26,10 +26,10 @@ localparam T1H_CYCLES     = 45;
 localparam RESET_CYCLES   = 5000;
 
 // 系統模式定義
-localparam MODE_CLEAR   = 2'd0;
-localparam MODE_INITIAL = 2'd1;
-localparam MODE_IDLE    = 2'd2;
-localparam MODE_SETTING = 2'd3; // 新增：座標設定模式 (switch == 2'b11)
+localparam MODE_CLEAR        = 2'd0;
+localparam MODE_INITIAL      = 2'd1;
+localparam MODE_IDLE         = 2'd2;
+localparam MODE_CONNECT_TEST = 2'd3;
 
 // 顏色定義 (24-bit: G-R-B)
 localparam COLOR_WHITE = 24'hFF_FF_FF;
@@ -50,7 +50,7 @@ always @(posedge clk or negedge rst_n) begin
 		sys_mode   <= MODE_CLEAR;
 		anim_timer <= 0;
 	end else begin
-		if (switch_8bit == 8'b0) begin
+		if (switch_8bit == 8'b0 || switch_8bit == 8'b0001_0000) begin
 			if (sys_mode != MODE_IDLE && anim_timer < FREQ_HZ*4) begin
 				sys_mode <= MODE_INITIAL;
 				anim_timer <= anim_timer + 1;
@@ -58,10 +58,7 @@ always @(posedge clk or negedge rst_n) begin
 				sys_mode <= MODE_IDLE;
 				anim_timer <= 0;
 			end
-		end else begin
-			sys_mode <= MODE_CLEAR;
 		end
-
 	end
 end
 
@@ -98,14 +95,24 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			
 			MODE_IDLE: begin
-				if (pixel_col == 3'd7 && pixel_row < (orderQuantity[15:8] - "0")) begin
-					current_color = COLOR_RED;
+				if (pixel_col == 3'd7 && pixel_row <= (orderQuantity[15:8] - "0")) begin
+					if (pixel_row == (orderQuantity[15:8] - "0") && (orderQuantity[7:0] - "0") > 0) begin
+						current_color = COLOR_GREEN;
+					end else begin
+						current_color = COLOR_RED;
+					end
 				end else if (pixel_col == 3'd4 && pixel_row < (orderQuantity[47:40] - "0")) begin
-					current_color = COLOR_RED;
+					if (pixel_row == (orderQuantity[47:40] - "0") && (orderQuantity[39:32] - "0") > 0) begin
+						current_color = COLOR_GREEN;
+					end else begin
+						current_color = COLOR_RED;
+					end
 				end else begin
 					current_color = COLOR_BLACK;
 				end
 			end
+			
+			MODE_CONNECT_TEST: begin end
 
 			default: current_color = COLOR_BLACK; // MODE_CLEAR
 		endcase
@@ -147,7 +154,7 @@ always @(posedge clk or negedge rst_n) begin
 				/*case (sys_mode)
 					MODE_INITIAL: begin draw_row <= anim_row; draw_col <= anim_col; end
 					MODE_IDLE:   begin draw_row <= ctrl_row; draw_col <= ctrl_col; end
-					MODE_SETTING:   begin draw_row <= set_row;  draw_col <= set_col;  end
+					MODE_CONNECT_TEST:   begin draw_row <= set_row;  draw_col <= set_col;  end
 					default:        begin draw_row <= 3'd0;     draw_col <= 3'd0;     end
 				endcase*/
 				state <= STATE_RESET;
@@ -185,7 +192,7 @@ always @(posedge clk or negedge rst_n) begin
 				end
 			end
 			STATE_DELAY: begin
-				if (refresh_timer >= CNT_INIT_10US) begin
+				if (refresh_timer >= CNT_INIT_100US) begin
 					refresh_timer <= 0;
 					state <= STATE_IDLE;
 				end else begin
