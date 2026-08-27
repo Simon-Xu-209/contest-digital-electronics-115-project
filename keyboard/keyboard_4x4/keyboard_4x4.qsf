@@ -54,36 +54,26 @@ set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
-set_location_assignment PIN_70 -to column[3]
-set_location_assignment PIN_72 -to column[2]
-set_location_assignment PIN_76 -to column[1]
-set_location_assignment PIN_80 -to column[0]
-set_location_assignment PIN_82 -to row[3]
-set_location_assignment PIN_84 -to row[2]
-set_location_assignment PIN_86 -to row[1]
-set_location_assignment PIN_88 -to row[0]
+set_location_assignment PIN_88 -to column[3]
+set_location_assignment PIN_86 -to column[2]
+set_location_assignment PIN_84 -to column[1]
+set_location_assignment PIN_82 -to column[0]
+set_location_assignment PIN_80 -to row[3]
+set_location_assignment PIN_76 -to row[2]
+set_location_assignment PIN_72 -to row[1]
+set_location_assignment PIN_70 -to row[0]
 set_location_assignment PIN_149 -to ck
 set_global_assignment -name OPTIMIZE_HOLD_TIMING "ALL PATHS"
 set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
 set_global_assignment -name FITTER_EFFORT "FAST FIT"
 set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
-set_global_assignment -name NUM_PARALLEL_PROCESSORS 16
-set_location_assignment PIN_167 -to S[0]
-set_location_assignment PIN_166 -to S[1]
-set_location_assignment PIN_164 -to S[2]
-set_location_assignment PIN_161 -to S[3]
-set_location_assignment PIN_160 -to S[4]
-set_location_assignment PIN_159 -to S[5]
-set_location_assignment PIN_148 -to S[6]
-set_location_assignment PIN_147 -to S[7]
-set_location_assignment PIN_146 -to S[8]
-set_location_assignment PIN_135 -to S[15]
-set_location_assignment PIN_137 -to S[14]
-set_location_assignment PIN_139 -to S[13]
-set_location_assignment PIN_142 -to S[12]
-set_location_assignment PIN_143 -to S[11]
-set_location_assignment PIN_144 -to S[10]
-set_location_assignment PIN_145 -to S[9]
-set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
-set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
+set_location_assignment PIN_226 -to S[0]
+set_location_assignment PIN_223 -to S[1]
+set_location_assignment PIN_221 -to S[2]
+set_location_assignment PIN_219 -to S[3]
+set_location_assignment PIN_217 -to S[4]
+set_location_assignment PIN_214 -to S[5]
+set_location_assignment PIN_203 -to S[6]
+set_location_assignment PIN_201 -to S[7]
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

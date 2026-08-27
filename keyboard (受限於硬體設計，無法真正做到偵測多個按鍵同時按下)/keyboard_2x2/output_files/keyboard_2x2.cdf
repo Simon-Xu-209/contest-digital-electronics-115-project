@@ -4,7 +4,7 @@ JedecChain;
 	DefaultMfr(6E);
 
 	P ActionCode(Cfg)
-		Device PartName(EP3C40Q240) Path("C:/Users/adminuser/Desktop/115 project/115_contest_2/Wi-Fi_Server_FPGA/output_files/") File("UART_Server.sof") MfrSpec(OpMask(1));
+		Device PartName(EP3C40Q240) Path("C:/Users/adminuser/Desktop/keyboard/keyboard_2x2/output_files/") File("keyboard_2x2.sof") MfrSpec(OpMask(1));
 
 ChainEnd;
 

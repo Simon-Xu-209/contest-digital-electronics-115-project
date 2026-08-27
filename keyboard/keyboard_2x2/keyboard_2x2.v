@@ -1,42 +1,51 @@
 module keyboard_2x2(
-    input ck, //50MHz
-    input [1:0] column,
+    input wire clk,
+	 input wire rst_n,
+    input wire [1:0] column,
     output reg [1:0] row,
 	 output wire Pressed,
-    output reg [3:0] KEY
+    output reg [2:0] KEY
 );
 
-reg [15:0] clk_cnt;
-reg scan_tick;
-always @(posedge ck) begin
-	if (clk_cnt >= 16'd49_999) begin
-		clk_cnt <= 16'd0;
-		scan_tick <= 1'b1;
+assign Pressed = ^column;
+
+reg [7:0] Counter;
+always@(posedge clk) begin
+	if (Counter < 8'b1111_1111) begin
+		Counter <= Counter + 1'b1;
 	end else begin
-		clk_cnt <= clk_cnt + 1'b1;
-		scan_tick <= 1'b0;
+		Counter <= 0;
 	end
 end
 
-assign Pressed = (KEY != 4'b0000);
-
-always@(posedge ck) begin
-	if(scan_tick) begin
-		case (row)
-			2'b01: begin
-				KEY[0] <= (column[1] == 0);
-				KEY[1] <= (column[0] == 0);
-				row <= 2'b10;
-			end
-			2'b10: begin
-				KEY[2] <= (column[1] == 0);
-				KEY[3] <= (column[0] == 0);
-				row <= 2'b01;
-			end
-			default: begin
-				row <= 2'b01;
-			end
-		endcase
+always@(posedge clk or negedge rst_n) begin
+	if(!rst_n) begin
+		row <= 2'b01;
+		KEY <= 3'b111;
+	end else if (Counter == 8'b1111_1111) begin
+		row <= (Pressed) ? row : {row[0], row[1]};
+		if (Pressed) begin
+			case (row)
+				2'b01: begin
+					if (column == 2'b01) begin
+						KEY <= 3'd0;
+					end else if (column == 2'b10) begin
+						KEY <= 3'd1;
+					end
+				end
+				2'b10: begin
+					if (column == 2'b01) begin
+						KEY <= 3'd2;
+					end else if (column == 2'b10) begin
+						KEY <= 3'd3;
+					end
+				end
+				default: begin
+					row <= 2'b01;
+					KEY <= 3'b111;
+				end
+			endcase
+		end
 	end
 end
 

@@ -95,14 +95,14 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			
 			MODE_IDLE: begin
-				if (pixel_col == 3'd7 && pixel_row <= (orderQuantity[15:8] - "0")) begin
-					if (pixel_row == (orderQuantity[15:8] - "0") && (orderQuantity[7:0] - "0") > 0) begin
+				if (pixel_col == 3'd7 && pixel_row <= (orderQuantity[47:40] - "0")) begin
+					if (pixel_row == (orderQuantity[47:40] - "0") && (orderQuantity[39:32] - "0") > 0) begin
 						current_color = COLOR_GREEN;
 					end else begin
 						current_color = COLOR_RED;
 					end
-				end else if (pixel_col == 3'd4 && pixel_row < (orderQuantity[47:40] - "0")) begin
-					if (pixel_row == (orderQuantity[47:40] - "0") && (orderQuantity[39:32] - "0") > 0) begin
+				end else if (pixel_col == 3'd4 && pixel_row < (orderQuantity[15:8] - "0")) begin
+					if (pixel_row == (orderQuantity[15:8] - "0") && (orderQuantity[7:0] - "0") > 0) begin
 						current_color = COLOR_GREEN;
 					end else begin
 						current_color = COLOR_RED;

@@ -16,13 +16,15 @@ Public Class Form1
     Private ServerIP As String = "192.168.4.1"
     Private ServerPort As String = "80"
     Private Sub Form1_Load(ByVal sender As Object, ByVal e As EventArgs) Handles MyBase.Load
-        SerialPort1.PortName = "COM4"
+        SerialPort1.PortName = "COM3"
         SerialPort1.BaudRate = 115200
         SerialPort1.DataBits = 8
         SerialPort1.StopBits = StopBits.One
         SerialPort1.Parity = Parity.None
         SerialPort1.Encoding = Encoding.ASCII
         SerialPort1.NewLine = vbCrLf
+
+        quotasAndTotalPaymentAmounts.Text = "0000"
 
         StepTimer.Interval = 200 ' 200ms 檢查一次
         AddHandler StepTimer.Tick, AddressOf StepTimer_Tick
@@ -113,6 +115,9 @@ Public Class Form1
                     connect.Enabled = True
                 ElseIf responseBuffer.Contains("ERROR") OrElse responseBuffer.Contains("CLOSED") Then
                     FailAndStop("無法連線至目標 TCP Server (請確認 Server 端已開啟)")
+                    orderID.Text = ""
+                    quantityAndPrice.Text = ""
+                    quotasAndTotalPaymentAmounts.Text = "9999"
                 Else
                     waitCounter += 1
                     If waitCounter > 25 Then FailAndStop("TCP 連線超時")
@@ -189,8 +194,7 @@ Public Class Form1
             responseBuffer &= raw
 
             Me.Invoke(Sub()
-                          AppendLog("[RX] " & raw)
-
+                          AppendLog(raw)
                           If raw.Contains("+IPD") Then
                               Dim parsed As String = ParseIPD(raw)
                               If parsed <> "" Then
@@ -211,7 +215,11 @@ Public Class Form1
             Dim colon As Integer = raw.IndexOf(":", idx)
             If colon = -1 Then Return ""
 
-            Return raw.Substring(colon + 1).Trim()
+            ' 截取冒號後的實際 Payload 數據
+            Dim result As String = raw.Substring(colon + 1)
+
+            ' 移除尾部的 \r 與 \n 換行字元，保留乾淨的數據內容
+            Return result.Replace(vbCr, "").Replace(vbLf, "").Trim()
         Catch
             Return ""
         End Try
@@ -219,7 +227,19 @@ Public Class Form1
 
     Private Sub ProcessClientData(ByVal payload As String)
         payload = payload.Trim()
-        If payload.StartsWith("QP:") Then
+
+        ' 1. 當接收到 ID (例如 "ID:0102")
+        If payload.StartsWith("ID:") Then
+            Dim idValue As String = payload.Substring(3).Trim()
+            orderID.Text = idValue
+
+            ' 2. 當接收到 數量 (例如 "QA:00650040" 或 "QA:00400065")
+        ElseIf payload.StartsWith("QA:") Then
+            Dim qaValue As String = payload.Substring(3).Trim()
+            quantityAndPrice.Text = qaValue
+
+            ' 3. 保留原本的解析相容性 (QP / PA)
+        ElseIf payload.StartsWith("QP:") Then
             quantityAndPrice.Text = payload.Substring(3).Trim()
         ElseIf payload.StartsWith("PA:") Then
             quotasAndTotalPaymentAmounts.Text = payload.Substring(3).Trim()

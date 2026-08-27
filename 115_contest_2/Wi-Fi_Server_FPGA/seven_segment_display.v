@@ -83,12 +83,12 @@ always @(posedge clk or negedge rst_n) begin
 			
 			MODE_IDLE: begin
 				seg_com_data[7] <= {1'b0, 7'b100_0000}; // '-'
-				seg_com_data[6] <= {1'b0, text[bidAmount[15:8] - "0"]}; // '7'
-				seg_com_data[5] <= {1'b0, text[bidAmount[7:0] - "0"]};  // '0'
+				seg_com_data[6] <= {1'b0, text[bidAmount[47:40] - "0"]}; // '7'
+				seg_com_data[5] <= {1'b0, text[bidAmount[39:32] - "0"]};  // '0'
 				seg_com_data[4] <= {1'b0, 7'b100_0000}; // '-'
 				seg_com_data[3] <= {1'b0, 7'b100_0000}; // '-'
-				seg_com_data[2] <= {1'b0, text[bidAmount[47:40] - "0"]}; // '3'
-				seg_com_data[1] <= {1'b0, text[bidAmount[39:32] - "0"]}; // '0'
+				seg_com_data[2] <= {1'b0, text[bidAmount[15:8] - "0"]}; // '3'
+				seg_com_data[1] <= {1'b0, text[bidAmount[7:0] - "0"]}; // '0'
 				seg_com_data[0] <= {1'b0, 7'b100_0000}; // '-'
 			end
 			

@@ -109,13 +109,14 @@ tx_buffer_controller #(
 	.clk          (clk),
 	.rst_n        (rst_n),
 	
-	// --- 外包介面：改為接 conn_pulse ---
-	.send_req     (conn_pulse),       // 只有在剛連線瞬間發起一次 send_req
-	.target_id    (client_id),        // connect_detector 解析到的 ID
-	.payload_len  (8'd9),
-	.payload_data ({"ID:", orderID, "\r\n"}),
+	.send_req     (order_proc_done),  // 由 Order_processor 完成後觸發
+	.target_id    (client_id),        // TCP Client ID
 	
-	// --- 狀態與對接介面 ---
+	// 改為傳入專用的發送暫存器
+	.sendID       (sendID),
+	.sendQA       (sendQA),
+	.sendQT       (sendQT),
+	
 	.tx_reg_busy  (tx_reg_busy),
 	.uart_tx_start(ctrl_tx_start),
 	.uart_tx_cmd  (ctrl_tx_cmd),
@@ -221,33 +222,58 @@ wire [63:0] bidAmount;     // 出價金額
 wire [31:0] productQuota;  // 商品配額
 wire [31:0] grandTotal;    // 付款總額
 
+wire [31:0] sendID;
+wire [63:0] sendQA;
+wire [63:0] sendQT;
+
+// -------------------------------------------------------------
+// 訂單處理器 (Order_processor)
+// -------------------------------------------------------------
 Order_processor #(
 	.MAX_RX_LEN(MAX_RX_LEN)
-)Order_processor_u1(
+) Order_processor_u1 (
 	.clk           (clk),
 	.rst_n         (rst_n),
-	.rx_Data_reg   (rx_Data_reg),   // 資料暫存器
-	.orderID       (orderID),       // 訂單 ID
-	.orderQuantity (orderQuantity), // 訂購數量
-	.bidAmount     (bidAmount),     // 出價金額
-	.productQuota  (productQuota),  // 商品配額
-	.grandTotal    (grandTotal)     // 付款總額
+	.start_proc    (conn_pulse),      // 連線成功，通知開始處理
+	.rx_Data_reg   (rx_Data_reg),     // 資料暫存器
+	
+	.orderID       (orderID),
+	.orderQuantity (orderQuantity),
+	.bidAmount     (bidAmount),
+	.productQuota  (productQuota),
+	.grandTotal    (grandTotal),
+	
+	// ⭐ 連接傳輸暫存器
+	.sendID        (sendID),
+	.sendQA        (sendQA),
+	.sendQT        (sendQT),
+	
+	.proc_done     (order_proc_done)  // 處理完成脈衝
 );
-
 
 // -------------------------------------------------------------
 // 外設模組連接
 // -------------------------------------------------------------
 
-wire pressed;
-wire [3:0] key;
+wire Pressed;
+wire [3:0] KEY;
+keyboard_3x3 keyboard_3x3_u1(
+	.clk    (clk),
+	.rst_n  (rst_n),
+	.column (column_3x3),
+	.row    (row_3x3),
+	.KEY    (KEY),        // 按鍵值
+	.Pressed(Pressed) // 1 表示已按下
+);
+
+/*
 button_3x3 button_3x3_u1(
 	.clk    (clk),
 	.column (column_3x3),
 	.row    (row_3x3),
-	.key    (key),        // 按鍵值
-	.pressed(pressed) // 1 表示已按下
-);
+	.key    (KEY),        // 按鍵值
+	.pressed(Pressed) // 1 表示已按下
+);*/
 
 seven_segment_display #(
 	.MAX_RX_LEN(MAX_RX_LEN)
@@ -269,7 +295,7 @@ LED_Matrix_8x8 LED_Matrix_8x8_u1(
 	.clk          (clk),
 	.rst_n        (rst_n),
 	.switch_8bit  (switch_8bit),
-	.KEY          (),
+	.KEY          (KEY),
 	.DIN          (DIN),
 	.orderID       (orderID),      // 訂單 ID
 	.orderQuantity(orderQuantity), // 訂購數量
@@ -282,7 +308,7 @@ TFT_LCD TFT_LCD_u1(
 	.clk        (clk),
 	.rst_n      (rst_n),
 	.switch_8bit(switch_8bit),
-	.KEY        (key),
+	.KEY        (KEY),
 	.SCL        (SCL),
 	.SDA        (SDA),
 	.RES        (RES),

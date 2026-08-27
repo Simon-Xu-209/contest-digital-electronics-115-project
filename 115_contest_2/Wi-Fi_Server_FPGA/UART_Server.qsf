@@ -104,23 +104,11 @@ set_global_assignment -name VERILOG_FILE Order_processor.v
 set_global_assignment -name VERILOG_FILE connect_detector.v
 set_global_assignment -name VERILOG_FILE tx_buffer_controller.v
 set_location_assignment PIN_131 -to BLK
-set_location_assignment PIN_57 -to column_2x2[1]
-set_location_assignment PIN_68 -to column_2x2[0]
 set_location_assignment PIN_132 -to CS
 set_location_assignment PIN_133 -to DC
 set_location_assignment PIN_134 -to RES
 set_location_assignment PIN_137 -to SCL
 set_location_assignment PIN_135 -to SDA
-set_location_assignment PIN_70 -to switch[7]
-set_location_assignment PIN_76 -to switch[6]
-set_location_assignment PIN_80 -to switch[5]
-set_location_assignment PIN_82 -to switch[4]
-set_location_assignment PIN_83 -to switch[3]
-set_location_assignment PIN_81 -to switch[2]
-set_location_assignment PIN_78 -to switch[1]
-set_location_assignment PIN_73 -to switch[0]
-set_location_assignment PIN_51 -to row_2x2[1]
-set_location_assignment PIN_55 -to row_2x2[0]
 set_location_assignment PIN_84 -to DIN
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -entity top -section_id Top
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -entity top -section_id Top
