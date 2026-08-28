@@ -5,13 +5,16 @@ module seven_segment_display #(
 	input  wire                    rst_n,
 	input  wire [8*MAX_RX_LEN-1:0] rx_Data_reg, // 傳入 64 Bytes 資料暫存器
 	input  wire [7:0]              switch_8bit,
+	input  wire [3:0]              KEY,
+	input  wire       Pressed,
 	output reg  [15:0]             seg_data,
 	output reg  [7:0]              seg_com,
+
 	input [31:0] orderID,       // 訂單 ID
-	input [63:0] orderQuantity, // 訂購數量
-	input [63:0] bidAmount,     // 出價金額
-	input [31:0] productQuota,  // 商品配額
-	input [31:0] grandTotal     // 付款總額
+	input [15:0] orderQuantity, // 訂購數量
+	input [15:0] bidAmount,     // 出價金額
+	input [15:0] productQuota,  // 商品配額
+	input [15:0] grandTotal     // 付款總額
 );
 
 localparam FREQ_HZ        = 50_000_000;
@@ -38,7 +41,7 @@ always @(posedge clk or negedge rst_n) begin
 		sys_mode   <= MODE_CLEAR;
 		cnt_timer <= 0;
 	end else begin
-		if (switch_8bit == 8'b0 || switch_8bit == 8'b0001_0000) begin
+		if ((switch_8bit == 8'b0 || switch_8bit == 8'b0001_0000) && KEY == 6) begin
 			if (sys_mode != MODE_IDLE && cnt_timer < FREQ_HZ*4) begin
 				sys_mode <= MODE_INITIAL;
 				cnt_timer <= cnt_timer + 1;
@@ -83,12 +86,12 @@ always @(posedge clk or negedge rst_n) begin
 			
 			MODE_IDLE: begin
 				seg_com_data[7] <= {1'b0, 7'b100_0000}; // '-'
-				seg_com_data[6] <= {1'b0, text[bidAmount[47:40] - "0"]}; // '7'
-				seg_com_data[5] <= {1'b0, text[bidAmount[39:32] - "0"]};  // '0'
+				seg_com_data[6] <= {1'b0, text[bidAmount[15:8] / 10]}; // '7'
+				seg_com_data[5] <= {1'b0, text[bidAmount[15:8] % 10]}; // '0'
 				seg_com_data[4] <= {1'b0, 7'b100_0000}; // '-'
 				seg_com_data[3] <= {1'b0, 7'b100_0000}; // '-'
-				seg_com_data[2] <= {1'b0, text[bidAmount[15:8] - "0"]}; // '3'
-				seg_com_data[1] <= {1'b0, text[bidAmount[7:0] - "0"]}; // '0'
+				seg_com_data[2] <= {1'b0, text[bidAmount[7:0] / 10]}; // '3'
+				seg_com_data[1] <= {1'b0, text[bidAmount[7:0] % 10]}; // '0'
 				seg_com_data[0] <= {1'b0, 7'b100_0000}; // '-'
 			end
 			

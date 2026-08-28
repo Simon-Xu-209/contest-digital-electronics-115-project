@@ -6,6 +6,8 @@ module uart_rx_string #(
 	input  wire                   clk,
 	input  wire                   rst_n,
 	input  wire                   rx,
+	output reg                    rx_done,
+	output reg  [7:0]             rx_byte,
 	output reg  [3:0]             link_ID,         // Wi-Fi 連線 ID
 	output reg  [15:0]            rx_Data_len,     // 資料位元組長度
 	output reg  [8*MAX_BYTES-1:0] rx_Data_reg,     // 傳輸資料本身 (Payload)
@@ -22,8 +24,6 @@ reg [15:0] cnt;
 reg [3:0]  bit_cnt;
 reg [7:0]  rdata;
 reg [1:0]  rx_state;
-reg        rx_done;
-reg [7:0]  rx_byte;
 
 localparam RX_IDLE  = 2'd0,
            RX_START = 2'd1,

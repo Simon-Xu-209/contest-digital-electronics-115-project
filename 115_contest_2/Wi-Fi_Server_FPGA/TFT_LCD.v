@@ -4,11 +4,13 @@ module TFT_LCD (
 	input wire [7:0] switch_8bit,
 	//input wire [3:0] PB,  // 2x2
 	input wire [3:0] KEY, // 3x3
+	input wire       Pressed,
+
 	input [31:0] orderID,       // 訂單 ID
-	input [63:0] orderQuantity, // 訂購數量 (高位元組4Byte是02 / 低位元組4Byte是01)
-	input [63:0] bidAmount,     // 出價金額
-	input [63:0] productQuota,  // 商品配額
-	input [31:0] grandTotal,    // 付款總額
+	input [15:0] orderQuantity, // 訂購數量
+	input [15:0] bidAmount,     // 出價金額
+	input [15:0] productQuota,  // 商品配額
+	input [15:0] grandTotal,    // 付款總額
 	output reg  SCL, SDA, RES, DC, CS, BLK
 );
 
@@ -33,19 +35,16 @@ reg [7:0]  char_y     [0:MAX_CHARS-1]; // 文字 y 座標
 reg [15:0] char_color [0:MAX_CHARS-1]; // 文字顏色
 reg [1:0]  char_scale [0:MAX_CHARS-1]; // 文字大小
 
+reg [1:0] display_state;
+localparam display_IDLE = 2'd0,
+			  display_EDIT = 2'd1;
+
 reg [31:0] timer_cnt;
 
 integer i;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		timer_cnt <= 26'b0;
-		
-		// 文字設定初始化
-		for (i = 0; i < MAX_CHARS; i = i + 1) begin
-			char_ascii[i] <= " ";
-			char_color[i] <= COLOR_BLACK;
-			char_scale[i] <= 2'd2;
-		end
+		display_state <= 2'd0;
 		
 		// 上方 ID00 位置
 		char_x[0]  <= 8'd16; char_y[0]  <= 8'd0;
@@ -66,19 +65,80 @@ always @(posedge clk or negedge rst_n) begin
 		char_x[11] <= 8'd88; char_y[11] <= 8'd106;
 		
 	end else begin
-		if (switch_8bit == 8'b0) begin
-			if (timer_cnt <= CLK_FREQ*3) begin
-				timer_cnt <= timer_cnt + 1'b1;
-				for (i = 0; i < MAX_CHARS; i = i + 1) begin
-					char_ascii[i] <= " ";
-				end
-			end else begin
-				char_ascii[0] <= "I"; char_ascii[1] <= "D"; char_ascii[2]  <= "0"; char_ascii[3]  <= "0";			
-				char_ascii[4] <= "O"; char_ascii[5] <= "Q"; char_ascii[6]  <= "0"; char_ascii[7]  <= "0";
-				char_ascii[8] <= "S"; char_ascii[9] <= "Q"; char_ascii[10] <= "0"; char_ascii[11] <= "0";
-			end
-
+		if ((switch_8bit == 8'b0 || switch_8bit == 8'b0001_0000) && KEY == 6) begin
+			display_state <= display_IDLE;
+		end else if ((switch_8bit[7:4] == 4'b0100) && KEY == 6) begin
+			display_state <= display_EDIT;
 		end
+	end
+end
+
+// orderQuantity 的十位數與個位數 ASCII
+wire [7:0] quantity_01_tens = 8'd48 + (orderQuantity[15:8] / 10);
+wire [7:0] quantity_01_ones = 8'd48 + (orderQuantity[15:8] % 10);
+wire [7:0] quantity_02_tens = 8'd48 + (orderQuantity[7:0] / 10);
+wire [7:0] quantity_02_ones = 8'd48 + (orderQuantity[7:0] % 10);
+
+// bidAmount 的十位數與個位數 ASCII
+wire [7:0] amount_01_tens = 8'd48 + (bidAmount[15:8] / 10);
+wire [7:0] amount_01_ones = 8'd48 + (bidAmount[15:8] % 10);
+wire [7:0] amount_02_tens = 8'd48 + (bidAmount[7:0] / 10);
+wire [7:0] amount_02_ones = 8'd48 + (bidAmount[7:0] % 10);
+
+// productQuota 的十位數與個位數 ASCII
+wire [7:0] quota_01_tens = 8'd48 + (productQuota[15:8] / 10);
+wire [7:0] quota_01_ones = 8'd48 + (productQuota[15:8] % 10);
+wire [7:0] quota_02_tens = 8'd48 + (productQuota[7:0] / 10);
+wire [7:0] quota_02_ones = 8'd48 + (productQuota[7:0] % 10);
+
+// grandTotal 的十位數與個位數 ASCII
+wire [7:0] total_01_tens = 8'd48 + (grandTotal[15:8] / 10);
+wire [7:0] total_01_ones = 8'd48 + (grandTotal[15:8] % 10);
+wire [7:0] total_02_tens = 8'd48 + (grandTotal[7:0] / 10);
+wire [7:0] total_02_ones = 8'd48 + (grandTotal[7:0] % 10);
+
+always@(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		timer_cnt <= 32'd0;
+		
+		// 文字設定初始化
+		for (i = 0; i < MAX_CHARS; i = i + 1) begin
+			char_ascii[i] <= " ";
+			char_color[i] <= COLOR_BLACK;
+			char_scale[i] <= 2'd2;
+		end
+		
+	end else begin
+		case(display_state)
+		
+			display_IDLE: begin
+				if (timer_cnt <= CLK_FREQ*3) begin
+					timer_cnt <= timer_cnt + 1'b1;
+					for (i = 0; i < MAX_CHARS; i = i + 1) begin
+						char_ascii[i] <= " ";
+					end
+				end else begin
+					char_ascii[0] <= "I"; char_ascii[1] <= "D"; char_ascii[2]  <= "0"; char_ascii[3]  <= "0";
+					char_ascii[4] <= "O"; char_ascii[5] <= "Q"; char_ascii[6]  <= "0"; char_ascii[7]  <= "0";
+					char_ascii[8] <= "S"; char_ascii[9] <= "Q"; char_ascii[10] <= "0"; char_ascii[11] <= "0";
+				end
+			end
+			
+			display_EDIT: begin
+				char_ascii[0] <= "I"; char_ascii[1] <= "D";
+				char_ascii[4] <= "O"; char_ascii[5] <= "Q";
+				char_ascii[8] <= "S"; char_ascii[9] <= "Q";
+				char_ascii[2] <= "0"; char_ascii[3] <= orderID[7:0]; // 訂單ID
+				if (orderID == "0001") begin
+					char_ascii[6]  <= quantity_01_tens; char_ascii[7]  <= quantity_01_ones; // 原始訂購數量
+					char_ascii[10] <= quota_01_tens;    char_ascii[11] <= quota_01_ones; // 訂單配額
+				end else if (orderID == "0002") begin
+					char_ascii[6]  <= quantity_02_tens; char_ascii[7]  <= quantity_02_ones; // 原始訂購數量
+					char_ascii[10] <= quota_02_tens;    char_ascii[11] <= quota_02_ones; // 訂單配額
+				end
+			end
+			
+		endcase
 	end
 end
 

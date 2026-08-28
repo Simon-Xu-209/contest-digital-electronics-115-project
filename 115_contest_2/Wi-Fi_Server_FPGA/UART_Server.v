@@ -120,7 +120,10 @@ tx_buffer_controller #(
 	.tx_reg_busy  (tx_reg_busy),
 	.uart_tx_start(ctrl_tx_start),
 	.uart_tx_cmd  (ctrl_tx_cmd),
-	.cmd_done     (cmd_done)
+	.cmd_done     (cmd_done),
+	
+	.rec_ok       (rx_ok),
+	.rec_prompt   (rx_prompt)
 );
 
 wire rx_ready;
@@ -128,6 +131,9 @@ wire [3:0] link_ID;
 wire [15:0] rx_Data_len;
 wire [255:0] rx_Data_reg;
 wire Data_reg_busy;
+
+wire       rx_done;
+wire [7:0] rx_byte;
 
 uart_rx_string #(
 	.MAX_BYTES(MAX_RX_LEN),
@@ -137,11 +143,26 @@ uart_rx_string #(
 	.clk          (clk),
 	.rst_n        (rst_n),
 	.rx           (rx_sync2),
+	.rx_done      (rx_done),
+	.rx_byte      (rx_byte),
 	.link_ID      (link_ID),      // Wi-Fi 連線 ID 暫存器
 	.rx_Data_len  (rx_Data_len),  // 資料長度暫存器(位元組)
 	.rx_Data_reg  (rx_Data_reg),  // 輸出穩定的正式資料暫存器
 	.rx_ready     (rx_ready),     // 接收完成脈衝
 	.Data_reg_busy(Data_reg_busy) // 忙碌旗標
+);
+
+wire rx_ok;
+wire rx_prompt;
+
+receiver_OK u_receiver_OK (
+	.clk            (clk),
+	.rst_n          (rst_n),
+	.RECEIVE_END    (rx_done), // UART RX 的 Byte 接收完成脈衝
+	.receive_ok_en  (1'b1),
+	.rxd            (rx_byte),  // UART RX 得到的字元資料
+	.receiver_OK    (rx_ok),       // 接至控制器的 OK 判斷
+	.receiver_PROMPT(rx_prompt)   // 接至控制器的 Prompt 判斷
 );
 
 // -------------------------------------------------------------
@@ -217,14 +238,16 @@ connect_detector #(
 
 
 wire [31:0] orderID;       // 訂單 ID
-wire [63:0] orderQuantity; // 訂購數量
-wire [63:0] bidAmount;     // 出價金額
-wire [31:0] productQuota;  // 商品配額
-wire [31:0] grandTotal;    // 付款總額
+wire [15:0] orderQuantity; // 訂購數量
+wire [15:0] bidAmount;     // 出價金額
+wire [15:0] productQuota;  // 商品配額
+wire [15:0] grandTotal;    // 付款總額
 
 wire [31:0] sendID;
 wire [63:0] sendQA;
 wire [63:0] sendQT;
+
+wire order_proc_done;
 
 // -------------------------------------------------------------
 // 訂單處理器 (Order_processor)
@@ -237,13 +260,17 @@ Order_processor #(
 	.start_proc    (conn_pulse),      // 連線成功，通知開始處理
 	.rx_Data_reg   (rx_Data_reg),     // 資料暫存器
 	
+	.switch_8bit  (switch_8bit),
+	.KEY          (KEY),
+	.Pressed      (Pressed),
+	
 	.orderID       (orderID),
 	.orderQuantity (orderQuantity),
 	.bidAmount     (bidAmount),
 	.productQuota  (productQuota),
 	.grandTotal    (grandTotal),
 	
-	// ⭐ 連接傳輸暫存器
+	// 連接傳輸暫存器
 	.sendID        (sendID),
 	.sendQA        (sendQA),
 	.sendQT        (sendQT),
@@ -282,9 +309,11 @@ seven_segment_display #(
 	.rst_n        (rst_n),
 	.rx_Data_reg  (rx_Data_reg), // 直接連接收到的 64 Bytes Payload
 	.switch_8bit  (switch_8bit),
+	.KEY          (KEY),
+	.Pressed      (Pressed),
 	.seg_data     (seg_data),
 	.seg_com      (seg_com),
-	.orderID      (orderID),      // 訂單 ID
+	.orderID      (orderID),       // 訂單 ID
 	.orderQuantity(orderQuantity), // 訂購數量
 	.bidAmount    (bidAmount),     // 出價金額
 	.productQuota (productQuota),  // 商品配額
@@ -296,8 +325,9 @@ LED_Matrix_8x8 LED_Matrix_8x8_u1(
 	.rst_n        (rst_n),
 	.switch_8bit  (switch_8bit),
 	.KEY          (KEY),
+	.Pressed      (Pressed),
 	.DIN          (DIN),
-	.orderID       (orderID),      // 訂單 ID
+	.orderID      (orderID),       // 訂單 ID
 	.orderQuantity(orderQuantity), // 訂購數量
 	.bidAmount    (bidAmount),     // 出價金額
 	.productQuota (productQuota),  // 商品配額
@@ -305,17 +335,18 @@ LED_Matrix_8x8 LED_Matrix_8x8_u1(
 );
 
 TFT_LCD TFT_LCD_u1(
-	.clk        (clk),
-	.rst_n      (rst_n),
-	.switch_8bit(switch_8bit),
-	.KEY        (KEY),
-	.SCL        (SCL),
-	.SDA        (SDA),
-	.RES        (RES),
-	.DC         (DC),
-	.CS         (CS),
-	.BLK        (BLK),
-	.orderID       (orderID),      // 訂單 ID
+	.clk          (clk),
+	.rst_n        (rst_n),
+	.switch_8bit  (switch_8bit),
+	.KEY          (KEY),
+	.Pressed      (Pressed),
+	.SCL          (SCL),
+	.SDA          (SDA),
+	.RES          (RES),
+	.DC           (DC),
+	.CS           (CS),
+	.BLK          (BLK),
+	.orderID      (orderID),       // 訂單 ID
 	.orderQuantity(orderQuantity), // 訂購數量
 	.bidAmount    (bidAmount),     // 出價金額
 	.productQuota (productQuota),  // 商品配額

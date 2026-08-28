@@ -3,12 +3,14 @@ module LED_Matrix_8x8 (
 	input  wire        rst_n,
 	input  wire [7:0]  switch_8bit, // 指撥開關
 	input  wire [3:0]  KEY,         // 按鈕
+	input  wire       Pressed,
 	output reg         DIN,         // WS2812B 資料輸出
+
 	input [31:0] orderID,       // 訂單 ID
-	input [63:0] orderQuantity, // 訂購數量
-	input [63:0] bidAmount,     // 出價金額
-	input [31:0] productQuota,  // 商品配額
-	input [31:0] grandTotal     // 付款總額
+	input [15:0] orderQuantity, // 訂購數量
+	input [15:0] bidAmount,     // 出價金額
+	input [15:0] productQuota,  // 商品配額
+	input [15:0] grandTotal     // 付款總額
 );
 
 // =========================================================================
@@ -50,7 +52,7 @@ always @(posedge clk or negedge rst_n) begin
 		sys_mode   <= MODE_CLEAR;
 		anim_timer <= 0;
 	end else begin
-		if (switch_8bit == 8'b0 || switch_8bit == 8'b0001_0000) begin
+		if ((switch_8bit == 8'b0 || switch_8bit == 8'b0001_0000) && KEY == 6) begin
 			if (sys_mode != MODE_IDLE && anim_timer < FREQ_HZ*4) begin
 				sys_mode <= MODE_INITIAL;
 				anim_timer <= anim_timer + 1;
@@ -95,17 +97,19 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			
 			MODE_IDLE: begin
-				if (pixel_col == 3'd7 && pixel_row <= (orderQuantity[47:40] - "0")) begin
-					if (pixel_row == (orderQuantity[47:40] - "0") && (orderQuantity[39:32] - "0") > 0) begin
-						current_color = COLOR_GREEN;
-					end else begin
+				if (pixel_col == 3'd7) begin
+					if (pixel_row < (orderQuantity[15:8] / 10)) begin
 						current_color = COLOR_RED;
 					end
-				end else if (pixel_col == 3'd4 && pixel_row < (orderQuantity[15:8] - "0")) begin
-					if (pixel_row == (orderQuantity[15:8] - "0") && (orderQuantity[7:0] - "0") > 0) begin
+					if (pixel_row == (orderQuantity[15:8] / 10) && ((orderQuantity[15:8] % 10) > 0)) begin
 						current_color = COLOR_GREEN;
-					end else begin
+					end
+				end else if (pixel_col == 3'd4) begin
+					if (pixel_row < (orderQuantity[7:0] / 10)) begin
 						current_color = COLOR_RED;
+					end
+					if (pixel_row == (orderQuantity[7:0] / 10) && ((orderQuantity[7:0] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
 					end
 				end else begin
 					current_color = COLOR_BLACK;
