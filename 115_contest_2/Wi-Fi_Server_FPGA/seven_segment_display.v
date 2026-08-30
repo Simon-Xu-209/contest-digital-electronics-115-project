@@ -29,12 +29,13 @@ always @(posedge clk) begin
 end
 
 // 系統模式定義
-localparam MODE_CLEAR        = 2'd0;
-localparam MODE_INITIAL      = 2'd0;
-localparam MODE_IDLE         = 2'd1;
-localparam MODE_CONNECT_TEST = 2'd2;
+localparam MODE_CLEAR        = 3'd0;
+localparam MODE_INITIAL      = 3'd1;
+localparam MODE_IDLE         = 3'd2;
+localparam MODE_CONNECT_TEST = 3'd3;
+localparam MODE_EDIT         = 3'd4;
 
-reg [1:0]  sys_mode;
+reg [2:0]  sys_mode;
 reg [31:0] cnt_timer;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
@@ -49,6 +50,8 @@ always @(posedge clk or negedge rst_n) begin
 				sys_mode <= MODE_IDLE;
 				cnt_timer <= 0;
 			end
+		end else if ((switch_8bit[7:4] == 4'b0100) && KEY == 6) begin
+			sys_mode <= MODE_EDIT;
 		end
 	end
 end
@@ -93,6 +96,22 @@ always @(posedge clk or negedge rst_n) begin
 				seg_com_data[2] <= {1'b0, text[bidAmount[7:0] / 10]}; // '3'
 				seg_com_data[1] <= {1'b0, text[bidAmount[7:0] % 10]}; // '0'
 				seg_com_data[0] <= {1'b0, 7'b100_0000}; // '-'
+			end
+			
+			MODE_EDIT: begin
+				seg_com_data[7] <= {1'b0, text[0]}; // '0'
+				seg_com_data[6] <= {1'b0, text[0]}; // '0'
+				if (orderID == "0001") begin
+					seg_com_data[5] <= {1'b0, text[bidAmount[15:8] / 10]}; // '7'
+					seg_com_data[4] <= {1'b0, text[bidAmount[15:8] % 10]}; // '0'
+				end else if (orderID == "0002") begin
+					seg_com_data[5] <= {1'b0, text[bidAmount[7:0] / 10]}; // '3'
+					seg_com_data[4] <= {1'b0, text[bidAmount[7:0] % 10]}; // '0'
+				end
+				seg_com_data[3] <= {1'b0, text[29]}; // 'T'
+				seg_com_data[2] <= {1'b0, text[28]}; // 'S'
+				seg_com_data[1] <= {1'b0, text[8]};  // '8'
+				seg_com_data[0] <= {1'b0, text[0]};  // '0'
 			end
 			
 			MODE_CONNECT_TEST: begin end

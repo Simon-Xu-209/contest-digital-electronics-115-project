@@ -48,6 +48,36 @@ always@(posedge clk) begin
 	end
 end
 
+// 鎖存按下期間獲得的 KEY
+reg [3:0] key_latched;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key_latched <= 4'd15;
+	end else if (Pressed && !Pressed_reg1) begin // 只在剛按下的正緣鎖存 KEY
+		key_latched <= KEY;
+	end else begin
+		key_latched <= 4'd15;
+	end
+end
+
+// -------------------------------------------------------------
+// 1 Clock 單週期 KEY 鎖存暫存器
+// -------------------------------------------------------------
+reg [3:0] key_pulse;
+
+always @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        key_pulse <= 4'b1111;
+    end else begin
+        // 當 Pressed 產生正緣（剛按下的瞬間）
+        if (Pressed && !Pressed_reg1) begin
+            key_pulse <= KEY;       // 存入當前按下的 key 值
+        end else begin
+            key_pulse <= 4'b1111;   // 1 個 Clock 後自動歸位為預設值 15
+        end
+    end
+end
+
 // orderQuantity 的十位數與個位數 ASCII
 wire [7:0] quantity_01_tens = 8'd48 + (orderQuantity[15:8] / 10);
 wire [7:0] quantity_01_ones = 8'd48 + (orderQuantity[15:8] % 10);
@@ -110,10 +140,12 @@ always @(posedge clk or negedge rst_n) begin
 		proc_done <= 1'b0;
 			case (state)
 			S_IDLE: begin
-				if (/*(switch_8bit == 8'b0001_0000) &&*/ start_proc) begin
+				if ((switch_8bit == 8'b0001_0000) && start_proc) begin
 					state <= S_CALC;
-				end else if (switch_8bit[7:4] == 4'b0100) begin
+				end else if ((switch_8bit[7:4] == 4'b0100) && KEY == 6) begin
 					state <= S_EDIT;
+				end else if ((switch_8bit[7:4] == 4'b0100) && KEY == 8) begin
+					state <= S_IDLE;
 				end
 			end
 
@@ -136,27 +168,70 @@ always @(posedge clk or negedge rst_n) begin
 			end
 
 			S_EDIT: begin
-				if (switch_8bit[3:0] == 4'b0001) begin
-					orderID <= "0001";
-					if ((KEY == 4'd0) && Pressed_negedge && (productQuota[15:8] <= orderQuantity[15:8] + 8'd10)) begin
-						productQuota[15:8] <= productQuota[15:8] + 8'd10;
-					end else if ((KEY == 4'd3) && Pressed_negedge && (productQuota[15:8] >= 8'd10)) begin
-						productQuota[15:8] <= productQuota[15:8] - 8'd10;
-					end else if ((KEY == 4'd2) && Pressed_negedge && (productQuota[15:8] <= orderQuantity[15:8] + 8'd1)) begin
-						productQuota[15:8] <= productQuota[15:8] + 8'd1;
-					end else if ((KEY == 4'd5) && Pressed_negedge && (productQuota[15:8] > 8'd0)) begin
-						productQuota[15:8] <= productQuota[15:8] - 8'd1;
-					end
-				end else if (switch_8bit[3:0] == 4'b0010) begin
-					orderID <= "0002";
-					if ((KEY == 0) && Pressed_negedge && (productQuota[7:0] <= orderQuantity[7:0] + 8'd10)) begin
-						productQuota[7:0] <= productQuota[7:0] + 8'd10;
-					end else if ((KEY == 4'd3) && Pressed_negedge && (productQuota[7:0] >= 8'd10)) begin
-						productQuota[7:0] <= productQuota[7:0] - 8'd10;
-					end else if ((KEY == 4'd2) && Pressed_negedge && (productQuota[7:0] <= orderQuantity[7:0] + 8'd1)) begin
-						productQuota[7:0] <= productQuota[7:0] + 8'd1;
-					end else if ((KEY == 4'd5) && Pressed_negedge && (productQuota[7:0] > 8'd0)) begin
-						productQuota[7:0] <= productQuota[7:0] - 8'd1;
+				if (switch_8bit[7:4] != 4'b0100) begin
+					state <= S_IDLE;
+				end else begin
+					// 只有在完整放開按鍵的單一 Cycle 觸發加減
+					if (key_pulse != 4'd15) begin
+						if (switch_8bit[3:0] == 4'b0001) begin
+							orderID <= "0001";
+							case (key_pulse)
+								// +10
+								4'd0: begin
+									if ((productQuota[15:8] + 8'd10 <= orderQuantity[15:8]) && ((productQuota[15:8] + 8'd10) + productQuota[7:0] <= 8'd80))
+										productQuota[15:8] <= productQuota[15:8] + 8'd10;
+								end
+								  
+								// -10
+								4'd3: begin
+									if (productQuota[15:8] >= 8'd10) 
+										productQuota[15:8] <= productQuota[15:8] - 8'd10;
+								end
+								
+								// +1 (KEY 2)
+								4'd2: begin
+									if ((productQuota[15:8] < orderQuantity[15:8]) && ((productQuota[15:8] + 8'd1) + productQuota[7:0] <= 8'd80))
+										productQuota[15:8] <= productQuota[15:8] + 8'd1;
+								end
+								
+								// -1 (KEY 5)
+								4'd5: begin
+									if (productQuota[15:8] > 8'd0) 
+										productQuota[15:8] <= productQuota[15:8] - 8'd1;
+								end
+								  
+								  default: ;
+							 endcase
+						end else if (switch_8bit[3:0] == 4'b0010) begin
+							 orderID <= "0002";
+							 case (key_pulse)
+								// +10
+								4'd0: begin
+									if ((productQuota[7:0] + 8'd10 <= orderQuantity[7:0]) && ((productQuota[7:0] + 8'd10) + productQuota[15:8] <= 8'd80))
+										productQuota[7:0] <= productQuota[7:0] + 8'd10;
+								end
+								
+								// -10
+								4'd3: begin
+									if (productQuota[7:0] >= 8'd10) 
+										productQuota[7:0] <= productQuota[7:0] - 8'd10;
+								end
+								
+								// +1 (KEY 2)
+								4'd2: begin
+									if ((productQuota[7:0] < orderQuantity[7:0]) && ((productQuota[7:0] + 8'd1) + productQuota[15:8] <= 8'd80))
+										productQuota[7:0] <= productQuota[7:0] + 8'd1;
+								end
+	
+								// -1 (KEY 5)
+								4'd5: begin
+									if (productQuota[7:0] > 8'd0) 
+										productQuota[7:0] <= productQuota[7:0] - 8'd1;
+								end
+								  
+								default: ;
+							endcase
+						end
 					end
 				end
 			end
@@ -166,7 +241,10 @@ always @(posedge clk or negedge rst_n) begin
 				state     <= S_IDLE;
 			end
 
-			default: state <= S_IDLE;
+			default: begin
+				state <= S_IDLE;
+			end
+			
 		endcase
 	end
 end

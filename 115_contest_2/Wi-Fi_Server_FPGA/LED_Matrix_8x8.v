@@ -1,10 +1,10 @@
 module LED_Matrix_8x8 (
-	input  wire        clk,         // 50 MHz
-	input  wire        rst_n,
-	input  wire [7:0]  switch_8bit, // 指撥開關
-	input  wire [3:0]  KEY,         // 按鈕
+	input  wire       clk,         // 50 MHz
+	input  wire       rst_n,
+	input  wire [7:0] switch_8bit, // 指撥開關
+	input  wire [3:0] KEY,         // 按鈕
 	input  wire       Pressed,
-	output reg         DIN,         // WS2812B 資料輸出
+	output reg        DIN,         // WS2812B 資料輸出
 
 	input [31:0] orderID,       // 訂單 ID
 	input [15:0] orderQuantity, // 訂購數量
@@ -28,10 +28,11 @@ localparam T1H_CYCLES     = 45;
 localparam RESET_CYCLES   = 5000;
 
 // 系統模式定義
-localparam MODE_CLEAR        = 2'd0;
-localparam MODE_INITIAL      = 2'd1;
-localparam MODE_IDLE         = 2'd2;
-localparam MODE_CONNECT_TEST = 2'd3;
+localparam MODE_CLEAR        = 3'd0;
+localparam MODE_INITIAL      = 3'd1;
+localparam MODE_IDLE         = 3'd2;
+localparam MODE_CONNECT_TEST = 3'd3;
+localparam MODE_EDIT         = 3'd4;
 
 // 顏色定義 (24-bit: G-R-B)
 localparam COLOR_WHITE = 24'hFF_FF_FF;
@@ -43,7 +44,7 @@ localparam COLOR_BLACK = 24'h00_00_00;
 // =========================================================================
 // 主控模式狀態機與座標計算
 // =========================================================================
-reg [1:0]  sys_mode;
+reg [2:0]  sys_mode;
 reg [31:0] anim_timer;
 reg [2:0]  anim_row, anim_col;
 
@@ -60,6 +61,8 @@ always @(posedge clk or negedge rst_n) begin
 				sys_mode <= MODE_IDLE;
 				anim_timer <= 0;
 			end
+		end else if ((switch_8bit[7:4] == 4'b0100) && KEY == 6) begin
+			sys_mode <= MODE_EDIT;
 		end
 	end
 end
@@ -78,7 +81,7 @@ always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		current_color <= 0;
 	end else begin
-		case (draw_mode)
+		case (sys_mode)
 		
 			MODE_CLEAR: begin
 				current_color = COLOR_BLACK;
@@ -116,6 +119,49 @@ always @(posedge clk or negedge rst_n) begin
 				end
 			end
 			
+			MODE_EDIT: begin
+				// --- 第七列 (col 7): 顯示 訂單01 的 訂購數量 ---
+				if (pixel_col == 3'd7) begin
+					if (pixel_row < (orderQuantity[15:8] / 10)) begin
+						current_color = COLOR_RED;
+					end
+					if (pixel_row == (orderQuantity[15:8] / 10) && ((orderQuantity[15:8] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end 
+				// --- 第六列 (col 6): 顯示 訂單01 的 配額數量 ---
+				else if (pixel_col == 3'd6) begin
+					if (pixel_row < (productQuota[15:8] / 10)) begin
+						current_color = COLOR_RED;
+					end
+					if (pixel_row == (productQuota[15:8] / 10) && ((productQuota[15:8] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end 
+				// --- 第四列 (col 4): 顯示 訂單02 的 訂購數量 ---
+				else if (pixel_col == 3'd4) begin
+					if (pixel_row < (orderQuantity[7:0] / 10)) begin
+						current_color = COLOR_RED;
+					end
+					if (pixel_row == (orderQuantity[7:0] / 10) && ((orderQuantity[7:0] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end 
+				// --- 第三列 (col 3): 顯示 訂單02 的 配額數量 ---
+				else if (pixel_col == 3'd3) begin
+					if (pixel_row < (productQuota[7:0] / 10)) begin
+						current_color = COLOR_RED;
+					end
+					if (pixel_row == (productQuota[7:0] / 10) && ((productQuota[7:0] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end 
+				// --- 其餘點陣關閉 ---
+				else begin
+					current_color = COLOR_BLACK;
+				end
+			end
+						
 			MODE_CONNECT_TEST: begin end
 
 			default: current_color = COLOR_BLACK; // MODE_CLEAR

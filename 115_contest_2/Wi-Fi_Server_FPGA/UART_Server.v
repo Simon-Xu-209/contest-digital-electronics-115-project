@@ -13,6 +13,7 @@ module UART_Server(
 	output wire [7:0]  seg_com,
 	output wire DIN,
 	output SCL, SDA, RES, DC, CS, BLK,
+	output reg [3:0] KEY,
 	output wire CONNECETED
 );
 
@@ -258,6 +259,7 @@ Order_processor #(
 	.clk           (clk),
 	.rst_n         (rst_n),
 	.start_proc    (conn_pulse),      // 連線成功，通知開始處理
+	//.rx_ready      (rx_ready),
 	.rx_Data_reg   (rx_Data_reg),     // 資料暫存器
 	
 	.switch_8bit  (switch_8bit),
@@ -283,7 +285,7 @@ Order_processor #(
 // -------------------------------------------------------------
 
 wire Pressed;
-wire [3:0] KEY;
+//wire [3:0] KEY;
 keyboard_3x3 keyboard_3x3_u1(
 	.clk    (clk),
 	.rst_n  (rst_n),
