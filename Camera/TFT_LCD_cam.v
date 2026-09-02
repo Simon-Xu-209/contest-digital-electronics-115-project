@@ -26,9 +26,8 @@ module TFT_LCD_cam (
     reg [7:0]  spi_data;
     reg [3:0]  bit_cnt;
     reg        p_idx;
-    reg [15:0] pixel_buf; // 暫存從 BRAM 讀出的 16-bit 像素
+    reg [15:0] pixel_buf;
 
-    // ST7735S 指令與參數定義
     parameter CMD_SWRESET        = 8'h01;
     parameter CMD_SLPOUT         = 8'h11;
     parameter CMD_DISPON         = 8'h29;
@@ -52,7 +51,7 @@ module TFT_LCD_cam (
     localparam STATE_SCAN_DRAW = 3'd4;
 
     // -------------------------------------------------------------------------
-    // 3. LCD 主狀態機 (採用與原 TFT_LCD.v 相同的除頻與 SPI 時序)
+    // 3. LCD 主狀態機
     // -------------------------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -72,13 +71,12 @@ module TFT_LCD_cam (
             BLK       <= 1;
             clk_div   <= 0;
         end else begin
-            BLK <= 1'b1; // 背光保持開啟
-            CS  <= 1'b0; // 片選常低
+            BLK <= 1'b1;
+            CS  <= 1'b0;
 
             if (delay_cnt > 0) begin
                 delay_cnt <= delay_cnt - 1;
             end else if (bit_cnt > 0) begin
-                // 使用與原 TFT_LCD.v 完全相同的 SPI 傳送時序
                 if (clk_div == 0) begin 
                     SCL     <= 0; 
                     SDA     <= spi_data[bit_cnt-1]; 
@@ -92,7 +90,7 @@ module TFT_LCD_cam (
                 case (state)
                     STATE_HW_RESET: begin
                         RES       <= 0;
-                        delay_cnt <= 32'd500_000; // 延遲約 10ms
+                        delay_cnt <= 32'd500_000;
                         state     <= STATE_INIT_CMD;
                     end
 
@@ -143,14 +141,11 @@ module TFT_LCD_cam (
                         bit_cnt <= 8;
 
                         if (!p_idx) begin
-                            // 第一拍：先將 BRAM 讀出的 16-bit 像素鎖存，並發送高位元 Byte (RGB565[15:8])
                             pixel_buf <= ram_rdata;
                             spi_data  <= ram_rdata[15:8];
                         end else begin
-                            // 第二拍：發送低位元 Byte (RGB565[7:0])
                             spi_data  <= pixel_buf[7:0];
 
-                            // 更新下一個像素點的 X, Y 座標
                             if (x_cnt < ARG_X_END) begin
                                 x_cnt <= x_cnt + 1'b1;
                             end else begin
@@ -158,14 +153,13 @@ module TFT_LCD_cam (
                                 if (y_cnt < ARG_Y_END) begin
                                     y_cnt <= y_cnt + 1'b1;
                                 end else begin
-                                    // 繪製完一全幀，重新設定視窗位址並準備刷下一幀
                                     state   <= STATE_SET_AXIS;
                                     cmd_idx <= 17;
                                 end
                             end
                         end
 
-                        p_idx <= ~p_idx; // 翻轉高低 Byte 標誌
+                        p_idx <= ~p_idx;
                     end
 
                     default: state <= STATE_HW_RESET;

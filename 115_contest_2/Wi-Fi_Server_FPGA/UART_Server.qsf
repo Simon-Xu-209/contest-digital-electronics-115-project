@@ -114,10 +114,6 @@ set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -entity t
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -entity top -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -entity top -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -entity top -section_id Top
-set_location_assignment PIN_171 -to CONNECETED
+set_location_assignment PIN_159 -to CONNECETED
 set_global_assignment -name VERILOG_FILE receiver_OK.v
-set_location_assignment PIN_184 -to KEY[3]
-set_location_assignment PIN_177 -to KEY[2]
-set_location_assignment PIN_173 -to KEY[1]
-set_location_assignment PIN_169 -to KEY[0]
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

@@ -3,15 +3,15 @@ module top_camera_lcd (
     input  wire        rst_n,        // 低準位重置
 
     // J2 鏡頭介面
-    input  wire        J2_PCLK,
+    input  wire        J2_PCLK,      // 鏡頭輸出之像素時脈 (必須為 Input)
     input  wire        J2_HREF,
     input  wire        J2_VSYNC,
-    input  wire [9:0]  J2_Y,         // J2_Y9 ~ J2_Y2 (8-bit 資料)
+    input  wire [9:0]  J2_Y,         // J2_Y9 ~ J2_Y2 (8-bit 資料，對應 D7~D0)
     inout  wire        J2_SIO_D,     // SCCB Data
     output wire        J2_SIO_C,     // SCCB Clock
-    output wire        J2_RESET,
-    output wire        J2_PWDN,
-    output wire        J2_XCLK,
+    output wire        J2_RESET,     // 鏡頭 Reset (Pin 6)
+    output wire        J2_PWDN,      // 鏡頭 Power Down (Pin 8)
+    output wire        J2_XCLK,      // 提供給鏡頭的主時脈 (Pin 13)
 
     // TFT LCD 介面
     output wire        SCL,
@@ -19,11 +19,12 @@ module top_camera_lcd (
     output wire        RES,
     output wire        DC,
     output wire        CS,
-    output wire        BLK
+    output wire        BLK,
+    output wire        test          // SCCB 配置完成指示燈
 );
 
     // -------------------------------------------------------------------------
-    // 1. 鏡頭基本控制訊號
+    // 1. 提供 25MHz XCLK 給 OV2640 ( Pin 13 )
     // -------------------------------------------------------------------------
     reg xclk_reg;
     always @(posedge clk or negedge rst_n) begin
@@ -32,11 +33,11 @@ module top_camera_lcd (
     end
     
     assign J2_XCLK  = xclk_reg;
-    assign J2_RESET = 1'b1; // 正常工作 (High Active/Inactive 視模組而定，一般拉高)
-    assign J2_PWDN  = 1'b0; // 禁用 Power Down
+    assign J2_RESET = 1'b1; // 修正：拉高以結束 Reset 狀態 (High Active / Active Low 復位解除)
+    assign J2_PWDN  = 1'b0; // 禁用 Power Down 模式
 
     // -------------------------------------------------------------------------
-    // 2. 內部內部介面連線
+    // 2. 內部介面連線
     // -------------------------------------------------------------------------
     wire        ram_we;
     wire [14:0] ram_waddr;
@@ -52,7 +53,7 @@ module top_camera_lcd (
         .rst_n      (rst_n),
         .sccb_scl   (J2_SIO_C),
         .sccb_sda   (J2_SIO_D),
-        .config_done()
+        .config_done(test)
     );
 
     // -------------------------------------------------------------------------
@@ -63,7 +64,7 @@ module top_camera_lcd (
         .rst_n      (rst_n),
         .vsync      (J2_VSYNC),
         .href       (J2_HREF),
-        .din        ({J2_Y[9], J2_Y[8], J2_Y[7], J2_Y[6], J2_Y[5], J2_Y[4], J2_Y[3], J2_Y[2]}),
+        .din        ({J2_Y[9], J2_Y[8], J2_Y[7], J2_Y[6], J2_Y[5], J2_Y[4], J2_Y[3], J2_Y[2]}), // Y9(MSB)~Y2(LSB)
         .pixel_data (ram_wdata),
         .pixel_valid(ram_we),
         .ram_addr   (ram_waddr)
@@ -73,15 +74,15 @@ module top_camera_lcd (
     // 5. 實例化 Dual-Port BRAM 影像緩衝區
     // -------------------------------------------------------------------------
     frame_buffer u_buffer (
-    .wr_clk     (J2_PCLK),  // 寫入時脈：鏡頭輸出的 PCLK
-    .we         (ram_we),
-    .waddr      (ram_waddr),
-    .wdata      (ram_wdata),
-    
-    .rd_clk     (clk),      // 讀取時脈：板載 50MHz
-    .raddr      (ram_raddr),
-    .rdata      (ram_rdata)
-);
+        .wr_clk     (J2_PCLK),   // 寫入時脈：PCLK Domain
+        .we         (ram_we),
+        .waddr      (ram_waddr),
+        .wdata      (ram_wdata),
+        
+        .rd_clk     (clk),       // 讀取時脈：System Domain (50MHz)
+        .raddr      (ram_raddr),
+        .rdata      (ram_rdata)
+    );
 
     // -------------------------------------------------------------------------
     // 6. 實例化 LCD 驅動模組

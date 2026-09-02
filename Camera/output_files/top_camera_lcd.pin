@@ -117,7 +117,7 @@ RESERVED_INPUT_WITH_WEAK_PULLUP : 46        :        :                   :      
 VCCIO2                       : 47        : power  :                   : 2.5V    : 2         :                
 GND                          : 48        : gnd    :                   :         :           :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 49        :        :                   :         : 2         :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 50        :        :                   :         : 2         :                
+J2_Y[1]                      : 50        : input  : 2.5 V             :         : 2         : N              
 RESERVED_INPUT_WITH_WEAK_PULLUP : 51        :        :                   :         : 2         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 52        :        :                   :         : 2         :                
 VCCINT                       : 53        : power  :                   : 1.2V    :           :                
@@ -226,7 +226,7 @@ MSEL0                        : 155       :        :                   :         
 GND                          : 156       : gnd    :                   :         :           :                
 MSEL1                        : 157       :        :                   :         : 6         :                
 MSEL2                        : 158       :        :                   :         : 6         :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 159       :        :                   :         : 6         :                
+test                         : 159       : output : 2.5 V             :         : 6         : Y              
 RESERVED_INPUT_WITH_WEAK_PULLUP : 160       :        :                   :         : 6         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 161       :        :                   :         : 6         :                
 ~ALTERA_nCEO~ / RESERVED_OUTPUT_OPEN_DRAIN : 162       : output : 2.5 V             :         : 6         : N              
@@ -236,40 +236,40 @@ GND                          : 165       : gnd    :                   :         
 RESERVED_INPUT_WITH_WEAK_PULLUP : 166       :        :                   :         : 6         :                
 VCCINT                       : 167       : power  :                   : 1.2V    :           :                
 GND                          : 168       : gnd    :                   :         :           :                
-J2_Y[0]                      : 169       : input  : 2.5 V             :         : 6         : Y              
+J2_Y[2]                      : 169       : input  : 2.5 V             :         : 6         : Y              
 VCCIO6                       : 170       : power  :                   : 2.5V    : 6         :                
 J2_PCLK                      : 171       : input  : 2.5 V             :         : 6         : Y              
 GND                          : 172       : gnd    :                   :         :           :                
-J2_Y[1]                      : 173       : input  : 2.5 V             :         : 6         : Y              
+J2_Y[3]                      : 173       : input  : 2.5 V             :         : 6         : Y              
 VCCINT                       : 174       : power  :                   : 1.2V    :           :                
 GND                          : 175       : gnd    :                   :         :           :                
 J2_HREF                      : 176       : input  : 2.5 V             :         : 6         : Y              
-J2_Y[2]                      : 177       : input  : 2.5 V             :         : 6         : Y              
+J2_Y[4]                      : 177       : input  : 2.5 V             :         : 6         : Y              
 VCCA2                        : 178       : power  :                   : 2.5V    :           :                
 GNDA2                        : 179       : gnd    :                   :         :           :                
 VCCD_PLL2                    : 180       : power  :                   : 1.2V    :           :                
 VCCINT                       : 181       : power  :                   : 1.2V    :           :                
 GND                          : 182       : gnd    :                   :         :           :                
 J2_VSYNC                     : 183       : input  : 2.5 V             :         : 7         : Y              
-J2_Y[3]                      : 184       : input  : 2.5 V             :         : 7         : Y              
+J2_Y[5]                      : 184       : input  : 2.5 V             :         : 7         : Y              
 J2_SIO_C                     : 185       : output : 2.5 V             :         : 7         : Y              
-J2_Y[4]                      : 186       : input  : 2.5 V             :         : 7         : Y              
+J2_Y[6]                      : 186       : input  : 2.5 V             :         : 7         : Y              
 J2_SIO_D                     : 187       : bidir  : 2.5 V             :         : 7         : Y              
-J2_Y[5]                      : 188       : input  : 2.5 V             :         : 7         : Y              
+J2_Y[7]                      : 188       : input  : 2.5 V             :         : 7         : Y              
 J2_PWDN                      : 189       : output : 2.5 V             :         : 7         : Y              
 VCCINT                       : 190       : power  :                   : 1.2V    :           :                
 GND                          : 191       : gnd    :                   :         :           :                
 VCCIO7                       : 192       : power  :                   : 2.5V    : 7         :                
 GND                          : 193       : gnd    :                   :         :           :                
-J2_Y[6]                      : 194       : input  : 2.5 V             :         : 7         : Y              
+J2_Y[8]                      : 194       : input  : 2.5 V             :         : 7         : Y              
 J2_RESET                     : 195       : output : 2.5 V             :         : 7         : Y              
-J2_Y[7]                      : 196       : input  : 2.5 V             :         : 7         : Y              
+J2_Y[9]                      : 196       : input  : 2.5 V             :         : 7         : Y              
 J2_XCLK                      : 197       : output : 2.5 V             :         : 7         : Y              
 VCCINT                       : 198       : power  :                   : 1.2V    :           :                
 GND                          : 199       : gnd    :                   :         :           :                
-J2_Y[8]                      : 200       : input  : 2.5 V             :         : 7         : Y              
+RESERVED_INPUT_WITH_WEAK_PULLUP : 200       :        :                   :         : 7         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 201       :        :                   :         : 7         :                
-J2_Y[9]                      : 202       : input  : 2.5 V             :         : 7         : Y              
+RESERVED_INPUT_WITH_WEAK_PULLUP : 202       :        :                   :         : 7         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 203       :        :                   :         : 7         :                
 VCCINT                       : 204       : power  :                   : 1.2V    :           :                
 GND                          : 205       : gnd    :                   :         :           :                
@@ -303,7 +303,7 @@ RESERVED_INPUT_WITH_WEAK_PULLUP : 232       :        :                   :      
 VCCINT                       : 233       : power  :                   : 1.2V    :           :                
 GND                          : 234       : gnd    :                   :         :           :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 235       :        :                   :         : 8         :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 236       :        :                   :         : 8         :                
+J2_Y[0]                      : 236       : input  : 2.5 V             :         : 8         : N              
 VCCINT                       : 237       : power  :                   : 1.2V    :           :                
 GND                          : 238       : gnd    :                   :         :           :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 239       :        :                   :         : 8         :                

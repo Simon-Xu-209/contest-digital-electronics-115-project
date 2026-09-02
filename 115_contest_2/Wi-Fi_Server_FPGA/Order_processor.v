@@ -15,7 +15,7 @@ module Order_processor #(
 	output reg  [15:0]            orderQuantity, // 訂購數量
 	output reg  [15:0]            bidAmount,     // 出價金額
 	output reg  [15:0]            productQuota,  // 商品配額
-	output reg  [15:0]            grandTotal,    // 付款總額
+	output wire [15:0]            grandTotal,    // 付款總額
 
 	// 專為外送/VB介面打包的傳輸暫存器
 	output reg  [31:0]            sendID,        // 對應 VB 訂單ID
@@ -97,11 +97,14 @@ wire [7:0] quota_02_tens = 8'd48 + (productQuota[7:0] / 10);
 wire [7:0] quota_02_ones = 8'd48 + (productQuota[7:0] % 10);
 
 // grandTotal 的十位數與個位數 ASCII
-wire [7:0] total_01_tens = 8'd48 + (grandTotal[15:8] / 10);
+wire [7:0] total_01_tens = 8'd48 + ((grandTotal[15:8] % 100) / 10);
 wire [7:0] total_01_ones = 8'd48 + (grandTotal[15:8] % 10);
-wire [7:0] total_02_tens = 8'd48 + (grandTotal[7:0] / 10);
+wire [7:0] total_02_tens = 8'd48 + ((grandTotal[7:0] % 100) / 10);
 wire [7:0] total_02_ones = 8'd48 + (grandTotal[7:0] % 10);
 
+
+assign grandTotal[15:8] = productQuota[15:8] * bidAmount[15:8];
+assign grandTotal[7:0] = productQuota[7:0] * bidAmount[7:0];
 
 
 // 狀態機
@@ -121,7 +124,6 @@ always @(posedge clk or negedge rst_n) begin
 		orderQuantity <= {8'd65, 8'd40};
 		bidAmount     <= {8'd70, 8'd30};
 		productQuota  <= 16'd0;
-		grandTotal    <= 16'd0;
 		
 		// 傳輸暫存器預設值
 		sendID <= orderID;
@@ -163,7 +165,15 @@ always @(posedge clk or negedge rst_n) begin
 					  quantity_02_tens,// 確切 8-bit ASCII
 					  quantity_02_ones // 確切 8-bit ASCII
 				 };
-				
+				sendQT <= {
+					"#",
+					quota_01_tens,
+					quota_01_ones,
+					"$",
+					"00",
+					total_01_tens,
+					total_01_ones
+				};
 				state <= S_SEND;
 			end
 
