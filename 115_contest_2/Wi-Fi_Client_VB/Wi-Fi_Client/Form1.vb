@@ -15,6 +15,7 @@ Public Class Form1
     Private TargetPWD As String = "048778414"
     Private ServerIP As String = "192.168.4.1"
     Private ServerPort As String = "80"
+
     Private Sub Form1_Load(ByVal sender As Object, ByVal e As EventArgs) Handles MyBase.Load
         SerialPort1.PortName = "COM4"
         SerialPort1.BaudRate = 115200
@@ -40,8 +41,6 @@ Public Class Form1
             SerialPort1.DiscardInBuffer()
             responseBuffer = ""
 
-            AppendLog(">>> 開始 Client 連線設定..." & vbCrLf)
-
             stepIndex = 1
             StepTimer.Start()
 
@@ -52,18 +51,16 @@ Public Class Form1
     End Sub
 
     '=========================================
-    ' 修正後的 Client 狀態機 (參考 FPGA 流程)
+    ' Client 狀態機 (自動連線與設定)
     '=========================================
     Private Sub StepTimer_Tick(ByVal sender As Object, ByVal e As EventArgs)
         Select Case stepIndex
             Case 1
-                ' 步驟 1：先發送 AT+RST 徹底重置模組
                 responseBuffer = ""
                 SerialPort1.WriteLine("AT+RST")
                 stepIndex = 101
 
             Case 101
-                ' 等待 ESP8266 重置完成 (約等 1 秒)
                 waitCounter += 1
                 If waitCounter > 5 Then
                     waitCounter = 0
@@ -71,7 +68,6 @@ Public Class Form1
                 End If
 
             Case 2
-                ' 步驟 2：設定為 Station 模式
                 responseBuffer = ""
                 SerialPort1.WriteLine("AT+CWMODE=1")
                 stepIndex = 102
@@ -84,10 +80,9 @@ Public Class Form1
                 End If
 
             Case 3
-                ' 步驟 3：加入熱點
                 responseBuffer = ""
                 waitCounter = 0
-                SerialPort1.WriteLine("AT+CWJAP=""WiFi_FPGA"",""048778414""")
+                SerialPort1.WriteLine("AT+CWJAP=""" & TargetSSID & """,""" & TargetPWD & """")
                 stepIndex = 103
 
             Case 103
@@ -101,20 +96,18 @@ Public Class Form1
                 End If
 
             Case 4
-                ' 步驟 4：建立 TCP Client 連線
                 responseBuffer = ""
                 waitCounter = 0
-                SerialPort1.WriteLine("AT+CIPSTART=""TCP"",""192.168.4.1"",80")
+                SerialPort1.WriteLine("AT+CIPSTART=""TCP"",""" & ServerIP & """," & ServerPort)
                 stepIndex = 104
 
             Case 104
                 If responseBuffer.Contains("OK") OrElse responseBuffer.Contains("CONNECT") Then
                     StepTimer.Stop()
-                    AppendLog(">>> 成功連線至 Server！" & vbCrLf)
                     MessageBox.Show("TCP Client 連線成功！", "系統提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
                     connect.Enabled = True
                 ElseIf responseBuffer.Contains("ERROR") OrElse responseBuffer.Contains("CLOSED") Then
-                    FailAndStop("無法連線至目標 TCP Server (請確認 Server 端已開啟)")
+                    FailAndStop("無法連線至目標 TCP Server")
                     orderID.Text = ""
                     quantityAndPrice.Text = ""
                     quotasAndTotalPaymentAmounts.Text = "9999"
@@ -126,7 +119,7 @@ Public Class Form1
     End Sub
 
     '=========================================
-    ' [查詢] 按鈕：自動帶換行 (\r\n) 並調整 CIPSEND 長度
+    ' [查詢] 按鈕邏輯
     '=========================================
     Private Sub search_Click(ByVal sender As Object, ByVal e As EventArgs) Handles search.Click
         Try
@@ -148,20 +141,12 @@ Public Class Form1
             quantityAndPrice.Clear()
             quotasAndTotalPaymentAmounts.Clear()
 
-            ' ⭐ 關鍵修改 1：末端自動加上 vbCrLf (\r\n)
-            ' 例如 "ID:0001" 長度為 7，加上 \r\n 後長度變為 9
             Dim sendData As String = "ID:" & formattedID & vbCrLf
-
-            ' ⭐ 關鍵修改 2：sendData.Length 會自動算出包含 \r\n (2 Bytes) 的正確長度
             Dim cmd As String = "AT+CIPSEND=" & sendData.Length.ToString()
 
-            AppendLog(">>> 發送查詢至 Server: " & "ID:" & formattedID & "\r\n" & vbCrLf)
-
-            ' 清空 responseBuffer 準備接收 CIPSEND 的回應
             responseBuffer = ""
             SerialPort1.WriteLine(cmd)
 
-            ' 輪詢等待 ESP8266 回傳 '>' 符號 (最多等待 2 秒)
             Dim ready As Boolean = False
             For i As Integer = 1 To 20
                 Thread.Sleep(100)
@@ -171,9 +156,7 @@ Public Class Form1
                 End If
             Next
 
-            ' 收到 '>' 提示符號後才發送實際數據
             If ready Then
-                ' ⭐ 關鍵修改 3：使用 Write 發送已含 vbCrLf 的字串 (長度完全符合 AT+CIPSEND)
                 SerialPort1.Write(sendData)
             Else
                 MessageBox.Show("ESP8266 未就緒 (未收到 '>' 提示符號)", "傳送失敗", MessageBoxButtons.OK, MessageBoxIcon.Warning)
@@ -186,6 +169,7 @@ Public Class Form1
 
     '=========================================
     ' 背景監聽：接收串口資料
+    ' 只保留 UART2USB RX 資料於 Log 中
     '=========================================
     Private Sub SerialPort1_DataReceived(ByVal sender As Object, ByVal e As SerialDataReceivedEventArgs) Handles SerialPort1.DataReceived
         Try
@@ -194,11 +178,12 @@ Public Class Form1
             responseBuffer &= raw
 
             Me.Invoke(Sub()
+                          ' 僅保留原始 RX 資料輸出，不額外添加除錯字串
                           AppendLog(raw)
+
                           If raw.Contains("+IPD") Then
                               Dim parsed As String = ParseIPD(raw)
                               If parsed <> "" Then
-                                  AppendLog(vbCrLf & "【收到 Server 回傳】: " & parsed & vbCrLf)
                                   ProcessClientData(parsed)
                               End If
                           End If
@@ -215,10 +200,7 @@ Public Class Form1
             Dim colon As Integer = raw.IndexOf(":", idx)
             If colon = -1 Then Return ""
 
-            ' 截取冒號後的實際 Payload 數據
             Dim result As String = raw.Substring(colon + 1)
-
-            ' 移除尾部的 \r 與 \n 換行字元，保留乾淨的數據內容
             Return result.Replace(vbCr, "").Replace(vbLf, "").Trim()
         Catch
             Return ""
@@ -233,12 +215,17 @@ Public Class Form1
             Dim idValue As String = payload.Substring(3).Trim()
             orderID.Text = idValue
 
-            ' 2. 當接收到 數量 (例如 "QA:00650040" 或 "QA:00400065")
+            ' 2. 當接收到 數量 (例如 "QA:00650040")
         ElseIf payload.StartsWith("QA:") Then
             Dim qaValue As String = payload.Substring(3).Trim()
             quantityAndPrice.Text = qaValue
 
-            ' 3. 保留原本的解析相容性 (QP / PA)
+            ' 3. 當接收到 配額與總額 (例如 "QT:#XX$XXXX" 或 "QT:0000")
+        ElseIf payload.StartsWith("QT:") Then
+            Dim qtValue As String = payload.Substring(3).Trim()
+            quotasAndTotalPaymentAmounts.Text = qtValue
+
+            ' 保留相容性解析 (QP / PA)
         ElseIf payload.StartsWith("QP:") Then
             quantityAndPrice.Text = payload.Substring(3).Trim()
         ElseIf payload.StartsWith("PA:") Then
@@ -248,7 +235,6 @@ Public Class Form1
 
     Private Sub FailAndStop(ByVal reason As String)
         StepTimer.Stop()
-        AppendLog(">>> " & reason & vbCrLf)
         MessageBox.Show("設定失敗：" & reason, "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error)
         connect.Enabled = True
     End Sub

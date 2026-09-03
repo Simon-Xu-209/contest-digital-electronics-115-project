@@ -13,26 +13,61 @@ module LED_Matrix_8x8 (
 	input [15:0] grandTotal     // 付款總額
 );
 
+reg Pressed_reg1, Pressed_reg2;
+wire Pressed_posedge = (Pressed_reg1 && !Pressed_reg2);
+wire Pressed_negedge = (!Pressed_reg1 && Pressed_reg2);
+always@(posedge clk) begin
+	if (!rst_n) begin
+		Pressed_reg1 <= 0;
+		Pressed_reg2 <= 0;
+	end else begin
+		Pressed_reg1 <= Pressed;
+		Pressed_reg2 <= Pressed_reg1;
+	end
+end
+
+// 鎖存按下期間獲得的 KEY
+reg [3:0] key_latched;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key_latched <= 4'd15;
+	end else if (Pressed && !Pressed_reg1) begin // 只在剛按下的正緣鎖存 KEY
+		key_latched <= KEY;
+	end else begin
+		key_latched <= 4'd15;
+	end
+end
+
+// -------------------------------------------------------------
+// 1 Clock 單週期 KEY 鎖存暫存器
+// -------------------------------------------------------------
+reg [3:0] key_pulse;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key_pulse <= 4'b1111;
+	end else begin
+		// 當 Pressed 產生正緣（剛按下的瞬間）
+		if (Pressed && !Pressed_reg1) begin
+			key_pulse <= KEY;       // 存入當前按下的 key 值
+		end else begin
+			key_pulse <= 4'b1111;   // 1 個 Clock 後自動歸位為預設值 15
+		end
+	end
+end
+
 // =========================================================================
 // 參數定義
 // =========================================================================
 localparam FREQ_HZ         = 50_000_000;
 localparam CNT_INIT_100US  = (FREQ_HZ / 10000) - 1; // 100 微秒週期
-//localparam CNT_ANIM_0_3S = (FREQ_HZ * 3 / 10) - 1; // 0.3 秒週期
-//localparam CNT_JOY_0_2S  = (FREQ_HZ * 2 / 10) - 1; // 0.2 秒週期
+//	localparam CNT_ANIM_0_3S = (FREQ_HZ * 3 / 10) - 1; // 0.3 秒週期
+//	localparam CNT_JOY_0_2S  = (FREQ_HZ * 2 / 10) - 1; // 0.2 秒週期
 
 // WS2812B 時序參數 (50MHz clk)
 localparam T0H_CYCLES     = 17;
 localparam BIT_CYCLES     = 62;
 localparam T1H_CYCLES     = 45;
 localparam RESET_CYCLES   = 5000;
-
-// 系統模式定義
-localparam MODE_CLEAR        = 3'd0;
-localparam MODE_INITIAL      = 3'd1;
-localparam MODE_IDLE         = 3'd2;
-localparam MODE_CONNECT_TEST = 3'd3;
-localparam MODE_EDIT         = 3'd4;
 
 // 顏色定義 (24-bit: G-R-B)
 localparam COLOR_WHITE = 24'hFF_FF_FF;
@@ -41,33 +76,88 @@ localparam COLOR_GREEN = 24'hFF_00_00;
 localparam COLOR_BLUE  = 24'h00_00_FF;
 localparam COLOR_BLACK = 24'h00_00_00;
 
+// 系統模式定義
+localparam SYS_INITIAL    = 3'd0;
+localparam SYS_IDLE       = 3'd1;
+localparam SYS_CONNECT    = 3'd2;
+localparam SYS_EDIT_ORDER = 3'd3;
+localparam SYS_EDIT_DONE  = 3'd4;
+
+// 繪製模式定義
+localparam MODE_CLEAR        = 3'd0;
+localparam MODE_INITIAL      = 3'd1;
+localparam MODE_IDLE         = 3'd2;
+localparam MODE_CONNECT_TEST = 3'd3;
+localparam MODE_EDIT         = 3'd4;
+
+
+
 // =========================================================================
 // 主控模式狀態機與座標計算
 // =========================================================================
 reg [2:0]  sys_mode;
+reg [31:0] sys_timer;
+reg [2:0]  draw_mode;
 reg [31:0] anim_timer;
 reg [2:0]  anim_row, anim_col;
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		sys_mode   <= MODE_CLEAR;
-		anim_timer <= 0;
+		sys_mode   <= SYS_IDLE;
+		sys_timer <= 32'd0;
 	end else begin
-		if ((switch_8bit == 8'b0 || switch_8bit == 8'b0001_0000) && KEY == 6) begin
-			if (sys_mode != MODE_IDLE && anim_timer < FREQ_HZ*4) begin
-				sys_mode <= MODE_INITIAL;
-				anim_timer <= anim_timer + 1;
-			end else begin
-				sys_mode <= MODE_IDLE;
-				anim_timer <= 0;
+		if ((switch_8bit == 8'b0) && (key_pulse == 6)) begin
+			sys_mode <= SYS_INITIAL;
+		end else if ((switch_8bit[7:4] == 4'b0001) && key_pulse == 8) begin
+			sys_mode <= SYS_CONNECT;
+		end else if (switch_8bit[7:4] == 4'b0100) begin
+			if (key_pulse == 6) begin
+				sys_mode <= SYS_EDIT_ORDER;
+			end else if (key_pulse == 8) begin
+				sys_mode <= SYS_EDIT_DONE;
 			end
-		end else if ((switch_8bit[7:4] == 4'b0100) && KEY == 6) begin
-			sys_mode <= MODE_EDIT;
 		end
 	end
 end
 
-
+always@(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		draw_mode <= MODE_CLEAR;
+		anim_timer <= 32'd0;
+	end else begin
+		case(sys_mode)
+		
+			SYS_IDLE: begin
+				draw_mode <= MODE_IDLE;
+				anim_timer <= 32'd0;
+			end
+			
+			SYS_INITIAL: begin
+				if (anim_timer < FREQ_HZ*4) begin
+					draw_mode <= MODE_INITIAL;
+					anim_timer <= anim_timer + 1'b1;
+				end else begin
+					draw_mode <= MODE_IDLE;
+				end
+			end
+			
+			SYS_CONNECT: begin
+				draw_mode <= MODE_IDLE;
+				anim_timer <= 32'd0;
+			end
+			
+			SYS_EDIT_ORDER: begin
+				draw_mode <= MODE_EDIT;
+			end
+			
+			SYS_EDIT_DONE: begin
+				draw_mode <= MODE_EDIT;
+			end
+			
+			default:;
+		endcase
+	end
+end
 
 // =========================================================================
 // 畫面渲染電路
@@ -81,7 +171,7 @@ always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		current_color <= 0;
 	end else begin
-		case (sys_mode)
+		case (draw_mode)
 		
 			MODE_CLEAR: begin
 				current_color = COLOR_BLACK;
@@ -181,7 +271,6 @@ reg [1:0]  state;
 reg [15:0] clk_cnt;
 reg [5:0]  led_idx;
 reg [4:0]  bit_idx;
-reg [1:0]  draw_mode;
 reg [2:0]  draw_row, draw_col;
 
 always @(posedge clk or negedge rst_n) begin
@@ -190,7 +279,6 @@ always @(posedge clk or negedge rst_n) begin
 		clk_cnt   <= 0;
 		led_idx   <= 0;
 		bit_idx   <= 23;
-		draw_mode <= MODE_CLEAR;
 		draw_row  <= 0;
 		draw_col  <= 0;
 		DIN       <= 1'b0;
@@ -199,14 +287,6 @@ always @(posedge clk or negedge rst_n) begin
 			STATE_IDLE: begin
 				DIN     <= 1'b0;
 				clk_cnt <= 0;
-				draw_mode <= sys_mode;
-				// 根據不同模式選擇鎖存座標來源
-				/*case (sys_mode)
-					MODE_INITIAL: begin draw_row <= anim_row; draw_col <= anim_col; end
-					MODE_IDLE:   begin draw_row <= ctrl_row; draw_col <= ctrl_col; end
-					MODE_CONNECT_TEST:   begin draw_row <= set_row;  draw_col <= set_col;  end
-					default:        begin draw_row <= 3'd0;     draw_col <= 3'd0;     end
-				endcase*/
 				state <= STATE_RESET;
 			end
 

@@ -137,11 +137,11 @@ always@(posedge clk or negedge rst_n) begin
 				end else begin
 					timer_cnt <= 32'd0;
 				end
-				if (orderID == "0001") begin
+				if (switch_8bit[3:0] == 4'b0001) begin
 					char_ascii[6]  <= quantity_01_tens; char_ascii[7]  <= quantity_01_ones; // 原始訂購數量
 					char_ascii[10] <= (timer_cnt <= CLK_FREQ/2) ? quota_01_tens : " ";
 					char_ascii[11] <= (timer_cnt <= CLK_FREQ/2) ? quota_01_ones : " "; // 訂單配額
-				end else if (orderID == "0002") begin
+				end else if (switch_8bit[3:0] == 4'b0010) begin
 					char_ascii[6]  <= quantity_02_tens; char_ascii[7]  <= quantity_02_ones; // 原始訂購數量
 					char_ascii[10] <= (timer_cnt <= CLK_FREQ/2) ? quota_02_tens : " ";
 					char_ascii[11] <= (timer_cnt <= CLK_FREQ/2) ? quota_02_ones : " "; // 訂單配額
@@ -152,11 +152,11 @@ always@(posedge clk or negedge rst_n) begin
 				char_ascii[0] <= "I"; char_ascii[1] <= "D";
 				char_ascii[4] <= "O"; char_ascii[5] <= "Q";
 				char_ascii[8] <= "S"; char_ascii[9] <= "Q";
-				char_ascii[2] <= "0"; char_ascii[3] <= orderID[7:0]; // 訂單ID
-				if (orderID == "0001") begin
+				char_ascii[2] <= "0"; char_ascii[3] <= (switch_8bit[3:0] == 4'b0001) ? "1" : "2"; // 訂單ID
+				if (switch_8bit[3:0] == 4'b0001) begin
 					char_ascii[6]  <= quantity_01_tens; char_ascii[7]  <= quantity_01_ones; // 原始訂購數量
 					char_ascii[10] <= quota_01_tens;    char_ascii[11] <= quota_01_ones; // 訂單配額
-				end else if (orderID == "0002") begin
+				end else if (switch_8bit[3:0] == 4'b0010) begin
 					char_ascii[6]  <= quantity_02_tens; char_ascii[7]  <= quantity_02_ones; // 原始訂購數量
 					char_ascii[10] <= quota_02_tens;    char_ascii[11] <= quota_02_ones; // 訂單配額
 				end
