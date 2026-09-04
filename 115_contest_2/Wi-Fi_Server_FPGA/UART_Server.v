@@ -11,7 +11,7 @@ module UART_Server(
 	output reg    RST_WiFi,
 	output wire [15:0] seg_data,
 	output wire [7:0]  seg_com,
-	output wire DIN,
+	output wire DOUT,
 	output SCL, SDA, RES, DC, CS, BLK,
 	output reg [3:0] KEY,
 	output wire CONNECETED
@@ -328,7 +328,7 @@ LED_Matrix_8x8 LED_Matrix_8x8_u1(
 	.switch_8bit  (switch_8bit),
 	.KEY          (KEY),
 	.Pressed      (Pressed),
-	.DIN          (DIN),
+	.DOUT          (DOUT),
 	.orderID      (orderID),       // 訂單 ID
 	.orderQuantity(orderQuantity), // 訂購數量
 	.bidAmount    (bidAmount),     // 出價金額

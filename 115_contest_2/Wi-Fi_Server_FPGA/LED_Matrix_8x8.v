@@ -4,7 +4,7 @@ module LED_Matrix_8x8 (
 	input  wire [7:0] switch_8bit, // 指撥開關
 	input  wire [3:0] KEY,         // 按鈕
 	input  wire       Pressed,
-	output reg        DIN,         // WS2812B 資料輸出
+	output reg        DOUT,         // WS2812B 資料輸出
 
 	input [31:0] orderID,       // 訂單 ID
 	input [15:0] orderQuantity, // 訂購數量
@@ -26,7 +26,6 @@ always@(posedge clk) begin
 	end
 end
 
-// 鎖存按下期間獲得的 KEY
 reg [3:0] key_latched;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
@@ -38,9 +37,6 @@ always @(posedge clk or negedge rst_n) begin
 	end
 end
 
-// -------------------------------------------------------------
-// 1 Clock 單週期 KEY 鎖存暫存器
-// -------------------------------------------------------------
 reg [3:0] key_pulse;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
@@ -76,88 +72,18 @@ localparam COLOR_GREEN = 24'hFF_00_00;
 localparam COLOR_BLUE  = 24'h00_00_FF;
 localparam COLOR_BLACK = 24'h00_00_00;
 
-// 系統模式定義
-localparam SYS_INITIAL    = 3'd0;
-localparam SYS_IDLE       = 3'd1;
-localparam SYS_CONNECT    = 3'd2;
-localparam SYS_EDIT_ORDER = 3'd3;
-localparam SYS_EDIT_DONE  = 3'd4;
 
 // 繪製模式定義
 localparam MODE_CLEAR        = 3'd0;
 localparam MODE_INITIAL      = 3'd1;
 localparam MODE_IDLE         = 3'd2;
-localparam MODE_CONNECT_TEST = 3'd3;
-localparam MODE_EDIT         = 3'd4;
+localparam MODE_EDIT         = 3'd3;
 
 
-
-// =========================================================================
-// 主控模式狀態機與座標計算
-// =========================================================================
-reg [2:0]  sys_mode;
-reg [31:0] sys_timer;
-reg [2:0]  draw_mode;
+reg [2:0]  current_draw_mode;
+reg [2:0]  next_draw_mode;
 reg [31:0] anim_timer;
 reg [2:0]  anim_row, anim_col;
-
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		sys_mode   <= SYS_IDLE;
-		sys_timer <= 32'd0;
-	end else begin
-		if ((switch_8bit == 8'b0) && (key_pulse == 6)) begin
-			sys_mode <= SYS_INITIAL;
-		end else if ((switch_8bit[7:4] == 4'b0001) && key_pulse == 8) begin
-			sys_mode <= SYS_CONNECT;
-		end else if (switch_8bit[7:4] == 4'b0100) begin
-			if (key_pulse == 6) begin
-				sys_mode <= SYS_EDIT_ORDER;
-			end else if (key_pulse == 8) begin
-				sys_mode <= SYS_EDIT_DONE;
-			end
-		end
-	end
-end
-
-always@(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		draw_mode <= MODE_CLEAR;
-		anim_timer <= 32'd0;
-	end else begin
-		case(sys_mode)
-		
-			SYS_IDLE: begin
-				draw_mode <= MODE_IDLE;
-				anim_timer <= 32'd0;
-			end
-			
-			SYS_INITIAL: begin
-				if (anim_timer < FREQ_HZ*4) begin
-					draw_mode <= MODE_INITIAL;
-					anim_timer <= anim_timer + 1'b1;
-				end else begin
-					draw_mode <= MODE_IDLE;
-				end
-			end
-			
-			SYS_CONNECT: begin
-				draw_mode <= MODE_IDLE;
-				anim_timer <= 32'd0;
-			end
-			
-			SYS_EDIT_ORDER: begin
-				draw_mode <= MODE_EDIT;
-			end
-			
-			SYS_EDIT_DONE: begin
-				draw_mode <= MODE_EDIT;
-			end
-			
-			default:;
-		endcase
-	end
-end
 
 // =========================================================================
 // 畫面渲染電路
@@ -167,17 +93,64 @@ wire [2:0]  pixel_row = led_idx[5:3];
 wire [2:0]  pixel_col = led_idx[2:0];
 reg  [31:0] refresh_timer;
 
+always@(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		current_draw_mode <= MODE_CLEAR;
+	end else begin
+		current_draw_mode <= next_draw_mode;
+	end
+end
+
+always@(*) begin
+	next_draw_mode = current_draw_mode;
+	case(current_draw_mode)
+		MODE_CLEAR: begin
+		end
+		
+		MODE_INITIAL: begin
+			if (anim_timer < FREQ_HZ*4) begin
+				next_draw_mode = MODE_INITIAL;
+			end else begin
+				next_draw_mode = MODE_IDLE;
+			end
+		end
+		
+		MODE_IDLE: begin
+		end
+		
+		MODE_EDIT: begin
+		end
+		
+		default:;
+	endcase
+	
+	if ((switch_8bit == 8'b0) && (key_pulse == 6)) begin
+		next_draw_mode = MODE_INITIAL;
+	end else if ((switch_8bit == 8'b0001_0000) && (key_pulse == 8)) begin
+		next_draw_mode = current_draw_mode;
+	end else if ((switch_8bit[7:4] == 4'b0100) && ((switch_8bit[3:0] == 4'b0001) || (switch_8bit[3:0] == 4'b0010)) && (key_pulse == 6)) begin
+		next_draw_mode = MODE_EDIT;
+	end
+end
+
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		current_color <= 0;
+		current_color = COLOR_BLACK;
+		anim_timer <= 32'b0;
 	end else begin
-		case (draw_mode)
+		case (current_draw_mode)
 		
 			MODE_CLEAR: begin
 				current_color = COLOR_BLACK;
+				anim_timer <= 32'b0;
 			end
 			
 			MODE_INITIAL: begin
+				if (anim_timer < FREQ_HZ*4) begin
+					anim_timer <= anim_timer + 32'b1;
+				end else begin
+					anim_timer <= 32'b0;
+				end
 				if (anim_timer < FREQ_HZ) begin
 					current_color = COLOR_RED;
 				end else if (anim_timer < FREQ_HZ*2) begin
@@ -251,8 +224,6 @@ always @(posedge clk or negedge rst_n) begin
 					current_color = COLOR_BLACK;
 				end
 			end
-						
-			MODE_CONNECT_TEST: begin end
 
 			default: current_color = COLOR_BLACK; // MODE_CLEAR
 		endcase
@@ -281,17 +252,17 @@ always @(posedge clk or negedge rst_n) begin
 		bit_idx   <= 23;
 		draw_row  <= 0;
 		draw_col  <= 0;
-		DIN       <= 1'b0;
+		DOUT       <= 1'b0;
 	end else begin
 		case (state)
 			STATE_IDLE: begin
-				DIN     <= 1'b0;
+				DOUT     <= 1'b0;
 				clk_cnt <= 0;
 				state <= STATE_RESET;
 			end
 
 			STATE_RESET: begin
-				DIN <= 1'b0;
+				DOUT <= 1'b0;
 				if (clk_cnt < RESET_CYCLES - 1) begin
 					clk_cnt <= clk_cnt + 1'b1;
 				end else begin
@@ -303,7 +274,7 @@ always @(posedge clk or negedge rst_n) begin
 			end
 
 			STATE_SEND: begin
-				DIN <= current_color[bit_idx] ? (clk_cnt < T1H_CYCLES) : (clk_cnt < T0H_CYCLES);
+				DOUT <= current_color[bit_idx] ? (clk_cnt < T1H_CYCLES) : (clk_cnt < T0H_CYCLES);
 				if (clk_cnt < BIT_CYCLES - 1) begin
 					clk_cnt <= clk_cnt + 1'b1;
 				end else begin

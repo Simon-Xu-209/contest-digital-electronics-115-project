@@ -137,6 +137,38 @@ wire [7:0] total_02_ones      = 8'd48 + (grandTotal[15:0]   % 10);
 assign grandTotal[31:16] = productQuota[15:8] * bidAmount[15:8];
 assign grandTotal[15:0] = productQuota[7:0] * bidAmount[7:0];
 
+reg [1:0] current_sys_state;
+reg [1:0] next_sys_state;
+localparam SYS_IDLE = 2'd0,
+			  SYS_EDIT = 2'd1,
+			  SYS_DONE = 2'd2;
+
+always@(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		current_sys_state <= SYS_IDLE;
+	end else begin
+		current_sys_state <= next_sys_state;
+	end
+end
+
+always@(*) begin
+	next_sys_state = current_sys_state;
+	case(current_sys_state)
+		SYS_IDLE: begin end
+		SYS_EDIT: begin end
+		SYS_DONE: begin end
+		default:;
+	endcase
+	
+	if ((switch_8bit[7:4] == 4'b0100) && ((switch_8bit[3:0] == 4'b0001) || (switch_8bit[3:0] == 4'b0010))) begin
+		if	(key_pulse == 6) begin
+			next_sys_state = SYS_EDIT;
+		end else if	(key_pulse == 8) begin
+			next_sys_state = SYS_DONE;
+		end
+	end
+end
+
 always@(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		// 原始暫存器預設值
@@ -145,9 +177,11 @@ always@(posedge clk or negedge rst_n) begin
 		bidAmount     <= {8'd70, 8'd30};
 		productQuota  <= 16'd0;
 	end else begin
-		if (switch_8bit[7:4] == 4'b0100) begin
-			// 只有在完整放開按鍵的單一 Cycle 觸發加減
-			if (key_pulse != 4'd15) begin
+		case(current_sys_state)
+		
+			SYS_IDLE: begin end
+			
+			SYS_EDIT: begin
 				if (switch_8bit[3:0] == 4'b0001) begin
 					orderID <= "9901";
 					case (key_pulse)
@@ -200,7 +234,12 @@ always@(posedge clk or negedge rst_n) begin
 					endcase
 				end
 			end
-		end
+			
+			SYS_DONE: begin end
+			
+			default:;
+			
+		endcase
 	end
 end
 

@@ -14,6 +14,44 @@ module TFT_LCD (
 	output reg  SCL, SDA, RES, DC, CS, BLK
 );
 
+reg Pressed_reg1, Pressed_reg2;
+wire Pressed_posedge = (Pressed_reg1 && !Pressed_reg2);
+wire Pressed_negedge = (!Pressed_reg1 && Pressed_reg2);
+always@(posedge clk) begin
+	if (!rst_n) begin
+		Pressed_reg1 <= 0;
+		Pressed_reg2 <= 0;
+	end else begin
+		Pressed_reg1 <= Pressed;
+		Pressed_reg2 <= Pressed_reg1;
+	end
+end
+
+reg [3:0] key_latched;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key_latched <= 4'd15;
+	end else if (Pressed && !Pressed_reg1) begin // 只在剛按下的正緣鎖存 KEY
+		key_latched <= KEY;
+	end else begin
+		key_latched <= 4'd15;
+	end
+end
+
+reg [3:0] key_pulse;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key_pulse <= 4'b1111;
+	end else begin
+		// 當 Pressed 產生正緣（剛按下的瞬間）
+		if (Pressed && !Pressed_reg1) begin
+			key_pulse <= KEY;       // 存入當前按下的 key 值
+		end else begin
+			key_pulse <= 4'b1111;   // 1 個 Clock 後自動歸位為預設值 15
+		end
+	end
+end
+
 parameter CLK_FREQ = 32'd50_000_000; // 1s 所需週期(50MHz)
 
 // =========================================================================
@@ -35,46 +73,15 @@ reg [7:0]  char_y     [0:MAX_CHARS-1]; // 文字 y 座標
 reg [15:0] char_color [0:MAX_CHARS-1]; // 文字顏色
 reg [1:0]  char_scale [0:MAX_CHARS-1]; // 文字大小
 
-reg [1:0] display_state;
-localparam display_IDLE = 2'd0,
-			  display_EDIT = 2'd1,
-			  display_DONE = 2'd2;
+reg [2:0] current_display_state;
+reg [2:0] next_display_state;
+localparam display_CLEAR   = 3'd0,
+			  display_INITIAL = 3'd1,
+			  display_IDLE    = 3'd2,
+			  display_EDIT    = 3'd3,
+			  display_DONE    = 3'd4;
 
 reg [31:0] timer_cnt;
-
-integer i;
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		display_state <= 2'd0;
-		
-		// 上方 ID00 位置
-		char_x[0]  <= 8'd16; char_y[0]  <= 8'd0;
-		char_x[1]  <= 8'd40; char_y[1]  <= 8'd0;
-		char_x[2]  <= 8'd64; char_y[2]  <= 8'd0;
-		char_x[3]  <= 8'd88; char_y[3]  <= 8'd0;
-		
-		// 上方 OQ00 位置
-		char_x[4]  <= 8'd16; char_y[4]  <= 8'd53;
-		char_x[5]  <= 8'd40; char_y[5]  <= 8'd53;
-		char_x[6]  <= 8'd64; char_y[6]  <= 8'd53;
-		char_x[7]  <= 8'd88; char_y[7]  <= 8'd53;
-		
-		// 上方 SQ00 位置
-		char_x[8]  <= 8'd16; char_y[8]  <= 8'd106;
-		char_x[9]  <= 8'd40; char_y[9]  <= 8'd106;
-		char_x[10] <= 8'd64; char_y[10] <= 8'd106;
-		char_x[11] <= 8'd88; char_y[11] <= 8'd106;
-		
-	end else begin
-		if ((switch_8bit == 8'b0 || switch_8bit == 8'b0001_0000) && KEY == 6) begin
-			display_state <= display_IDLE;
-		end else if ((switch_8bit[7:4] == 4'b0100) && KEY == 6) begin
-			display_state <= display_EDIT;
-		end else if ((switch_8bit[7:4] == 4'b0100) && KEY == 8) begin
-			display_state <= display_DONE;
-		end
-	end
-end
 
 // orderQuantity 的十位數與個位數 ASCII
 wire [7:0] quantity_01_tens = 8'd48 + (orderQuantity[15:8] / 10);
@@ -102,6 +109,70 @@ wire [7:0] total_02_ones = 8'd48 + (grandTotal[7:0] % 10);
 
 always@(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
+		current_display_state <= display_CLEAR;
+	end else begin
+		current_display_state <= next_display_state;
+	end
+end
+
+integer i;
+always @(*) begin
+	next_display_state = current_display_state;
+		
+		// 上方 ID00 位置
+	char_x[0]  <= 8'd16; char_y[0]  <= 8'd0;
+	char_x[1]  <= 8'd40; char_y[1]  <= 8'd0;
+	char_x[2]  <= 8'd64; char_y[2]  <= 8'd0;
+	char_x[3]  <= 8'd88; char_y[3]  <= 8'd0;
+	
+	// 上方 OQ00 位置
+	char_x[4]  = 8'd16; char_y[4]  = 8'd53;
+	char_x[5]  = 8'd40; char_y[5]  = 8'd53;
+	char_x[6]  = 8'd64; char_y[6]  = 8'd53;
+	char_x[7]  = 8'd88; char_y[7]  = 8'd53;
+	
+	// 上方 SQ00 位置
+	char_x[8]  = 8'd16; char_y[8]  = 8'd106;
+	char_x[9]  = 8'd40; char_y[9]  = 8'd106;
+	char_x[10] = 8'd64; char_y[10] = 8'd106;
+	char_x[11] = 8'd88; char_y[11] = 8'd106;
+	
+	case(current_display_state)
+	
+		display_CLEAR: begin end
+	
+		display_INITIAL: begin
+			if (timer_cnt < CLK_FREQ*4) begin
+				next_display_state = display_INITIAL;
+			end else begin
+				next_display_state = display_IDLE;
+			end
+		end
+		
+		display_IDLE: begin end
+		
+		display_EDIT: begin end
+		
+		display_DONE: begin end
+		
+		default:;
+	endcase
+	
+	if ((switch_8bit == 8'b0) && (key_pulse == 6)) begin
+		next_display_state = display_INITIAL;
+	end else if ((switch_8bit[7:4] == 4'b0001) && (key_pulse == 8)) begin
+		next_display_state = current_display_state;
+	end else if ((switch_8bit[7:4] == 4'b0100) && ((switch_8bit[3:0] == 4'b0001) || (switch_8bit[3:0] == 4'b0010))) begin
+		if (key_pulse == 6) begin
+			next_display_state = display_EDIT;
+		end else if (key_pulse == 8) begin
+			next_display_state = display_DONE;
+		end
+	end
+end
+
+always@(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
 		timer_cnt <= 32'd0;
 		
 		// 文字設定初始化
@@ -112,26 +183,40 @@ always@(posedge clk or negedge rst_n) begin
 		end
 		
 	end else begin
-		case(display_state)
+		case(current_display_state)
 		
-			display_IDLE: begin
-				if (timer_cnt <= CLK_FREQ*3) begin
-					timer_cnt <= timer_cnt + 1'b1;
+			display_CLEAR: begin
+				for (i = 0; i < MAX_CHARS; i = i + 1) begin
+					char_ascii[i] <= " ";
+					char_color[i] <= COLOR_BLACK;
+					char_scale[i] <= 2'd2;
+				end
+			end
+		
+			display_INITIAL: begin
+				if (timer_cnt < CLK_FREQ*4) begin
+					timer_cnt <= timer_cnt + 32'd1;
 					for (i = 0; i < MAX_CHARS; i = i + 1) begin
 						char_ascii[i] <= " ";
+						char_color[i] <= COLOR_BLACK;
+						char_scale[i] <= 2'd2;
 					end
 				end else begin
-					char_ascii[0] <= "I"; char_ascii[1] <= "D"; char_ascii[2]  <= "0"; char_ascii[3]  <= "0";
-					char_ascii[4] <= "O"; char_ascii[5] <= "Q"; char_ascii[6]  <= "0"; char_ascii[7]  <= "0";
-					char_ascii[8] <= "S"; char_ascii[9] <= "Q"; char_ascii[10] <= "0"; char_ascii[11] <= "0";
+					timer_cnt <= 32'd0;
 				end
+			end
+			
+			display_IDLE: begin
+				char_ascii[0] <= "I"; char_ascii[1] <= "D"; char_ascii[2]  <= "0"; char_ascii[3]  <= "0";
+				char_ascii[4] <= "O"; char_ascii[5] <= "Q"; char_ascii[6]  <= "0"; char_ascii[7]  <= "0";
+				char_ascii[8] <= "S"; char_ascii[9] <= "Q"; char_ascii[10] <= "0"; char_ascii[11] <= "0";
 			end
 
 			display_EDIT: begin
 				char_ascii[0] <= "I"; char_ascii[1] <= "D";
 				char_ascii[4] <= "O"; char_ascii[5] <= "Q";
 				char_ascii[8] <= "S"; char_ascii[9] <= "Q";
-				char_ascii[2] <= "0"; char_ascii[3] <= orderID[7:0]; // 訂單ID
+				char_ascii[2] <= "0"; char_ascii[3] <= (switch_8bit[3:0] == 4'b0001) ? "1" : (switch_8bit[3:0] == 4'b0010) ? "2" : char_ascii[3]; // 訂單ID
 				if (timer_cnt <= CLK_FREQ) begin
 					timer_cnt <= timer_cnt + 1'b1;
 				end else begin
@@ -152,7 +237,7 @@ always@(posedge clk or negedge rst_n) begin
 				char_ascii[0] <= "I"; char_ascii[1] <= "D";
 				char_ascii[4] <= "O"; char_ascii[5] <= "Q";
 				char_ascii[8] <= "S"; char_ascii[9] <= "Q";
-				char_ascii[2] <= "0"; char_ascii[3] <= (switch_8bit[3:0] == 4'b0001) ? "1" : "2"; // 訂單ID
+				char_ascii[2] <= "0"; char_ascii[3] <= char_ascii[3]; // 訂單ID
 				if (switch_8bit[3:0] == 4'b0001) begin
 					char_ascii[6]  <= quantity_01_tens; char_ascii[7]  <= quantity_01_ones; // 原始訂購數量
 					char_ascii[10] <= quota_01_tens;    char_ascii[11] <= quota_01_ones; // 訂單配額
@@ -212,7 +297,7 @@ always @(*) begin
 	if (hit_text && bits[4'd7 - active_lx]) begin
 		pixel_color = active_color;
 	end else begin
-		pixel_color = COLOR_WHITE;
+		pixel_color = (current_display_state == display_CLEAR) ? COLOR_BLACK : COLOR_WHITE;
 	end
 end
 
