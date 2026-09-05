@@ -1,0 +1,53 @@
+set_location_assignment PIN_149 -to clk
+set_location_assignment PIN_145 -to rst_n
+set_location_assignment PIN_223 -to J7_AD0
+set_location_assignment PIN_226 -to J7_INT
+set_location_assignment PIN_203 -to J7_SCL
+set_location_assignment PIN_214 -to J7_SDA
+set_location_assignment PIN_219 -to J7_XCL
+set_location_assignment PIN_217 -to J7_XDA
+set_location_assignment PIN_82 -to switch_8bit[7]
+set_location_assignment PIN_80 -to switch_8bit[6]
+set_location_assignment PIN_76 -to switch_8bit[5]
+set_location_assignment PIN_70 -to switch_8bit[4]
+set_location_assignment PIN_73 -to switch_8bit[3]
+set_location_assignment PIN_78 -to switch_8bit[2]
+set_location_assignment PIN_81 -to switch_8bit[1]
+set_location_assignment PIN_83 -to switch_8bit[0]
+set_location_assignment PIN_39 -to seg_data[7]
+set_location_assignment PIN_37 -to seg_data[6]
+set_location_assignment PIN_21 -to seg_data[5]
+set_location_assignment PIN_13 -to seg_data[4]
+set_location_assignment PIN_6 -to seg_data[3]
+set_location_assignment PIN_239 -to seg_data[2]
+set_location_assignment PIN_235 -to seg_data[1]
+set_location_assignment PIN_231 -to seg_data[0]
+set_location_assignment PIN_232 -to seg_com[7]
+set_location_assignment PIN_236 -to seg_com[6]
+set_location_assignment PIN_240 -to seg_com[5]
+set_location_assignment PIN_9 -to seg_com[4]
+set_location_assignment PIN_18 -to seg_com[3]
+set_location_assignment PIN_22 -to seg_com[2]
+set_location_assignment PIN_38 -to seg_com[1]
+set_location_assignment PIN_41 -to seg_com[0]
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
+set_global_assignment -name FAMILY "Cyclone III"
+set_global_assignment -name DEVICE EP3C40Q240C8
+set_global_assignment -name TOP_LEVEL_ENTITY MPU6050
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION 13.1
+set_global_assignment -name PROJECT_CREATION_TIME_DATE "15:27:11  SEPTEMBER 05, 2026"
+set_global_assignment -name LAST_QUARTUS_VERSION 13.1
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
+set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
+set_global_assignment -name NOMINAL_CORE_SUPPLY_VOLTAGE 1.2V
+set_global_assignment -name EDA_SIMULATION_TOOL "ModelSim-Altera (VHDL)"
+set_global_assignment -name EDA_OUTPUT_DATA_FORMAT VHDL -section_id eda_simulation
+set_global_assignment -name VERILOG_FILE MPU6050.v
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+set_global_assignment -name VERILOG_FILE i2c_master.v
+set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
+set_global_assignment -name VERILOG_FILE seven_segment_display.v
