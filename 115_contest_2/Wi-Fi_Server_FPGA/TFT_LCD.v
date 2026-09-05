@@ -78,8 +78,9 @@ reg [2:0] next_display_state;
 localparam display_CLEAR   = 3'd0,
 			  display_INITIAL = 3'd1,
 			  display_IDLE    = 3'd2,
-			  display_EDIT    = 3'd3,
-			  display_DONE    = 3'd4;
+			  display_EDIT_01 = 3'd3,
+			  display_EDIT_02 = 3'd4,
+			  display_DONE    = 3'd5;
 
 reg [31:0] timer_cnt;
 
@@ -151,7 +152,7 @@ always @(*) begin
 		
 		display_IDLE: begin end
 		
-		display_EDIT: begin end
+		display_EDIT_01, display_EDIT_02: begin end
 		
 		display_DONE: begin end
 		
@@ -162,11 +163,13 @@ always @(*) begin
 		next_display_state = display_INITIAL;
 	end else if ((switch_8bit[7:4] == 4'b0001) && (key_pulse == 8)) begin
 		next_display_state = current_display_state;
-	end else if ((switch_8bit[7:4] == 4'b0100) && ((switch_8bit[3:0] == 4'b0001) || (switch_8bit[3:0] == 4'b0010))) begin
-		if (key_pulse == 6) begin
-			next_display_state = display_EDIT;
+	end else if (switch_8bit[7:4] == 4'b0100) begin
+		if ((switch_8bit[3:0] == 4'b0001) && (key_pulse == 6)) begin
+			next_display_state = display_EDIT_01;
+		end else if ((switch_8bit[3:0] == 4'b0010) && (key_pulse == 6)) begin
+			next_display_state = display_EDIT_02;
 		end else if (key_pulse == 8) begin
-			next_display_state = display_DONE;
+			//next_display_state = display_DONE;
 		end
 	end
 end
@@ -212,25 +215,38 @@ always@(posedge clk or negedge rst_n) begin
 				char_ascii[8] <= "S"; char_ascii[9] <= "Q"; char_ascii[10] <= "0"; char_ascii[11] <= "0";
 			end
 
-			display_EDIT: begin
+			display_EDIT_01: begin
 				char_ascii[0] <= "I"; char_ascii[1] <= "D";
 				char_ascii[4] <= "O"; char_ascii[5] <= "Q";
 				char_ascii[8] <= "S"; char_ascii[9] <= "Q";
-				char_ascii[2] <= "0"; char_ascii[3] <= (switch_8bit[3:0] == 4'b0001) ? "1" : (switch_8bit[3:0] == 4'b0010) ? "2" : char_ascii[3]; // 訂單ID
-				if (timer_cnt <= CLK_FREQ) begin
+				char_ascii[2] <= "0"; char_ascii[3] <= "1"; // 訂單ID
+				if (timer_cnt < CLK_FREQ) begin
 					timer_cnt <= timer_cnt + 1'b1;
 				end else begin
 					timer_cnt <= 32'd0;
 				end
-				if (switch_8bit[3:0] == 4'b0001) begin
-					char_ascii[6]  <= quantity_01_tens; char_ascii[7]  <= quantity_01_ones; // 原始訂購數量
-					char_ascii[10] <= (timer_cnt <= CLK_FREQ/2) ? quota_01_tens : " ";
-					char_ascii[11] <= (timer_cnt <= CLK_FREQ/2) ? quota_01_ones : " "; // 訂單配額
-				end else if (switch_8bit[3:0] == 4'b0010) begin
-					char_ascii[6]  <= quantity_02_tens; char_ascii[7]  <= quantity_02_ones; // 原始訂購數量
-					char_ascii[10] <= (timer_cnt <= CLK_FREQ/2) ? quota_02_tens : " ";
-					char_ascii[11] <= (timer_cnt <= CLK_FREQ/2) ? quota_02_ones : " "; // 訂單配額
+				char_ascii[6]  <= quantity_01_tens; char_ascii[7]  <= quantity_01_ones; // 原始訂購數量
+				char_ascii[10] <= quota_01_tens; // 訂單配額
+				char_ascii[11] <= quota_01_ones;
+				char_color[10] <= (timer_cnt < CLK_FREQ/2) ? COLOR_BLACK : COLOR_WHITE;
+				char_color[11] <= (timer_cnt < CLK_FREQ/2) ? COLOR_BLACK : COLOR_WHITE;
+			end
+			
+			display_EDIT_02: begin
+				char_ascii[0] <= "I"; char_ascii[1] <= "D";
+				char_ascii[4] <= "O"; char_ascii[5] <= "Q";
+				char_ascii[8] <= "S"; char_ascii[9] <= "Q";
+				char_ascii[2] <= "0"; char_ascii[3] <= "2"; // 訂單ID
+				if (timer_cnt < CLK_FREQ) begin
+					timer_cnt <= timer_cnt + 1'b1;
+				end else begin
+					timer_cnt <= 32'd0;
 				end
+				char_ascii[6]  <= quantity_02_tens; char_ascii[7]  <= quantity_02_ones; // 原始訂購數量
+				char_ascii[10] <= quota_02_tens; // 訂單配額
+				char_ascii[11] <= quota_02_ones;
+				char_color[10] <= (timer_cnt < CLK_FREQ/2) ? COLOR_BLACK : COLOR_WHITE;
+				char_color[11] <= (timer_cnt < CLK_FREQ/2) ? COLOR_BLACK : COLOR_WHITE;
 			end
 			
 			display_DONE: begin
@@ -238,13 +254,10 @@ always@(posedge clk or negedge rst_n) begin
 				char_ascii[4] <= "O"; char_ascii[5] <= "Q";
 				char_ascii[8] <= "S"; char_ascii[9] <= "Q";
 				char_ascii[2] <= "0"; char_ascii[3] <= char_ascii[3]; // 訂單ID
-				if (switch_8bit[3:0] == 4'b0001) begin
-					char_ascii[6]  <= quantity_01_tens; char_ascii[7]  <= quantity_01_ones; // 原始訂購數量
-					char_ascii[10] <= quota_01_tens;    char_ascii[11] <= quota_01_ones; // 訂單配額
-				end else if (switch_8bit[3:0] == 4'b0010) begin
-					char_ascii[6]  <= quantity_02_tens; char_ascii[7]  <= quantity_02_ones; // 原始訂購數量
-					char_ascii[10] <= quota_02_tens;    char_ascii[11] <= quota_02_ones; // 訂單配額
-				end
+				char_ascii[6]  <= char_ascii[6];  char_ascii[7]  <= char_ascii[7]; // 原始訂購數量
+				char_ascii[10] <= char_ascii[10]; char_ascii[11] <= char_ascii[11]; // 訂單配額
+				char_color[10] <= COLOR_BLACK;
+				char_color[11] <= COLOR_BLACK;
 			end
 
 		endcase

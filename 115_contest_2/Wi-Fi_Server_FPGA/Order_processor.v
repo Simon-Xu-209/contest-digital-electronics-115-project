@@ -1,31 +1,32 @@
 module Order_processor #(
 	parameter MAX_RX_LEN = 32
 )(
-	input  wire                   clk,
-	input  wire                   rst_n,
-	input  wire                   start_proc,    // 來自 connect_detector 的 conn_pulse
-	input  wire [8*MAX_RX_LEN-1:0] rx_Data_reg,  // 資料暫存器
+	input wire                    clk,
+	input wire                    rst_n,
+	input wire                    start_proc,  // 來自 connect_detector 的 conn_pulse
+	input wire [8*MAX_RX_LEN-1:0] rx_Data_reg, // 資料暫存器
+	input wire                    rx_ready,    // 接收完成脈衝
 
 	input wire [7:0] switch_8bit,
 	input wire [3:0] KEY,
 	input wire       Pressed,
 
 	// 內部原始訂單資料
-	output reg  [31:0]            orderID,       // 訂單 ID (字串)
-	output reg  [15:0]            orderQuantity, // 訂購數量
-	output reg  [15:0]            bidAmount,     // 出價金額
-	output reg  [15:0]            productQuota,  // 商品配額
-	output wire [31:0]            grandTotal,    // 付款總額
+	output reg  [31:0] orderID,       // 訂單 ID (字串)
+	output reg  [15:0] orderQuantity, // 訂購數量
+	output reg  [15:0] bidAmount,     // 出價金額
+	output reg  [15:0] productQuota,  // 商品配額
+	output wire [31:0] grandTotal,    // 付款總額
 
 	// 專為外送/VB介面打包的傳輸暫存器
-	output reg  [31:0]            sendID,        // 對應 VB 訂單ID
-	output reg  [63:0]            sendQA,        // 對應 VB 訂購數量與出價金額欄位
-	output reg  [63:0]            sendQT,        // 對應 VB 配額與付款總額
+	output reg [31:0] sendID, // 對應 VB 訂單ID
+	output reg [63:0] sendQA, // 對應 VB 訂購數量與出價金額欄位
+	output reg [63:0] sendQT, // 對應 VB 配額與付款總額
 
-	output reg                    proc_done      // 通知 tx_buffer_controller 開始發送
+	output reg proc_done // 通知 tx_buffer_controller 開始發送
 );
 
-// 拆解 32 個 Byte
+// 拆解 32 個 Byte (bytes[0] 為 lowest byte，即最後收到的字元)
 wire [7:0] bytes[0:MAX_RX_LEN-1];
 genvar g;
 generate
@@ -34,31 +35,35 @@ generate
 	end
 endgenerate
 
-wire [MAX_RX_LEN-7:0] id_match_mask;
+// 搜尋 "ID:" (字串靠右存入，較早收到的字元索引較大)
+// 格式範例：bytes[g]="I", bytes[g-1]="D", bytes[g-2]=":", bytes[g-3]='9', ..., bytes[g-6]='1'
+wire [MAX_RX_LEN-1:0] match_id;
 reg  [31:0]           detected_id;
 reg                   id_found;
 
-genvar idx;
 generate
-	for (idx = 0; idx <= MAX_RX_LEN - 7; idx = idx + 1) begin : ID_SEARCH
-		// 判斷連續 3 個 Byte 是否 match "I", "D", ":"
-		assign id_match_mask[idx] = (bytes[idx+6]   == "I") && 
-											 (bytes[idx+4] == "D") && 
-											 (bytes[idx+5] == ":");
-	end
+    for (g = 6; g < MAX_RX_LEN; g = g + 1) begin : MATCH_GEN
+        assign match_id[g] = (bytes[g]   == "I") && 
+                             (bytes[g-1] == "D") && 
+                             (bytes[g-2] == ":");
+    end
+    for (g = 0; g < 6; g = g + 1) begin : MATCH_ZERO
+        assign match_id[g] = 1'b0;
+    end
 endgenerate
 
+// ID 擷取邏輯
 integer k;
 always @(*) begin
-	id_found    = 1'b0;
-	detected_id = 32'd0;
-	for (k = 0; k <= MAX_RX_LEN - 7; k = k + 1) begin
-		if (id_match_mask[k] && !id_found) begin
-			id_found    = 1'b1;
-			// 抓取 "ID:" 之後的 4 個 ASCII 字元 (XXXX)
-			detected_id = {bytes[k+3], bytes[k+2], bytes[k+1], bytes[k]};
-		end
-	end
+    id_found    = 1'b0;
+    detected_id = 32'd0;
+    for (k = MAX_RX_LEN - 1; k >= 6; k = k - 1) begin
+        if (match_id[k] && !id_found) begin
+            id_found    = 1'b1;
+            // 擷取 "ID:" 後方的 4 碼，高位 Byte 擺左側
+            detected_id = {bytes[k-3], bytes[k-4], bytes[k-5], bytes[k-6]};
+        end
+    end
 end
 
 
@@ -133,15 +138,16 @@ wire [7:0] total_02_hundreds  = 8'd48 + ((grandTotal[15:0]  % 1000) / 100);
 wire [7:0] total_02_tens      = 8'd48 + ((grandTotal[15:0]  % 100) / 10);
 wire [7:0] total_02_ones      = 8'd48 + (grandTotal[15:0]   % 10);
 
-
 assign grandTotal[31:16] = productQuota[15:8] * bidAmount[15:8];
 assign grandTotal[15:0] = productQuota[7:0] * bidAmount[7:0];
 
+
 reg [1:0] current_sys_state;
 reg [1:0] next_sys_state;
-localparam SYS_IDLE = 2'd0,
-			  SYS_EDIT = 2'd1,
-			  SYS_DONE = 2'd2;
+localparam SYS_IDLE    = 2'd0,
+			  SYS_INITIAL = 2'd1,
+			  SYS_EDIT    = 2'd2,
+			  SYS_DONE    = 2'd3;
 
 always@(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
@@ -155,12 +161,15 @@ always@(*) begin
 	next_sys_state = current_sys_state;
 	case(current_sys_state)
 		SYS_IDLE: begin end
+		SYS_INITIAL: begin end
 		SYS_EDIT: begin end
 		SYS_DONE: begin end
 		default:;
 	endcase
 	
-	if ((switch_8bit[7:4] == 4'b0100) && ((switch_8bit[3:0] == 4'b0001) || (switch_8bit[3:0] == 4'b0010))) begin
+	if ((switch_8bit == 8'b0) && (key_pulse == 6)) begin
+		next_sys_state = SYS_INITIAL;
+	end else if ((switch_8bit[7:4] == 4'b0100) && ((switch_8bit[3:0] == 4'b0001) || (switch_8bit[3:0] == 4'b0010))) begin
 		if	(key_pulse == 6) begin
 			next_sys_state = SYS_EDIT;
 		end else if	(key_pulse == 8) begin
@@ -180,6 +189,13 @@ always@(posedge clk or negedge rst_n) begin
 		case(current_sys_state)
 		
 			SYS_IDLE: begin end
+			
+			SYS_INITIAL: begin
+				orderID       <= "0102";
+				orderQuantity <= {8'd65, 8'd40};
+				bidAmount     <= {8'd70, 8'd30};
+				productQuota  <= 16'd0;
+			end
 			
 			SYS_EDIT: begin
 				if (switch_8bit[3:0] == 4'b0001) begin
@@ -243,52 +259,117 @@ always@(posedge clk or negedge rst_n) begin
 	end
 end
 
-// 狀態機
-reg [1:0] SEND_state;
+// 資料傳送狀態機
+reg [1:0] current_send_state;
+reg [1:0] next_send_state;
 localparam S_IDLE = 2'd0,
 			  S_INIT = 2'd1,
-			  S_SEND = 2'd2;
+			  S_BACK = 2'd2,
+			  S_SEND = 2'd3;
+
+reg rx_ready_flag;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		rx_ready_flag <= 1'b0;
+	end else begin
+		if (rx_ready) begin
+			rx_ready_flag <= 1'b1; // 抓到 rx_ready 脈衝就鎖存住
+		end else if (current_send_state == S_BACK) begin
+			rx_ready_flag <= 1'b0; // 成功進入 S_BACK 後清空
+		end
+	end
+end
+
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		current_send_state <= S_IDLE;
+	end else begin
+		current_send_state <= next_send_state;
+	end
+end
+
+always @(*) begin
+	next_send_state = current_send_state;
+	case(current_send_state)
+		S_IDLE: begin
+			if ((switch_8bit == 8'b0001_0000) && start_proc) begin
+				next_send_state = S_INIT;
+			end else if (((detected_id == "9901") || (detected_id == "9902")) && rx_ready_flag) begin
+				next_send_state = S_BACK;
+			end
+		end
+		
+		S_INIT: begin
+			next_send_state = S_SEND;
+		end
+		
+		S_BACK: begin
+			next_send_state = S_SEND;
+		end
+		
+		S_SEND: begin
+			next_send_state = S_IDLE;
+		end
+		
+		default:begin
+			next_send_state = S_IDLE;
+		end
+		
+	endcase
+end
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		proc_done <= 1'b0;
-		SEND_state <= S_IDLE;
 
 		// 傳輸暫存器預設值
 		sendID <= orderID;
 		sendQA <= {
 					  "0",
 					  "0",
-					  quantity_01_tens,// 確切 8-bit ASCII
-					  quantity_01_ones,// 確切 8-bit ASCII
+					  quantity_01_tens, // 訂單01 訂購數量
+					  quantity_01_ones, // 訂單01 訂購數量
 					  "0",
 					  "0",
-					  quantity_02_tens,// 確切 8-bit ASCII
-					  quantity_02_ones // 確切 8-bit ASCII
+					  quantity_02_tens, // 訂單02 訂購數量
+					  quantity_02_ones  // 訂單02 訂購數量
 		};
 		sendQT <= "0000    ";
 	end else begin
 		proc_done <= 1'b0;
-			case (SEND_state)
+			case (current_send_state)
 			S_IDLE: begin
-				if ((switch_8bit == 8'b0001_0000) && start_proc) begin
-					SEND_state <= S_INIT;
-				end
+				
 			end
 
 			S_INIT: begin
-				// 1. 更新內部暫存資料
-				// 2. 將需要傳送至 VB 的資料組合寫入三個 send 暫存器
-				sendID <= orderID; // 訂單 ID
+				// 傳送初始化預設資料給 VB
+				sendID <= "0102"; // 訂單 ID
 				sendQA <= {
 					  "0",
 					  "0",
-					  quantity_01_tens,// 確切 8-bit ASCII
-					  quantity_01_ones,// 確切 8-bit ASCII
+					  quantity_01_tens, // 訂單01 訂購數量
+					  quantity_01_ones, // 訂單01 訂購數量
 					  "0",
 					  "0",
-					  quantity_02_tens,// 確切 8-bit ASCII
-					  quantity_02_ones // 確切 8-bit ASCII
+					  quantity_02_tens, // 訂單02 訂購數量
+					  quantity_02_ones  // 訂單02 訂購數量
+				 };
+				sendQT <= "0000    ";
+			end
+			
+			S_BACK: begin
+				// 收到 VB 查詢資料後，回傳資料給 VB
+				sendID <= detected_id; // 訂單 ID
+				sendQA <= {
+					  "0",
+					  "0",
+					  (detected_id == "9901") ? quantity_01_tens : quantity_02_tens, // 訂單01 訂購數量
+					  (detected_id == "9901") ? quantity_01_ones : quantity_02_ones, // 訂單01 訂購數量
+					  "0",
+					  "0",
+					  (detected_id == "9901") ? amount_01_tens : amount_02_tens, // 訂單02 訂購數量
+					  (detected_id == "9901") ? amount_01_ones : amount_02_ones  // 訂單02 訂購數量
 				 };
 				sendQT <= {
 					"#",
@@ -300,16 +381,13 @@ always @(posedge clk or negedge rst_n) begin
 					(detected_id == "9901") ? total_01_tens : total_02_tens,
 					(detected_id == "9901") ? total_01_ones : total_02_ones
 				};
-				SEND_state <= S_SEND;
 			end
 
 			S_SEND: begin
 				proc_done <= 1'b1; // 發送單週期完成脈衝
-				SEND_state     <= S_IDLE;
 			end
 
 			default: begin
-				SEND_state <= S_IDLE;
 			end
 			
 		endcase

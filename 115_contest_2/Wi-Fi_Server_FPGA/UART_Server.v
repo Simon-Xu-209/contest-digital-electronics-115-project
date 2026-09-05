@@ -12,7 +12,7 @@ module UART_Server(
 	output wire [15:0] seg_data,
 	output wire [7:0]  seg_com,
 	output wire DOUT,
-	output SCL, SDA, RES, DC, CS, BLK,
+	output SCL, SDA, RES, DC, CS, BLK, // 128x160 RGB TFT LCD
 	output reg [3:0] KEY,
 	output wire CONNECETED
 );
@@ -111,7 +111,7 @@ tx_buffer_controller #(
 	.rst_n        (rst_n),
 	
 	.send_req     (order_proc_done),  // 由 Order_processor 完成後觸發
-	.target_id    (client_id),        // TCP Client ID
+	.target_id    (link_ID),          // TCP Client ID
 	
 	// 改為傳入專用的發送暫存器
 	.sendID       (sendID),
@@ -130,7 +130,7 @@ tx_buffer_controller #(
 wire rx_ready;
 wire [3:0] link_ID;
 wire [15:0] rx_Data_len;
-wire [255:0] rx_Data_reg;
+wire [8*MAX_RX_LEN-1:0] rx_Data_reg;
 wire Data_reg_busy;
 
 wire       rx_done;
@@ -159,11 +159,11 @@ wire rx_prompt;
 receiver_OK u_receiver_OK (
 	.clk            (clk),
 	.rst_n          (rst_n),
-	.RECEIVE_END    (rx_done), // UART RX 的 Byte 接收完成脈衝
+	.RECEIVE_END    (rx_done),  // UART RX 的 Byte 接收完成脈衝
 	.receive_ok_en  (1'b1),
 	.rxd            (rx_byte),  // UART RX 得到的字元資料
-	.receiver_OK    (rx_ok),       // 接至控制器的 OK 判斷
-	.receiver_PROMPT(rx_prompt)   // 接至控制器的 Prompt 判斷
+	.receiver_OK    (rx_ok),    // 接至控制器的 OK 判斷
+	.receiver_PROMPT(rx_prompt) // 接至控制器的 Prompt 判斷
 );
 
 // -------------------------------------------------------------
@@ -259,12 +259,12 @@ Order_processor #(
 	.clk           (clk),
 	.rst_n         (rst_n),
 	.start_proc    (conn_pulse),      // 連線成功，通知開始處理
-	//.rx_ready      (rx_ready),
+	.rx_ready      (rx_ready),
 	.rx_Data_reg   (rx_Data_reg),     // 資料暫存器
 	
-	.switch_8bit  (switch_8bit),
-	.KEY          (KEY),
-	.Pressed      (Pressed),
+	.switch_8bit   (switch_8bit),
+	.KEY           (KEY),
+	.Pressed       (Pressed),
 	
 	.orderID       (orderID),
 	.orderQuantity (orderQuantity),
@@ -309,7 +309,7 @@ seven_segment_display #(
 ) seven_segment_display_1 (
 	.clk          (clk),
 	.rst_n        (rst_n),
-	.rx_Data_reg  (rx_Data_reg), // 直接連接收到的 64 Bytes Payload
+	.rx_Data_reg  (rx_Data_reg), // 直接連接收到的 32 Bytes Payload
 	.switch_8bit  (switch_8bit),
 	.KEY          (KEY),
 	.Pressed      (Pressed),
@@ -328,7 +328,7 @@ LED_Matrix_8x8 LED_Matrix_8x8_u1(
 	.switch_8bit  (switch_8bit),
 	.KEY          (KEY),
 	.Pressed      (Pressed),
-	.DOUT          (DOUT),
+	.DOUT         (DOUT),
 	.orderID      (orderID),       // 訂單 ID
 	.orderQuantity(orderQuantity), // 訂購數量
 	.bidAmount    (bidAmount),     // 出價金額

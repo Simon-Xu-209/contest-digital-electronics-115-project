@@ -3,10 +3,10 @@ module seven_segment_display #(
 )(
 	input  wire                    clk,
 	input  wire                    rst_n,
-	input  wire [8*MAX_RX_LEN-1:0] rx_Data_reg, // 傳入 64 Bytes 資料暫存器
+	input  wire [8*MAX_RX_LEN-1:0] rx_Data_reg, // 傳入 32 Bytes 資料暫存器
 	input  wire [7:0]              switch_8bit,
 	input  wire [3:0]              KEY,
-	input  wire       Pressed,
+	input  wire                    Pressed,
 	output reg  [15:0]             seg_data,
 	output reg  [7:0]              seg_com,
 
@@ -16,6 +16,44 @@ module seven_segment_display #(
 	input [15:0] productQuota,  // 商品配額
 	input [15:0] grandTotal     // 付款總額
 );
+
+reg Pressed_reg1, Pressed_reg2;
+wire Pressed_posedge = (Pressed_reg1 && !Pressed_reg2);
+wire Pressed_negedge = (!Pressed_reg1 && Pressed_reg2);
+always@(posedge clk) begin
+	if (!rst_n) begin
+		Pressed_reg1 <= 0;
+		Pressed_reg2 <= 0;
+	end else begin
+		Pressed_reg1 <= Pressed;
+		Pressed_reg2 <= Pressed_reg1;
+	end
+end
+
+reg [3:0] key_latched;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key_latched <= 4'd15;
+	end else if (Pressed && !Pressed_reg1) begin // 只在剛按下的正緣鎖存 KEY
+		key_latched <= KEY;
+	end else begin
+		key_latched <= 4'd15;
+	end
+end
+
+reg [3:0] key_pulse;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key_pulse <= 4'b1111;
+	end else begin
+		// 當 Pressed 產生正緣（剛按下的瞬間）
+		if (Pressed && !Pressed_reg1) begin
+			key_pulse <= KEY;       // 存入當前按下的 key 值
+		end else begin
+			key_pulse <= 4'b1111;   // 1 個 Clock 後自動歸位為預設值 15
+		end
+	end
+end
 
 localparam FREQ_HZ        = 50_000_000;
 localparam CNT_INIT_100US = (FREQ_HZ / 10000) - 1; // 100 微秒週期
@@ -33,32 +71,55 @@ localparam MODE_CLEAR        = 3'd0;
 localparam MODE_INITIAL      = 3'd1;
 localparam MODE_IDLE         = 3'd2;
 localparam MODE_CONNECT_TEST = 3'd3;
-localparam MODE_EDIT         = 3'd4;
+localparam MODE_EDIT_01      = 3'd4;
+localparam MODE_EDIT_02      = 3'd5;
 
-reg [2:0]  sys_mode;
+
+reg [2:0]  current_sys_mode;
+reg [2:0]  next_sys_mode;
 reg [31:0] cnt_timer;
+
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		sys_mode   <= MODE_CLEAR;
-		cnt_timer <= 0;
+		current_sys_mode   <= MODE_CLEAR;
 	end else begin
-		if ((switch_8bit == 8'b0 || switch_8bit == 8'b0001_0000) && KEY == 6) begin
-			if (sys_mode != MODE_IDLE && cnt_timer < FREQ_HZ*4) begin
-				sys_mode <= MODE_INITIAL;
-				cnt_timer <= cnt_timer + 1;
+		current_sys_mode   <= next_sys_mode;
+	end
+end
+
+always @(*) begin
+	next_sys_mode = current_sys_mode;
+	case(current_sys_mode)
+		MODE_CLEAR: begin end
+		
+		MODE_INITIAL: begin
+			if (cnt_timer < FREQ_HZ*4) begin
+				next_sys_mode = MODE_INITIAL;
 			end else begin
-				sys_mode <= MODE_IDLE;
-				cnt_timer <= 0;
+				next_sys_mode = MODE_IDLE;
 			end
-		end else if ((switch_8bit[7:4] == 4'b0100) && KEY == 6) begin
-			sys_mode <= MODE_EDIT;
+		end
+		
+		MODE_IDLE: begin end
+		
+		MODE_CONNECT_TEST: begin end
+		
+		MODE_EDIT_01, MODE_EDIT_02: begin end
+		
+		default:;
+	endcase
+	
+	if ((switch_8bit == 8'b0) && (key_pulse == 6)) begin
+		next_sys_mode = MODE_INITIAL;
+	end else if ((switch_8bit[7:4] == 4'b0100) && (key_pulse == 6)) begin
+		if (switch_8bit[3:0] == 4'b0001) begin
+			next_sys_mode = MODE_EDIT_01;
+		end else if (switch_8bit[3:0] == 4'b0010) begin
+			next_sys_mode = MODE_EDIT_02;
 		end
 	end
 end
 
-// =========================================================
-// 解碼並填入七段顯示器資料陣列
-// =========================================================
 integer i;
 reg [7:0] seg_com_data[7:0];
 
@@ -67,13 +128,15 @@ always @(posedge clk or negedge rst_n) begin
 		for (i = 0; i < 8; i = i + 1) begin
 			seg_com_data[i] <= {1'b0, 7'b000_0000};
 		end
+		cnt_timer <= 32'b0;
 	end else begin
-		case(sys_mode)
+		case(current_sys_mode)
 		
 			MODE_CLEAR: begin
 				for (i = 0; i < 8; i = i + 1) begin
 					seg_com_data[i] <= {1'b0, 7'b000_0000};
 				end
+				cnt_timer <= 32'd0;
 			end
 			
 			MODE_INITIAL: begin
@@ -85,6 +148,11 @@ always @(posedge clk or negedge rst_n) begin
 				seg_com_data[2] <= {1'b0, text[29]}; // 'T'
 				seg_com_data[1] <= {1'b1, text[36]}; // '.'
 				seg_com_data[0] <= {1'b1, text[36]}; // '.'
+				if (cnt_timer < FREQ_HZ*4) begin
+					cnt_timer <= cnt_timer + 32'b1;
+				end else begin
+					cnt_timer <= 32'b0;
+				end
 			end
 			
 			MODE_IDLE: begin
@@ -98,16 +166,22 @@ always @(posedge clk or negedge rst_n) begin
 				seg_com_data[0] <= {1'b0, 7'b100_0000}; // '-'
 			end
 			
-			MODE_EDIT: begin
+			MODE_EDIT_01: begin
 				seg_com_data[7] <= {1'b0, text[0]}; // '0'
 				seg_com_data[6] <= {1'b0, text[0]}; // '0'
-				if (orderID == "0001") begin
-					seg_com_data[5] <= {1'b0, text[bidAmount[15:8] / 10]}; // '7'
-					seg_com_data[4] <= {1'b0, text[bidAmount[15:8] % 10]}; // '0'
-				end else if (orderID == "0002") begin
-					seg_com_data[5] <= {1'b0, text[bidAmount[7:0] / 10]}; // '3'
-					seg_com_data[4] <= {1'b0, text[bidAmount[7:0] % 10]}; // '0'
-				end
+				seg_com_data[5] <= {1'b0, text[bidAmount[15:8] / 10]}; // '7'
+				seg_com_data[4] <= {1'b0, text[bidAmount[15:8] % 10]}; // '0'
+				seg_com_data[3] <= {1'b0, text[29]}; // 'T'
+				seg_com_data[2] <= {1'b0, text[28]}; // 'S'
+				seg_com_data[1] <= {1'b0, text[8]};  // '8'
+				seg_com_data[0] <= {1'b0, text[0]};  // '0'
+			end
+			
+			MODE_EDIT_02: begin
+				seg_com_data[7] <= {1'b0, text[0]}; // '0'
+				seg_com_data[6] <= {1'b0, text[0]}; // '0'
+				seg_com_data[5] <= {1'b0, text[bidAmount[7:0] / 10]}; // '3'
+				seg_com_data[4] <= {1'b0, text[bidAmount[7:0] % 10]}; // '0'
 				seg_com_data[3] <= {1'b0, text[29]}; // 'T'
 				seg_com_data[2] <= {1'b0, text[28]}; // 'S'
 				seg_com_data[1] <= {1'b0, text[8]};  // '8'
@@ -128,15 +202,15 @@ reg [2:0] seg_com_num = 0;
 always @(posedge Counter[10]) begin
 	seg_com_num <= seg_com_num + 1'b1;
 	case (seg_com_num)
-		3'b000: begin seg_com <= ~8'b0000_0001; seg_data <= {2{seg_com_data[0]}}; end
-		3'b001: begin seg_com <= ~8'b0000_0010; seg_data <= {2{seg_com_data[1]}}; end
-		3'b010: begin seg_com <= ~8'b0000_0100; seg_data <= {2{seg_com_data[2]}}; end
-		3'b011: begin seg_com <= ~8'b0000_1000; seg_data <= {2{seg_com_data[3]}}; end
-		3'b100: begin seg_com <= ~8'b0001_0000; seg_data <= {2{seg_com_data[4]}}; end
-		3'b101: begin seg_com <= ~8'b0010_0000; seg_data <= {2{seg_com_data[5]}}; end
-		3'b110: begin seg_com <= ~8'b0100_0000; seg_data <= {2{seg_com_data[6]}}; end
-		3'b111: begin seg_com <= ~8'b1000_0000; seg_data <= {2{seg_com_data[7]}}; end
-		default: begin seg_com <= 8'b0000_0000; seg_com_num <= 3'b000; end
+		3'b000: begin seg_com <= 8'b1111_1110; seg_data <= {2{seg_com_data[0]}}; end
+		3'b001: begin seg_com <= 8'b1111_1101; seg_data <= {2{seg_com_data[1]}}; end
+		3'b010: begin seg_com <= 8'b1111_1011; seg_data <= {2{seg_com_data[2]}}; end
+		3'b011: begin seg_com <= 8'b1111_0111; seg_data <= {2{seg_com_data[3]}}; end
+		3'b100: begin seg_com <= 8'b1110_1111; seg_data <= {2{seg_com_data[4]}}; end
+		3'b101: begin seg_com <= 8'b1101_1111; seg_data <= {2{seg_com_data[5]}}; end
+		3'b110: begin seg_com <= 8'b1011_1111; seg_data <= {2{seg_com_data[6]}}; end
+		3'b111: begin seg_com <= 8'b0111_1111; seg_data <= {2{seg_com_data[7]}}; end
+		default: begin seg_com <= 8'b1111_1111; seg_com_num <= 3'b000; end
 	endcase
 end
 

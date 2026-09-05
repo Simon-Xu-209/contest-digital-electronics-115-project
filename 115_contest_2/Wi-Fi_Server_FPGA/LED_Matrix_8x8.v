@@ -4,7 +4,7 @@ module LED_Matrix_8x8 (
 	input  wire [7:0] switch_8bit, // 指撥開關
 	input  wire [3:0] KEY,         // 按鈕
 	input  wire       Pressed,
-	output reg        DOUT,         // WS2812B 資料輸出
+	output reg        DOUT,        // WS2812B 資料輸出
 
 	input [31:0] orderID,       // 訂單 ID
 	input [15:0] orderQuantity, // 訂購數量
@@ -77,7 +77,8 @@ localparam COLOR_BLACK = 24'h00_00_00;
 localparam MODE_CLEAR        = 3'd0;
 localparam MODE_INITIAL      = 3'd1;
 localparam MODE_IDLE         = 3'd2;
-localparam MODE_EDIT         = 3'd3;
+localparam MODE_EDIT_01      = 3'd3;
+localparam MODE_EDIT_02      = 3'd4;
 
 
 reg [2:0]  current_draw_mode;
@@ -118,7 +119,7 @@ always@(*) begin
 		MODE_IDLE: begin
 		end
 		
-		MODE_EDIT: begin
+		MODE_EDIT_01, MODE_EDIT_02: begin
 		end
 		
 		default:;
@@ -128,8 +129,12 @@ always@(*) begin
 		next_draw_mode = MODE_INITIAL;
 	end else if ((switch_8bit == 8'b0001_0000) && (key_pulse == 8)) begin
 		next_draw_mode = current_draw_mode;
-	end else if ((switch_8bit[7:4] == 4'b0100) && ((switch_8bit[3:0] == 4'b0001) || (switch_8bit[3:0] == 4'b0010)) && (key_pulse == 6)) begin
-		next_draw_mode = MODE_EDIT;
+	end else if ((switch_8bit[7:4] == 4'b0100) && (key_pulse == 6)) begin
+		if (switch_8bit[3:0] == 4'b0001) begin
+			next_draw_mode = MODE_EDIT_01;
+		end else if (switch_8bit[3:0] == 4'b0010) begin
+			next_draw_mode = MODE_EDIT_02;
+		end
 	end
 end
 
@@ -182,9 +187,14 @@ always @(posedge clk or negedge rst_n) begin
 				end
 			end
 			
-			MODE_EDIT: begin
+			MODE_EDIT_01: begin
+				if (anim_timer < FREQ_HZ) begin
+					anim_timer <= anim_timer + 32'b1;
+				end else begin
+					anim_timer <= 32'b0;
+				end
 				// --- 第七列 (col 7): 顯示 訂單01 的 訂購數量 ---
-				if (pixel_col == 3'd7) begin
+				if ((pixel_col == 3'd7) && (anim_timer < FREQ_HZ/2)) begin
 					if (pixel_row < (orderQuantity[15:8] / 10)) begin
 						current_color = COLOR_RED;
 					end
@@ -224,11 +234,61 @@ always @(posedge clk or negedge rst_n) begin
 					current_color = COLOR_BLACK;
 				end
 			end
+			
+			MODE_EDIT_02: begin
+				if (anim_timer < FREQ_HZ) begin
+					anim_timer <= anim_timer + 32'b1;
+				end else begin
+					anim_timer <= 32'b0;
+				end
+				// --- 第七列 (col 7): 顯示 訂單01 的 訂購數量 ---
+				if (pixel_col == 3'd7) begin
+					if (pixel_row < (orderQuantity[15:8] / 10)) begin
+						current_color = COLOR_RED;
+					end
+					if (pixel_row == (orderQuantity[15:8] / 10) && ((orderQuantity[15:8] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end 
+				// --- 第六列 (col 6): 顯示 訂單01 的 配額數量 ---
+				else if (pixel_col == 3'd6) begin
+					if (pixel_row < (productQuota[15:8] / 10)) begin
+						current_color = COLOR_RED;
+					end
+					if (pixel_row == (productQuota[15:8] / 10) && ((productQuota[15:8] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end 
+				// --- 第四列 (col 4): 顯示 訂單02 的 訂購數量 ---
+				else if ((pixel_col == 3'd4) && (anim_timer < FREQ_HZ/2)) begin
+					if (pixel_row < (orderQuantity[7:0] / 10)) begin
+						current_color = COLOR_RED;
+					end
+					if (pixel_row == (orderQuantity[7:0] / 10) && ((orderQuantity[7:0] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end 
+				// --- 第三列 (col 3): 顯示 訂單02 的 配額數量 ---
+				else if (pixel_col == 3'd3) begin
+					if (pixel_row < (productQuota[7:0] / 10)) begin
+						current_color = COLOR_RED;
+					end
+					if (pixel_row == (productQuota[7:0] / 10) && ((productQuota[7:0] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end 
+				// --- 其餘點陣關閉 ---
+				else begin
+					current_color = COLOR_BLACK;
+				end
+			end
 
 			default: current_color = COLOR_BLACK; // MODE_CLEAR
 		endcase
 	end
 end
+
+
 
 // =========================================================================
 // WS2812B 狀態機驅動
