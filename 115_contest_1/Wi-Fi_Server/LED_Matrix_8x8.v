@@ -8,7 +8,7 @@ module LED_Matrix_8x8 (
 	input  wire        stop,        // 搖桿 Z 軸按下 (Active High)
 	output wire [2:0]  LED_row,
 	output wire [2:0]  LED_col,
-	output reg         DIN          // WS2812B 資料輸出
+	output reg         DOUT          // WS2812B 資料輸出
 );
 
 // =========================================================================
@@ -274,11 +274,11 @@ always @(posedge clk or negedge rst_n) begin
 		draw_mode <= MODE_CLEAR;
 		draw_row  <= 0;
 		draw_col  <= 0;
-		DIN       <= 1'b0;
+		DOUT       <= 1'b0;
 	end else begin
 		case (state)
 			STATE_IDLE: begin
-				DIN     <= 1'b0;
+				DOUT     <= 1'b0;
 				clk_cnt <= 0;
 				if (update_req) begin
 					draw_mode <= sys_mode;
@@ -294,7 +294,7 @@ always @(posedge clk or negedge rst_n) begin
 			end
 
 			STATE_RESET: begin
-				DIN <= 1'b0;
+				DOUT <= 1'b0;
 				if (clk_cnt < RESET_CYCLES - 1) begin
 					clk_cnt <= clk_cnt + 1'b1;
 				end else begin
@@ -306,7 +306,7 @@ always @(posedge clk or negedge rst_n) begin
 			end
 
 			STATE_SEND: begin
-				DIN <= current_color[bit_idx] ? (clk_cnt < T1H_CYCLES) : (clk_cnt < T0H_CYCLES);
+				DOUT <= current_color[bit_idx] ? (clk_cnt < T1H_CYCLES) : (clk_cnt < T0H_CYCLES);
 				if (clk_cnt < BIT_CYCLES - 1) begin
 					clk_cnt <= clk_cnt + 1'b1;
 				end else begin
