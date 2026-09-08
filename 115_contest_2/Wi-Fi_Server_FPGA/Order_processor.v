@@ -364,12 +364,12 @@ always @(posedge clk or negedge rst_n) begin
 				sendQA <= {
 					  "0",
 					  "0",
-					  (detected_id == "9901") ? quantity_01_tens : quantity_02_tens, // 訂單01 訂購數量
-					  (detected_id == "9901") ? quantity_01_ones : quantity_02_ones, // 訂單01 訂購數量
+					  (detected_id == "9901") ? quantity_01_tens : quantity_02_tens, // 訂購數量
+					  (detected_id == "9901") ? quantity_01_ones : quantity_02_ones, // 訂購數量
 					  "0",
 					  "0",
-					  (detected_id == "9901") ? amount_01_tens : amount_02_tens, // 訂單02 訂購數量
-					  (detected_id == "9901") ? amount_01_ones : amount_02_ones  // 訂單02 訂購數量
+					  (detected_id == "9901") ? amount_01_tens : amount_02_tens, // 出價金額
+					  (detected_id == "9901") ? amount_01_ones : amount_02_ones  // 出價金額
 				 };
 				sendQT <= {
 					"#",
