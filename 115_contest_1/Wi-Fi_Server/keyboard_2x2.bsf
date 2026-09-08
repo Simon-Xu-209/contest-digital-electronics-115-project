@@ -26,16 +26,23 @@ applicable agreement for further details.
 	(port
 		(pt 0 32)
 		(input)
-		(text "ck" (rect 0 0 9 12)(font "Arial" ))
-		(text "ck" (rect 21 27 30 39)(font "Arial" ))
+		(text "clk" (rect 0 0 10 12)(font "Arial" ))
+		(text "clk" (rect 21 27 31 39)(font "Arial" ))
 		(line (pt 0 32)(pt 16 32)(line_width 1))
 	)
 	(port
 		(pt 0 48)
 		(input)
+		(text "rst_n" (rect 0 0 21 12)(font "Arial" ))
+		(text "rst_n" (rect 21 43 42 55)(font "Arial" ))
+		(line (pt 0 48)(pt 16 48)(line_width 1))
+	)
+	(port
+		(pt 0 64)
+		(input)
 		(text "column[1..0]" (rect 0 0 47 12)(font "Arial" ))
-		(text "column[1..0]" (rect 21 43 68 55)(font "Arial" ))
-		(line (pt 0 48)(pt 16 48)(line_width 3))
+		(text "column[1..0]" (rect 21 59 68 71)(font "Arial" ))
+		(line (pt 0 64)(pt 16 64)(line_width 3))
 	)
 	(port
 		(pt 192 32)
@@ -54,8 +61,8 @@ applicable agreement for further details.
 	(port
 		(pt 192 64)
 		(output)
-		(text "KEY[3..0]" (rect 0 0 41 12)(font "Arial" ))
-		(text "KEY[3..0]" (rect 130 59 171 71)(font "Arial" ))
+		(text "KEY[2..0]" (rect 0 0 41 12)(font "Arial" ))
+		(text "KEY[2..0]" (rect 130 59 171 71)(font "Arial" ))
 		(line (pt 192 64)(pt 176 64)(line_width 3))
 	)
 	(drawing

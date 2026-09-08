@@ -60,7 +60,7 @@ end
 // 去顫與釋放鎖存邏輯
 reg [19:0] debounce_cnt;
 reg [19:0] release_cnt; // 專門處理放開彈跳的計數器
-reg [3:0] latched_key;
+reg [2:0] latched_key;
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
@@ -68,7 +68,7 @@ always @(posedge clk or negedge rst_n) begin
 		release_cnt  <= 20'd0;
 		Pressed      <= 1'b0;
 		KEY          <= 3'd7;
-		latched_key  <= 4'd15;
+		latched_key  <= 3'd7;
 	end else begin
 		// 當掃描碰巧命中任一按鍵時
 		if (raw_hit) begin
@@ -80,7 +80,7 @@ always @(posedge clk or negedge rst_n) begin
 			end else begin
 				Pressed <= 1'b1;
 				KEY     <= latched_key;
-            end
+			end
 		end else begin
 			// 掃描沒命中時，檢查是否是真的「放開按鍵」
 			if (release_cnt > 20'd0) begin

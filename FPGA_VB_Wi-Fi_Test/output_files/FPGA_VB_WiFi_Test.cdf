@@ -4,7 +4,7 @@ JedecChain;
 	DefaultMfr(6E);
 
 	P ActionCode(Cfg)
-		Device PartName(EP3C40Q240) Path("C:/Users/student/Desktop/115 Project/115_contest_1/Wi-Fi_Server/output_files/") File("top.sof") MfrSpec(OpMask(1));
+		Device PartName(EP3C40Q240) Path("C:/Users/student/Desktop/115 Project/FPGA_VB_Wi-Fi_Test/output_files/") File("FPGA_VB_WiFi_Test.sof") MfrSpec(OpMask(1));
 
 ChainEnd;
 

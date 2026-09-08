@@ -2,13 +2,76 @@ module TFT_LCD (
 	input wire clk,
 	input wire rst_n,
 	input wire [7:0] switch_8bit,
-	input wire [3:0] PB,  // 2x2
-	input wire [8:0] KEY, // 3x3
+	input wire [2:0] PB,  // 2x2
+	input wire PB_Pressed,
+	input wire [3:0] KEY, // 3x3
+	input wire KEY_Pressed,
 	input wire [2:0] LED_row, // WS2812B 橫座標
 	input wire [2:0] LED_col, // WS2812B 縱座標
 	input wire [15:0] WiFi_signal,
 	output reg  SCL, SDA, RES, DC, CS, BLK
 );
+
+reg key2x2_Pressed_reg1, key2x2_Pressed_reg2, key3x3_Pressed_reg1, key3x3_Pressed_reg2;
+wire key2x2_Pressed_posedge = (key2x2_Pressed_reg1 && !key2x2_Pressed_reg2);
+wire key2x2_Pressed_negedge = (!key2x2_Pressed_reg1 && key2x2_Pressed_reg2);
+wire key3x3_Pressed_posedge = (key3x3_Pressed_reg1 && !key3x3_Pressed_reg2);
+wire key3x3_Pressed_negedge = (!key3x3_Pressed_reg1 && key3x3_Pressed_reg2);
+always@(posedge clk) begin
+	if (!rst_n) begin
+		key2x2_Pressed_reg1 <= 0;
+		key2x2_Pressed_reg2 <= 0;
+		key3x3_Pressed_reg1 <= 0;
+		key3x3_Pressed_reg2 <= 0;
+	end else begin
+		key2x2_Pressed_reg1 <= PB_Pressed;
+		key2x2_Pressed_reg2 <= key2x2_Pressed_reg1;
+		key3x3_Pressed_reg1 <= KEY_Pressed;
+		key3x3_Pressed_reg2 <= key3x3_Pressed_reg1;
+	end
+end
+
+reg [2:0] key2x2_latched, key3x3_latched;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key2x2_latched <= 3'd7;
+	end else if (PB_Pressed && !key2x2_Pressed_reg1) begin // 只在剛按下的正緣鎖存 PB
+		key2x2_latched <= PB;
+	end else begin
+		key2x2_latched <= 3'd7;
+	end
+end
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key3x3_latched <= 4'd15;
+	end else if (KEY_Pressed && !key3x3_Pressed_reg1) begin // 只在剛按下的正緣鎖存 PB
+		key3x3_latched <= KEY;
+	end else begin
+		key3x3_latched <= 4'd15;
+	end
+end
+
+reg [2:0] key2x2_pulse, key3x3_pulse;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key2x2_pulse <= 3'b111;
+		key3x3_pulse <= 4'b1111;
+	end else begin
+		// 當 Pressed 產生正緣（剛按下的瞬間）
+		if (PB_Pressed && !key2x2_Pressed_reg1) begin
+			key2x2_pulse <= PB;       // 存入當前按下的 PB 值
+		end else begin
+			key2x2_pulse <= 3'b111;   // 1 個 Clock 後自動歸位為預設值 7
+		end
+		if (KEY_Pressed && !key3x3_Pressed_reg1) begin
+			key3x3_pulse <= KEY;       // 存入當前按下的 KEY 值
+		end else begin
+			key3x3_pulse <= 4'b1111;   // 1 個 Clock 後自動歸位為預設值 15
+		end
+	end
+end
+
+
 
 // =========================================================================
 // 1 秒時脈產生器 (以 50MHz 時脈為例：50,000,000 個週期 = 1 秒)
@@ -38,9 +101,9 @@ end
 parameter FONT_W = 4'd8;  // 原始字寬
 parameter FONT_H = 5'd16; // 原始字高
 
-parameter COLOR_RED  = 16'hF800; // 紅色 (RGB565)
-parameter COLOR_BLUE = 16'h001F; // 藍色 (RGB565)
-parameter BG_COLOR   = 16'h0000; // 背景色 (黑色)
+parameter COLOR_RED   = 16'hF800; // 紅色 (RGB565)
+parameter COLOR_BLUE  = 16'h001F; // 藍色 (RGB565)
+parameter COLOR_BLACK = 16'h0000; // 背景色 (黑色)
 
 // =========================================================================
 // 動態文字物件屬性記憶體 (Text OAM)
@@ -60,7 +123,45 @@ reg [2:0] char_group_cnt; // 0~6 組 (A~D, E~H, ..., YZ)
 reg [3:0] coord_row;      // 0~8
 reg [3:0] coord_col;      // 1~8
 
-reg [3:0] PB_buffer;
+
+
+reg [1:0] current_sys_mode;
+reg [1:0] next_sys_mode;
+localparam SYS_IDLE       = 2'd0,
+			  SYS_INITIAL    = 2'd1,
+			  SYS_ANIMATION  = 2'd2,
+			  SYS_COORDINATE = 2'd3;
+
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		current_sys_mode <= SYS_IDLE;
+	end else begin
+		current_sys_mode <= next_sys_mode;
+	end
+end
+
+always @(*) begin
+	next_sys_mode = current_sys_mode;
+	case(current_sys_mode)
+		SYS_IDLE: begin end
+		
+		SYS_INITIAL: begin
+			next_sys_mode = SYS_ANIMATION;
+		end
+		
+		SYS_ANIMATION: begin end
+		
+		SYS_COORDINATE: begin end
+		
+		default:;
+	endcase
+	
+	if ((switch_8bit[1:0] == 2'b00) && (key2x2_pulse == 0)) begin
+		next_sys_mode = SYS_ANIMATION;
+	end else if ((switch_8bit[1:0] == 2'b11) && (key2x2_pulse == 0)) begin
+		next_sys_mode = SYS_COORDINATE;
+	end
+end
 
 // --- 每秒觸發：動態更新字母與座標 ---
 integer i;
@@ -69,8 +170,6 @@ always @(posedge clk or negedge rst_n) begin
 		char_group_cnt <= 0;
 		coord_row      <= 0;
 		coord_col      <= 1;
-		
-		PB_buffer <= 4'b0;
 
 		// 預設縮放倍率，可自由調整
 		for (i = 0; i < MAX_CHARS; i = i + 1) begin
@@ -83,77 +182,68 @@ always @(posedge clk or negedge rst_n) begin
 		char_color[2] <= COLOR_RED; char_x[2] <= 8'd64; char_y[2] <= 8'd10;
 		char_color[3] <= COLOR_RED; char_x[3] <= 8'd88; char_y[3] <= 8'd10;
 		
-	end else if (one_sec_pulse) begin
-		
-		for (i = 0; i < 4; i = i + 1) begin
-			if (PB[i]) begin
-				PB_buffer[i] <= PB[i];
-			end
-		end
-		
-		// -----------------------------------------------------------------
-		// 更新英文字母邏輯
-		// -----------------------------------------------------------------
-		if (switch_8bit[1:0] == 2'b00 && PB_buffer[0]) begin
-			char_ascii[4] <= "[";
-			char_ascii[6] <= ",";
-			char_ascii[8] <= "]";
-			 // 下方 5 個藍色座標文字位置
-			char_scale[4] <= 2'd2; char_color[4] <= COLOR_BLUE; char_x[4] <= 8'd5;   char_y[4] <= 8'd65;
-			char_scale[5] <= 2'd2; char_color[5] <= COLOR_BLUE; char_x[5] <= 8'd29;  char_y[5] <= 8'd65; // Row
-			char_scale[6] <= 2'd2; char_color[6] <= COLOR_BLUE; char_x[6] <= 8'd53;  char_y[6] <= 8'd65;
-			char_scale[7] <= 2'd2; char_color[7] <= COLOR_BLUE; char_x[7] <= 8'd77;  char_y[7] <= 8'd65; // Col
-			char_scale[8] <= 2'd2; char_color[8] <= COLOR_BLUE; char_x[8] <= 8'd101; char_y[8] <= 8'd65;
+	end else begin
+		case(current_sys_mode)
+			SYS_IDLE: begin end
+			
+			SYS_INITIAL: begin end
+			
+			SYS_ANIMATION: begin
+				 if (one_sec_pulse) begin
+					char_ascii[4] <= "["; char_ascii[6] <= ","; char_ascii[8] <= "]";
+					// 下方 5 個藍色座標文字位置
+					char_scale[4] <= 2'd2; char_color[4] <= COLOR_BLUE; char_x[4] <= 8'd5;   char_y[4] <= 8'd65;
+					char_scale[5] <= 2'd2; char_color[5] <= COLOR_BLUE; char_x[5] <= 8'd29;  char_y[5] <= 8'd65; // Row
+					char_scale[6] <= 2'd2; char_color[6] <= COLOR_BLUE; char_x[6] <= 8'd53;  char_y[6] <= 8'd65;
+					char_scale[7] <= 2'd2; char_color[7] <= COLOR_BLUE; char_x[7] <= 8'd77;  char_y[7] <= 8'd65; // Col
+					char_scale[8] <= 2'd2; char_color[8] <= COLOR_BLUE; char_x[8] <= 8'd101; char_y[8] <= 8'd65;
+				
+					if (char_group_cnt < 6)
+						char_group_cnt <= char_group_cnt + 1;
+					else
+						char_group_cnt <= 0;
+					case (char_group_cnt)
+						3'd0: begin char_ascii[0] <= "A"; char_ascii[1] <= "B"; char_ascii[2] <= "C"; char_ascii[3] <= "D"; end
+						3'd1: begin char_ascii[0] <= "E"; char_ascii[1] <= "F"; char_ascii[2] <= "G"; char_ascii[3] <= "H"; end
+						3'd2: begin char_ascii[0] <= "I"; char_ascii[1] <= "J"; char_ascii[2] <= "K"; char_ascii[3] <= "L"; end
+						3'd3: begin char_ascii[0] <= "M"; char_ascii[1] <= "N"; char_ascii[2] <= "O"; char_ascii[3] <= "P"; end
+						3'd4: begin char_ascii[0] <= "Q"; char_ascii[1] <= "R"; char_ascii[2] <= "S"; char_ascii[3] <= "T"; end
+						3'd5: begin char_ascii[0] <= "U"; char_ascii[1] <= "V"; char_ascii[2] <= "W"; char_ascii[3] <= "X"; end
+						3'd6: begin char_ascii[0] <= "Y"; char_ascii[1] <= "Z"; char_ascii[2] <= " "; char_ascii[3] <= " "; end
+						default: begin char_ascii[0] <= " "; char_ascii[1] <= " "; char_ascii[2] <= " "; char_ascii[3] <= " "; end
+					endcase
+					
+					if (coord_col < 8) begin
+						coord_col <= coord_col + 1;
+					end else begin
+						coord_col <= 1;
+						if (coord_row < 8) begin
+							coord_row <= coord_row + 1;
+						end else begin
+							coord_row <= 0;
+						end
+					end
 
-			if (char_group_cnt < 6)
-				char_group_cnt <= char_group_cnt + 1;
-			else
-				char_group_cnt <= 0;
-
-			case (char_group_cnt)
-				3'd0: begin char_ascii[0] <= "A"; char_ascii[1] <= "B"; char_ascii[2] <= "C"; char_ascii[3] <= "D"; end
-				3'd1: begin char_ascii[0] <= "E"; char_ascii[1] <= "F"; char_ascii[2] <= "G"; char_ascii[3] <= "H"; end
-				3'd2: begin char_ascii[0] <= "I"; char_ascii[1] <= "J"; char_ascii[2] <= "K"; char_ascii[3] <= "L"; end
-				3'd3: begin char_ascii[0] <= "M"; char_ascii[1] <= "N"; char_ascii[2] <= "O"; char_ascii[3] <= "P"; end
-				3'd4: begin char_ascii[0] <= "Q"; char_ascii[1] <= "R"; char_ascii[2] <= "S"; char_ascii[3] <= "T"; end
-				3'd5: begin char_ascii[0] <= "U"; char_ascii[1] <= "V"; char_ascii[2] <= "W"; char_ascii[3] <= "X"; end
-				3'd6: begin char_ascii[0] <= "Y"; char_ascii[1] <= "Z"; char_ascii[2] <= " "; char_ascii[3] <= " "; end
-				default: begin char_ascii[0] <= " "; char_ascii[1] <= " "; char_ascii[2] <= " "; char_ascii[3] <= " "; end
-			endcase
-
-			// -----------------------------------------------------------------
-			// B. 更新座標進位邏輯 ([0,1] -> [0,8] -> [1,1] ... -> [8,8])
-			// -----------------------------------------------------------------
-			if (coord_col < 8) begin
-				coord_col <= coord_col + 1;
-			end else begin
-				coord_col <= 1;
-				if (coord_row < 8) begin
-					coord_row <= coord_row + 1;
-				end else begin
-					coord_row <= 0;
+					// 將數字轉為 ASCII 碼 (加上 8'd48)
+					char_ascii[5] <= 8'd48 + coord_row;
+					char_ascii[7] <= 8'd48 + coord_col;
 				end
 			end
-
-			// 將數字轉為 ASCII 碼 (加上 8'd48)
-			char_ascii[5] <= 8'd48 + coord_row;
-			char_ascii[7] <= 8'd48 + coord_col;
-		end else if(switch_8bit[1:0] == 2'b11 && PB_buffer[0]) begin
-			char_scale[0] <= 2'd2; char_ascii[0] <= "A";
-			char_scale[1] <= 2'd2; char_ascii[1] <= "B";
-			char_scale[2] <= 2'd2; char_ascii[2] <= "C";
-			char_scale[3] <= 2'd2; char_ascii[3] <= "D";
-			char_scale[4] <= 2'd1; char_ascii[4] <= "["; char_x[4] <= 8'd24; char_y[4] <= 8'd65;
-			char_scale[5] <= 2'd1; char_ascii[5] <= 8'd48 + LED_row; char_x[5] <= 8'd40; char_y[5] <= 8'd65; //
-			char_scale[6] <= 2'd1; char_ascii[6] <= ","; char_x[6] <= 8'd56; char_y[6] <= 8'd65;
-			char_scale[7] <= 2'd1; char_ascii[7] <= 8'd48 + LED_col; char_x[7] <= 8'd72; char_y[7] <= 8'd65; //
-			char_scale[8] <= 2'd1; char_ascii[8] <= "]"; char_x[8] <= 8'd88; char_y[8] <= 8'd65;
-		end else begin
-			char_group_cnt <= 0;
-			for (i = 0; i < MAX_CHARS; i = i + 1) begin
-				char_ascii[i] <= " ";
+			
+			SYS_COORDINATE: begin
+				char_scale[0] <= 2'd2; char_ascii[0] <= "A";
+				char_scale[1] <= 2'd2; char_ascii[1] <= "B";
+				char_scale[2] <= 2'd2; char_ascii[2] <= "C";
+				char_scale[3] <= 2'd2; char_ascii[3] <= "D";
+				char_scale[4] <= 2'd1; char_ascii[4] <= "["; char_x[4] <= 8'd24; char_y[4] <= 8'd65;
+				char_scale[5] <= 2'd1; char_ascii[5] <= 8'd48 + LED_row; char_x[5] <= 8'd40; char_y[5] <= 8'd65; //
+				char_scale[6] <= 2'd1; char_ascii[6] <= ","; char_x[6] <= 8'd56; char_y[6] <= 8'd65;
+				char_scale[7] <= 2'd1; char_ascii[7] <= 8'd48 + LED_col; char_x[7] <= 8'd72; char_y[7] <= 8'd65; //
+				char_scale[8] <= 2'd1; char_ascii[8] <= "]"; char_x[8] <= 8'd88; char_y[8] <= 8'd65;
 			end
-		end
+			
+			default:;
+		endcase
 	end
 end
 
@@ -171,7 +261,7 @@ reg [1:0] scale_factor;
 
 always @(*) begin
     active_ascii = " ";
-    active_color = BG_COLOR;
+    active_color = COLOR_BLACK;
     active_lx    = 0;
     active_ly    = 0;
     hit_text     = 1'b0;
@@ -204,7 +294,7 @@ always @(*) begin
     if (hit_text && bits[4'd7 - active_lx]) begin
         pixel_color = active_color; 
     end else begin
-        pixel_color = BG_COLOR;     
+        pixel_color = COLOR_BLACK;     
     end
 end
 

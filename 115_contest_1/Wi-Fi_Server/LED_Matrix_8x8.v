@@ -2,7 +2,10 @@ module LED_Matrix_8x8 (
 	input  wire        clk,         // 50 MHz
 	input  wire        rst_n,
 	input  wire [7:0]  switch_8bit, // 指撥開關
-	input  wire [3:0]  PB,          // 按鈕
+	input wire [2:0] PB,  // 2x2
+	input wire PB_Pressed,
+	//input wire [3:0] KEY, // 3x3
+	//input wire KEY_Pressed,
 	input  wire [15:0] x_axis,      // ADS1115 X軸
 	input  wire [15:0] y_axis,      // ADS1115 Y軸
 	input  wire        stop,        // 搖桿 Z 軸按下 (Active High)
@@ -10,6 +13,67 @@ module LED_Matrix_8x8 (
 	output wire [2:0]  LED_col,
 	output reg         DOUT          // WS2812B 資料輸出
 );
+
+reg key2x2_Pressed_reg1, key2x2_Pressed_reg2/*, key3x3_Pressed_reg1, key3x3_Pressed_reg2*/;
+wire key2x2_Pressed_posedge = (key2x2_Pressed_reg1 && !key2x2_Pressed_reg2);
+wire key2x2_Pressed_negedge = (!key2x2_Pressed_reg1 && key2x2_Pressed_reg2);
+//wire key3x3_Pressed_posedge = (key3x3_Pressed_reg1 && !key3x3_Pressed_reg2);
+//wire key3x3_Pressed_negedge = (!key3x3_Pressed_reg1 && key3x3_Pressed_reg2);
+always@(posedge clk) begin
+	if (!rst_n) begin
+		key2x2_Pressed_reg1 <= 0;
+		key2x2_Pressed_reg2 <= 0;
+		//key3x3_Pressed_reg1 <= 0;
+		//key3x3_Pressed_reg2 <= 0;
+	end else begin
+		key2x2_Pressed_reg1 <= PB_Pressed;
+		key2x2_Pressed_reg2 <= key2x2_Pressed_reg1;
+		//key3x3_Pressed_reg1 <= KEY_Pressed;
+		//key3x3_Pressed_reg2 <= key3x3_Pressed_reg1;
+	end
+end
+
+reg [2:0] key2x2_latched, key3x3_latched;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key2x2_latched <= 3'd7;
+	end else if (PB_Pressed && !key2x2_Pressed_reg1) begin // 只在剛按下的正緣鎖存 PB
+		key2x2_latched <= PB;
+	end else begin
+		key2x2_latched <= 3'd7;
+	end
+end/*
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key3x3_latched <= 4'd15;
+	end else if (KEY_Pressed && !key3x3_Pressed_reg1) begin // 只在剛按下的正緣鎖存 PB
+		key3x3_latched <= KEY;
+	end else begin
+		key3x3_latched <= 4'd15;
+	end
+end*/
+
+reg [2:0] key2x2_pulse, key3x3_pulse;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		key2x2_pulse <= 3'b111;
+		//key3x3_pulse <= 4'b1111;
+	end else begin
+		// 當 Pressed 產生正緣（剛按下的瞬間）
+		if (PB_Pressed && !key2x2_Pressed_reg1) begin
+			key2x2_pulse <= PB;       // 存入當前按下的 PB 值
+		end else begin
+			key2x2_pulse <= 3'b111;   // 1 個 Clock 後自動歸位為預設值 7
+		end
+		/*if (KEY_Pressed && !key3x3_Pressed_reg1) begin
+			key3x3_pulse <= KEY;       // 存入當前按下的 KEY 值
+		end else begin
+			key3x3_pulse <= 4'b1111;   // 1 個 Clock 後自動歸位為預設值 15
+		end*/
+	end
+end
+
+
 
 // =========================================================================
 // 參數定義
