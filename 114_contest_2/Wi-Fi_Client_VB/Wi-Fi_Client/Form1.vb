@@ -131,7 +131,7 @@ Public Class Form1
 
             Dim idVal As Integer = 0
             Integer.TryParse(rawID, idVal)
-            Dim formattedID As String = idVal.ToString("D4")
+            Dim formattedID As String = idVal.ToString("D1")
 
             RX.Clear()
 
