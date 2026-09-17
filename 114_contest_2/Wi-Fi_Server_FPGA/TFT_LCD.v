@@ -13,6 +13,7 @@ module TFT_LCD #(
 );
 
 // 拆解 32 個 Byte (bytes[0] 為 lowest byte，即最後收到的字元)
+// bytes[1], bytes[0] 為 "\r", "\n"
 wire [7:0] bytes[0:MAX_RX_LEN-1];
 genvar g;
 generate
@@ -37,11 +38,9 @@ generate
 endgenerate
 
 always@(*)begin
-	for (k = 0; g < MAX_RX_LEN-4; k = k + 1) begin
+	for (k = 0; k < MAX_RX_LEN-4; k = k + 1) begin
 		if (match_data[k]) begin
-			match_data_pos = k + 1;
-		end else begin
-			match_data_pos = 0;
+			match_data_pos = k;
 		end
 	end
 end
@@ -75,18 +74,19 @@ end
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		Data_counter <= 4'd0;
-		detected_Data <= 0;
+		Data_counter = 4'd0;
+		detected_Data = 0;
 	end else begin
 		if (rx_ready_reg2 && !rx_ready_reg1) begin
 			for (k = 4; k > 0; k = k - 1) begin
-				if ((Data_counter < 4'd8) && (bytes[k-1] >= "0") && (bytes[k-1] <= "9")) begin
-					Data_counter <= Data_counter + 4'd1;
-					detected_Data[(k*8-1)-:8] <= bytes[k-1];
+				if ((Data_counter < 4'd8) && (bytes[match_data_pos-(4-k)] >= "0") && (bytes[match_data_pos-(4-k)] <= "9")) begin
+					Data_counter = Data_counter + 4'd1;
+					detected_Data[(k*8-1)-:8] = bytes[match_data_pos-(4-k)];
 				end else begin
-					detected_Data[(k*8-1)-:8] <= " ";
+					detected_Data[(k*8-1)-:8] = "";
 				end
 			end
+			// detected_Data <= {bytes[5], bytes[4], bytes[3], bytes[2]};
 		end
 	end
 end
@@ -248,7 +248,7 @@ always@(posedge clk or negedge rst_n) begin
 				char_ascii[6] <= detected_Data[15:8];
 				char_ascii[7] <= detected_Data[7:0];
 				
-				char_ascii[8]  <= " ";
+				char_ascii[8]  <= Data_counter + 8'd48; //" ";
 				char_ascii[9]  <= "O";
 				char_ascii[10] <= "F";
 				char_ascii[11] <= "1";

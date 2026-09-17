@@ -201,19 +201,19 @@ always @(posedge clk or negedge rst_n) begin
 		end else begin
 			case (cmd_step)
 				4'd0: begin current_cmd <= "AT+RFPOWER=0\r\n"; tx_start <= 1'b1; cmd_step <= 4'd1; end
-				4'd1: if (/*cmd_done && */ rx_ok) begin delay_en <= 1; cmd_step <= 4'd2; end
+				4'd1: if (/*cmd_done || */rx_ok) begin delay_en <= 1; cmd_step <= 4'd2; end
 				4'd2: begin current_cmd <= "AT+CWMODE=2\r\n"; tx_start <= 1'b1; cmd_step <= 4'd3; end
-				4'd3: if (/*cmd_done && */ rx_ok) begin delay_en <= 1; cmd_step <= 4'd4; end
+				4'd3: if (/*cmd_done || */rx_ok) begin delay_en <= 1; cmd_step <= 4'd4; end
 				4'd4: begin current_cmd <= "AT+CWSAP=\"WiFi_FPGA\",\"048778414\",1,4\r\n"; tx_start <= 1'b1; cmd_step <= 4'd5; end
-				4'd5: if (/*cmd_done && */ rx_ok) begin delay_en <= 1; cmd_step <= 4'd6; end
+				4'd5: if (/*cmd_done || */rx_ok) begin delay_en <= 1; cmd_step <= 4'd6; end
 				4'd6: begin current_cmd <= "AT+CIPMUX=1\r\n"; tx_start <= 1'b1; cmd_step <= 4'd7; end
-				4'd7: if (/*cmd_done && */ rx_ok) begin delay_en <= 1; cmd_step <= 4'd8; end
+				4'd7: if (/*cmd_done || */rx_ok) begin delay_en <= 1; cmd_step <= 4'd8; end
 				4'd8: begin current_cmd <= "AT+CIPSERVER=1,80\r\n"; tx_start <= 1'b1; cmd_step <= 4'd9; end
-				4'd9: if (/*cmd_done && */ rx_ok) begin delay_en <= 1; cmd_step <= 4'd10; end
+				4'd9: if (/*cmd_done || */rx_ok) begin delay_en <= 1; cmd_step <= 4'd10; end
 				4'd10: begin current_cmd <= "AT+CIPAP=\"192.168.4.1\",\"192.168.4.1\",\"255.255.255.0\"\r\n"; tx_start <= 1'b1; cmd_step <= 4'd11; end
-				4'd11: if (/*cmd_done && */ rx_ok) begin delay_en <= 1; cmd_step <= 4'd12; end
+				4'd11: if (/*cmd_done || */rx_ok) begin delay_en <= 1; cmd_step <= 4'd12; end
 				4'd12: begin current_cmd <= "AT+CIPSTO=0\r\n"; tx_start <= 1'b1; cmd_step <= 4'd13; end
-				4'd13: if (/*cmd_done && */ rx_ok) begin delay_en <= 1; cmd_step <= 4'd14; end
+				4'd13: if (/*cmd_done || */rx_ok) begin delay_en <= 1; cmd_step <= 4'd14; end
 				4'd14: begin init_done <= 1'b1; end
 				default:;
 			endcase
