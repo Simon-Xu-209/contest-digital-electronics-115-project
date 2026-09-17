@@ -29,11 +29,11 @@ always @(posedge clk or negedge rst_n) begin
 	else scan_cnt <= scan_cnt + 1'b1;
 end
 
-// Continuous Row Scanning (輪詢 011 -> 101 -> 110)
+// Continuous Row Scanning (輪詢 0111 -> 1011 -> 1101 -> 1110)
 always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) 
-		row <= 3'b0111;
-	else if (scan_tick) 
+	if (!rst_n)
+		row <= 4'b0111;
+	else if (scan_tick)
 		row <= {row[0], row[3:1]};
 end
 
@@ -55,15 +55,15 @@ always @(*) begin
 		8'b1011_1101: raw_key = 5'd6;
 		8'b1011_1110: raw_key = 5'd7;
 		// Row 2
-		8'b110_0111: raw_key = 5'd8;
-		8'b110_0111: raw_key = 5'd9;
-		8'b110_1011: raw_key = 5'd10;
-		8'b110_1101: raw_key = 5'd11;
+		8'b1101_0111: raw_key = 5'd8;
+		8'b1101_1011: raw_key = 5'd9;
+		8'b1101_1101: raw_key = 5'd10;
+		8'b1101_1110: raw_key = 5'd11;
 		// Row 3
-		8'b110_0111: raw_key = 5'd12;
-		8'b110_1011: raw_key = 5'd13;
-		8'b110_1101: raw_key = 5'd14;
-		8'b110_1110: raw_key = 5'd15;
+		8'b1110_0111: raw_key = 5'd12;
+		8'b1110_1011: raw_key = 5'd13;
+		8'b1110_1101: raw_key = 5'd14;
+		8'b1110_1110: raw_key = 5'd15;
 		default: begin
 			raw_key = 5'd31;
 			raw_hit = 1'b0;
@@ -94,7 +94,7 @@ always @(posedge clk or negedge rst_n) begin
 			end else begin
 				Pressed <= 1'b1;
 				KEY     <= latched_key;
-            end
+			end
 		end else begin
 			// 掃描沒命中時，檢查是否是真的「放開按鍵」
 			if (release_cnt > 20'd0) begin

@@ -5,7 +5,7 @@ module TFT_LCD #(
 	input wire rst_n,
 	input wire [7:0] switch_8bit,
 	//input wire [3:0] PB,  // 2x2
-	input wire [3:0] KEY, // 3x3
+	input wire [4:0] KEY,
 	input wire       Pressed,
 	input wire [8*MAX_RX_LEN-1:0] rx_Data_reg, // 資料暫存器
 	input wire                    rx_ready,    // 接收完成脈衝
@@ -79,11 +79,11 @@ always @(posedge clk or negedge rst_n) begin
 	end else begin
 		if (rx_ready_reg2 && !rx_ready_reg1) begin
 			for (k = 4; k > 0; k = k - 1) begin
-				if ((Data_counter < 4'd8) && (bytes[match_data_pos-(4-k)] >= "0") && (bytes[match_data_pos-(4-k)] <= "9")) begin
+				if ((Data_counter <= 4'd8) && (bytes[match_data_pos-(4-k)] >= "0") && (bytes[match_data_pos-(4-k)] <= "9")) begin
 					Data_counter = Data_counter + 4'd1;
-					detected_Data[(k*8-1)-:8] = bytes[match_data_pos-(4-k)];
+					detected_Data[(k*8-1)-:8] <= (Data_counter < 4'd8) ? bytes[match_data_pos-(4-k)] : " ";
 				end else begin
-					detected_Data[(k*8-1)-:8] = "";
+					detected_Data[(k*8-1)-:8] <= "";
 				end
 			end
 			// detected_Data <= {bytes[5], bytes[4], bytes[3], bytes[2]};
@@ -106,27 +106,16 @@ always@(posedge clk) begin
 	end
 end
 
-reg [3:0] key_latched;
+reg [4:0] key_pulse;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		key_latched <= 4'd15;
-	end else if (Pressed && !Pressed_reg1) begin // 只在剛按下的正緣鎖存 KEY
-		key_latched <= KEY;
-	end else begin
-		key_latched <= 4'd15;
-	end
-end
-
-reg [3:0] key_pulse;
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		key_pulse <= 4'b1111;
+		key_pulse <= 5'd31;
 	end else begin
 		// 當 Pressed 產生正緣（剛按下的瞬間）
 		if (Pressed && !Pressed_reg1) begin
 			key_pulse <= KEY;       // 存入當前按下的 key 值
 		end else begin
-			key_pulse <= 4'b1111;   // 1 個 Clock 後自動歸位為預設值 15
+			key_pulse <= 5'd31;   // 1 個 Clock 後自動歸位為預設值 15
 		end
 	end
 end
@@ -157,7 +146,8 @@ reg [2:0] next_display_state;
 localparam display_CLEAR   = 3'd0,
 			  display_INITIAL = 3'd1,
 			  display_IDLE    = 3'd2,
-			  display_EDIT    = 3'd3,
+			  display_RX      = 3'd3,
+			  display_TX      = 3'd4,
 			  display_DONE    = 3'd5;
 
 reg [31:0] timer_cnt;
@@ -197,7 +187,7 @@ always @(*) begin
 	endcase
 	
 	if ((switch_8bit == 8'b0000_0001)/* && (key_pulse == "B")*/) begin
-		next_display_state = display_EDIT;
+		next_display_state = display_RX;
 	end
 end
 
@@ -231,7 +221,7 @@ always@(posedge clk or negedge rst_n) begin
 				end
 			end
 			
-			display_EDIT: begin
+			display_RX: begin
 				for (text_number = 0; text_number < MAX_CHARS; text_number = text_number + 1) begin
 					char_ascii[text_number] <= "";
 					char_color[text_number] <= COLOR_BLACK;
@@ -248,10 +238,10 @@ always@(posedge clk or negedge rst_n) begin
 				char_ascii[6] <= detected_Data[15:8];
 				char_ascii[7] <= detected_Data[7:0];
 				
-				char_ascii[8]  <= Data_counter + 8'd48; //" ";
-				char_ascii[9]  <= "O";
-				char_ascii[10] <= "F";
-				char_ascii[11] <= "1";
+				char_ascii[8]  <= " ";
+				char_ascii[9]  <= (Data_counter > 4'd8) ? "O" : "";
+				char_ascii[10] <= (Data_counter > 4'd8) ? "F" : "";
+				char_ascii[11] <= (Data_counter > 4'd8) ? "1" : "";
 			end
 
 		endcase

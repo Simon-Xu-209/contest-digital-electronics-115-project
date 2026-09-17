@@ -20,6 +20,7 @@ module UART_Server(
 	output wire DOUT,
 	output SCL, SDA, RES, DC, CS, BLK, // 128x160 RGB TFT LCD
 	output wire [4:0] KEY,
+	output wire Pressed,
 	output wire CONNECETED
 );
 
@@ -289,15 +290,13 @@ Order_processor #(
 // -------------------------------------------------------------
 // 外設模組連接
 // -------------------------------------------------------------
-
-wire Pressed;
 keyboard_4x4 keyboard_4x4_u1(
 	.clk    (clk),
 	.rst_n  (rst_n),
 	.column (column_4x4),
 	.row    (row_4x4),
 	.KEY    (KEY),        // 按鍵值
-	.Pressed(Pressed) // 1 表示已按下
+	.Pressed(Pressed)     // 1 表示已按下
 );/*
 //wire [3:0] KEY;
 keyboard_3x3 keyboard_3x3_u1(
