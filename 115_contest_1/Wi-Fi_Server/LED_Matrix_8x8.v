@@ -79,6 +79,7 @@ end
 // 參數定義
 // =========================================================================
 localparam FREQ_HZ        = 50_000_000;
+localparam CNT_INIT_100US = (FREQ_HZ / 10000) - 1; // 100 微秒週期
 localparam CNT_ANIM_0_3S  = (FREQ_HZ * 3 / 10) - 1; // 0.3 秒週期
 localparam CNT_JOY_0_2S   = (FREQ_HZ * 2 / 10) - 1; // 0.2 秒週期
 
@@ -288,6 +289,7 @@ end
 reg  [23:0] current_color;
 wire [2:0]  pixel_row = led_idx[5:3];
 wire [2:0]  pixel_col = led_idx[2:0];
+reg  [31:0] refresh_timer;
 
 always @(*) begin
 	case (draw_mode)
@@ -321,6 +323,7 @@ end
 localparam STATE_IDLE  = 2'd0;
 localparam STATE_RESET = 2'd1;
 localparam STATE_SEND  = 2'd2;
+localparam STATE_DELAY = 2'd3;
 
 reg [1:0]  state;
 reg [15:0] clk_cnt;
@@ -353,8 +356,8 @@ always @(posedge clk or negedge rst_n) begin
 						MODE_SETTING:   begin draw_row <= set_row;  draw_col <= set_col;  end
 						default:        begin draw_row <= 3'd0;     draw_col <= 3'd0;     end
 					endcase
-					state <= STATE_RESET;
 				end
+				state <= STATE_RESET;
 			end
 
 			STATE_RESET: begin
@@ -383,9 +386,18 @@ always @(posedge clk or negedge rst_n) begin
 							led_idx <= led_idx + 1'b1;
 						end else begin
 							led_idx <= 0;
-						state   <= STATE_IDLE;
+						state   <= STATE_DELAY;
 						end
 					end
+				end
+			end
+			
+			STATE_DELAY: begin
+				if (refresh_timer >= CNT_INIT_100US) begin
+					refresh_timer <= 0;
+					state <= STATE_IDLE;
+				end else begin
+					refresh_timer <= refresh_timer + 1'b1;
 				end
 			end
 

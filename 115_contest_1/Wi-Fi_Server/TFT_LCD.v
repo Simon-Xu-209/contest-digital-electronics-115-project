@@ -366,13 +366,13 @@ always @(posedge clk or negedge rst_n) begin
                 STATE_SET_AXIS: begin 
                     case (cmd_idx)
                         7:  begin spi_data <= CMD_CASET;   DC <= 0; bit_cnt <= 8; cmd_idx <= 8;  end
-                        8:  begin spi_data <= ARG_X_START; DC <= 1; bit_cnt <= 8; cmd_idx <= 9;  end
-                        9:  begin spi_data <= 8'h00;       DC <= 1; bit_cnt <= 8; cmd_idx <= 10; end
+                        8:  begin spi_data <= 8'h00;       DC <= 1; bit_cnt <= 8; cmd_idx <= 9;  end
+                        9:  begin spi_data <= ARG_X_START; DC <= 1; bit_cnt <= 8; cmd_idx <= 10; end
                         10: begin spi_data <= 8'h00;       DC <= 1; bit_cnt <= 8; cmd_idx <= 11; end
                         11: begin spi_data <= ARG_X_END;   DC <= 1; bit_cnt <= 8; cmd_idx <= 12; end
                         12: begin spi_data <= CMD_RASET;   DC <= 0; bit_cnt <= 8; cmd_idx <= 13; end
-                        13: begin spi_data <= ARG_Y_START; DC <= 1; bit_cnt <= 8; cmd_idx <= 14; end
-                        14: begin spi_data <= 8'h00;       DC <= 1; bit_cnt <= 8; cmd_idx <= 15; end
+                        13: begin spi_data <= 8'h00;       DC <= 1; bit_cnt <= 8; cmd_idx <= 14; end
+                        14: begin spi_data <= ARG_Y_START; DC <= 1; bit_cnt <= 8; cmd_idx <= 15; end
                         15: begin spi_data <= 8'h00;       DC <= 1; bit_cnt <= 8; cmd_idx <= 16; end
                         16: begin spi_data <= ARG_Y_END;   DC <= 1; bit_cnt <= 8; cmd_idx <= 17; end
                         17: begin spi_data <= CMD_RAMWR;   DC <= 0; bit_cnt <= 8; state <= STATE_SCAN_DRAW; x_cnt <= 0; y_cnt <= 0; p_idx <= 0; end
@@ -382,11 +382,11 @@ always @(posedge clk or negedge rst_n) begin
                     spi_data <= p_idx ? pixel_color[7:0] : pixel_color[15:8];
                     DC <= 1; bit_cnt <= 8;
                     if (p_idx) begin
-                        if (x_cnt < ARG_X_END) begin
+                        if (x_cnt < ARG_X_END - ARG_X_OFFSET) begin
                             x_cnt <= x_cnt + 1;
                         end else begin
                             x_cnt <= 0;
-                            if (y_cnt < ARG_Y_END) y_cnt <= y_cnt + 1;
+                            if (y_cnt < ARG_Y_END - ARG_Y_OFFSET) y_cnt <= y_cnt + 1;
                             else begin
                                 state <= STATE_SET_AXIS;
                                 cmd_idx <= 17; 
@@ -415,10 +415,13 @@ parameter CMD_COLMOD    = 8'h3A;
 
 parameter ARG_COLMOD_16BIT = 8'h05;
 parameter ARG_MADCTL_MX_MY = 8'hC0;
-parameter ARG_X_START      = 8'd0;
-parameter ARG_X_END        = 8'd127;
-parameter ARG_Y_START      = 8'd0;
-parameter ARG_Y_END        = 8'd159;
+parameter ARG_X_START      = 8'd0 + ARG_X_OFFSET;
+parameter ARG_X_END        = 8'd127 + ARG_X_OFFSET;
+parameter ARG_Y_START      = 8'd0 + ARG_Y_OFFSET;
+parameter ARG_Y_END        = 8'd159 + ARG_Y_OFFSET;
+
+parameter ARG_X_OFFSET     = 8'd0;   // X 軸偏移
+parameter ARG_Y_OFFSET     = 8'd0;   // Y 軸偏移
 
 reg [7:0] font_rom [0:1519];
 initial begin
