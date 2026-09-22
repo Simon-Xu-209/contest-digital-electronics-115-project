@@ -1,0 +1,82 @@
+set_location_assignment PIN_84 -to WS2812_8x8_DIN
+set_location_assignment PIN_70 -to switch_8bit[7]
+set_location_assignment PIN_72 -to switch_8bit[6]
+set_location_assignment PIN_76 -to switch_8bit[5]
+set_location_assignment PIN_80 -to switch_8bit[4]
+set_location_assignment PIN_71 -to switch_8bit[3]
+set_location_assignment PIN_73 -to switch_8bit[2]
+set_location_assignment PIN_78 -to switch_8bit[1]
+set_location_assignment PIN_81 -to switch_8bit[0]
+set_location_assignment PIN_232 -to seven_segment_Com[7]
+set_location_assignment PIN_234 -to seven_segment_Com[6]
+set_location_assignment PIN_236 -to seven_segment_Com[5]
+set_location_assignment PIN_238 -to seven_segment_Com[4]
+set_location_assignment PIN_240 -to seven_segment_Com[3]
+set_location_assignment PIN_5 -to seven_segment_Com[2]
+set_location_assignment PIN_9 -to seven_segment_Com[1]
+set_location_assignment PIN_18 -to seven_segment_Com[0]
+set_location_assignment PIN_13 -to seven_segment_Seg[7]
+set_location_assignment PIN_6 -to seven_segment_Seg[6]
+set_location_assignment PIN_4 -to seven_segment_Seg[5]
+set_location_assignment PIN_239 -to seven_segment_Seg[4]
+set_location_assignment PIN_237 -to seven_segment_Seg[3]
+set_location_assignment PIN_235 -to seven_segment_Seg[2]
+set_location_assignment PIN_233 -to seven_segment_Seg[1]
+set_location_assignment PIN_231 -to seven_segment_Seg[0]
+set_location_assignment PIN_149 -to clk
+set_location_assignment PIN_145 -to rst_n
+set_location_assignment PIN_164 -to WiFi_tx
+set_location_assignment PIN_161 -to WiFi_rx
+set_location_assignment PIN_160 -to WiFi_RST
+set_location_assignment PIN_82 -to WS2812_8x8_DOUT
+set_location_assignment PIN_45 -to Keyboard_column_3x3[2]
+set_location_assignment PIN_49 -to Keyboard_column_3x3[1]
+set_location_assignment PIN_51 -to Keyboard_column_3x3[0]
+set_location_assignment PIN_37 -to Keyboard_row_3x3[2]
+set_location_assignment PIN_39 -to Keyboard_row_3x3[1]
+set_location_assignment PIN_43 -to Keyboard_row_3x3[0]
+set_location_assignment PIN_176 -to KEY_3x3[3]
+set_location_assignment PIN_174 -to KEY_3x3[2]
+set_location_assignment PIN_171 -to KEY_3x3[1]
+set_location_assignment PIN_168 -to KEY_3x3[0]
+set_location_assignment PIN_181 -to KEY_Pressed_3x3
+set_location_assignment PIN_131 -to ST7735S_BLK
+set_location_assignment PIN_132 -to ST7735S_CS
+set_location_assignment PIN_133 -to ST7735S_DC
+set_location_assignment PIN_134 -to ST7735S_RES
+set_location_assignment PIN_137 -to ST7735S_SCL
+set_location_assignment PIN_135 -to ST7735S_SDA
+set_location_assignment PIN_167 -to USB2UART_WiFi_tx
+set_location_assignment PIN_166 -to USB2UART_WiFi_rx
+set_location_assignment PIN_118 -to Joystick_SW
+set_location_assignment PIN_114 -to ADS1115_ALRT
+set_location_assignment PIN_127 -to ADS1115_SCL
+set_location_assignment PIN_120 -to ADS1115_SDA
+set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
+set_global_assignment -name FAMILY "Cyclone III"
+set_global_assignment -name DEVICE EP3C16Q240C8
+set_global_assignment -name TOP_LEVEL_ENTITY top
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION 13.1
+set_global_assignment -name PROJECT_CREATION_TIME_DATE "09:35:01  SEPTEMBER 21, 2026"
+set_global_assignment -name LAST_QUARTUS_VERSION 13.1
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
+set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
+set_global_assignment -name NOMINAL_CORE_SUPPLY_VOLTAGE 1.2V
+set_global_assignment -name EDA_SIMULATION_TOOL "ModelSim-Altera (VHDL)"
+set_global_assignment -name EDA_OUTPUT_DATA_FORMAT VHDL -section_id eda_simulation
+set_global_assignment -name VERILOG_FILE top.v
+set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
+set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
+set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
+set_global_assignment -name VERILOG_FILE Keyboard_3x3.v
+set_global_assignment -name VERILOG_FILE Main_Controller.v
+set_global_assignment -name VERILOG_FILE TFT_LCD.v
+set_global_assignment -name VERILOG_FILE font_rom_32to126.v
+set_global_assignment -name VERILOG_FILE SPI_Driver_ST7735S.v
+set_global_assignment -name VERILOG_FILE output_files/image_rom.v
+set_global_assignment -name VERILOG_FILE WiFi_Controller.v
+set_global_assignment -name VERILOG_FILE WiFi_rx_string.v
+set_global_assignment -name VERILOG_FILE WiFi_tx_string.v

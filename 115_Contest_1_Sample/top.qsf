@@ -55,9 +55,7 @@ set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_RO
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
 set_global_assignment -name VERILOG_FILE Keyboard_3x3.v
-set_location_assignment PIN_167 -to USB2UART_txd
 set_location_assignment PIN_84 -to WS2812_8x8_DIN
-set_location_assignment PIN_166 -to USB2UART_rxd
 set_location_assignment PIN_70 -to switch_8bit[7]
 set_location_assignment PIN_72 -to switch_8bit[6]
 set_location_assignment PIN_76 -to switch_8bit[5]
@@ -100,4 +98,23 @@ set_location_assignment PIN_171 -to KEY_3x3[1]
 set_location_assignment PIN_168 -to KEY_3x3[0]
 set_location_assignment PIN_181 -to KEY_Pressed_3x3
 set_global_assignment -name VERILOG_FILE Main_Controller.v
+set_global_assignment -name VERILOG_FILE TFT_LCD.v
+set_location_assignment PIN_131 -to ST7735S_BLK
+set_location_assignment PIN_132 -to ST7735S_CS
+set_location_assignment PIN_133 -to ST7735S_DC
+set_location_assignment PIN_134 -to ST7735S_RES
+set_location_assignment PIN_137 -to ST7735S_SCL
+set_location_assignment PIN_135 -to ST7735S_SDA
+set_global_assignment -name VERILOG_FILE font_rom_32to126.v
+set_global_assignment -name VERILOG_FILE SPI_Driver_ST7735S.v
+set_global_assignment -name VERILOG_FILE output_files/image_rom.v
+set_global_assignment -name VERILOG_FILE WiFi_Controller.v
+set_global_assignment -name VERILOG_FILE WiFi_rx_string.v
+set_global_assignment -name VERILOG_FILE WiFi_tx_string.v
+set_location_assignment PIN_167 -to USB2UART_WiFi_tx
+set_location_assignment PIN_166 -to USB2UART_WiFi_rx
+set_location_assignment PIN_118 -to Joystick_SW
+set_location_assignment PIN_114 -to ADS1115_ALRT
+set_location_assignment PIN_127 -to ADS1115_SCL
+set_location_assignment PIN_120 -to ADS1115_SDA
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
