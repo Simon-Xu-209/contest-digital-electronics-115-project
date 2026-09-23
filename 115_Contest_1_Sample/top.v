@@ -105,7 +105,7 @@ wire [8*32-1:0] rx_data_reg;
 wire            rx_done;
 wire            WiFi_init_done;
 
-// 實體化 Wi-Fi 主控制器
+// ESP8266 Wi-Fi 主控制器
 WiFi_Controller #(
 	.MAX_CMD_LEN(64),
 	.MAX_RX_LEN(32),
@@ -135,6 +135,7 @@ WiFi_Controller #(
 	.init_done     (WiFi_init_done) // ESP8266 Wi-Fi 初始化完畢
 );
 
+// ST7735S 128x160 RGB TFT LCD 模組
 TFT_LCD TFT_LCD_u1 (
 	.clk  (clk),
 	.rst_n(rst_n),

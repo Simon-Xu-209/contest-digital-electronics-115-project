@@ -136,8 +136,8 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			4'd1: begin
 				rst_timeout_cnt <= rst_timeout_cnt + 1'b1;
-				// 抓到 ESP8266 吐出的 ready，或者等待 3 秒 (150_000_000 週期) 強制進行下一步
-				if (got_ready /*|| rst_timeout_cnt >= 28'd150_000_000*/) begin
+				// 等待 ESP8266 回傳的 ready，或者等待 5 秒 (250_000_000 週期) 強制進行下一步
+				if (got_ready || rst_timeout_cnt >= 28'd250_000_000) begin
 					init_step <= 4'd2;
 				end
 			end
@@ -185,16 +185,16 @@ always @(posedge clk or negedge rst_n) begin
 			// Step 5: 啟動 TCP Server (Port 80)
 			4'd10: begin
 				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+CIPSERVER=1,80\r\n"; 
-					tx_start       <= 1'b1; 
+					tx_CmdData_reg <= "AT+CIPSERVER=1,80\r\n";
+					tx_start       <= 1'b1;
 					init_step      <= 4'd11;
 				end
 			end
 			4'd11: if (tx_done) init_step <= 4'd12;
 
 			// 完成初始化
-			4'd12: begin 
-				init_done <= 1'b1; 
+			4'd12: begin
+				init_done <= 1'b1;
 			end
 			
 			default: ;
