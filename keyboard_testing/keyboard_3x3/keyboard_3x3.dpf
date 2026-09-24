@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<pin_planner>
+	<pin_info>
+		<pin name="key_value[3]" source="Pin Planner" >
+		</pin>
+		<pin name="key_value[2]" source="Pin Planner" >
+		</pin>
+		<pin name="key_value[1]" source="Pin Planner" >
+		</pin>
+		<pin name="key_value[0]" source="Pin Planner" >
+		</pin>
+		<pin name="key_pressed" source="Pin Planner" >
+		</pin>
+		<pin name="key_valid_pulse" source="Pin Planner" >
+		</pin>
+	</pin_info>
+	<buses>
+	</buses>
+	<group_file_association>
+	</group_file_association>
+	<pin_planner_file_specifies>
+	</pin_planner_file_specifies>
+</pin_planner>

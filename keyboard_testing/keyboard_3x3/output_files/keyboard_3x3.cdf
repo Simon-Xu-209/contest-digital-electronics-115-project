@@ -4,7 +4,7 @@ JedecChain;
 	DefaultMfr(6E);
 
 	P ActionCode(Cfg)
-		Device PartName(EP3C40Q240) Path("C:/Users/student/Desktop/115 Project/keyboard_2x2/output_files/") File("keyboard_2x2.sof") MfrSpec(OpMask(1));
+		Device PartName(EP3C40Q240) Path("C:/Users/student/Desktop/115 Project/keyboard_testing/keyboard_3x3/output_files/") File("keyboard_3x3.sof") MfrSpec(OpMask(1));
 
 ChainEnd;
 
