@@ -156,9 +156,9 @@ always @(*) begin
 		default:;
 	endcase
 	
-	if ((switch_8bit[1:0] == 2'b00) && (key2x2_pulse == 0)) begin
+	if ((switch_8bit[1:0] == 2'b00)/* && (key2x2_pulse == 0)*/) begin
 		next_sys_mode = SYS_ANIMATION;
-	end else if ((switch_8bit[1:0] == 2'b11) && (key2x2_pulse == 0)) begin
+	end else if ((switch_8bit[1:0] == 2'b11)/* && (key2x2_pulse == 0)*/) begin
 		next_sys_mode = SYS_COORDINATE;
 	end
 end
