@@ -1,4 +1,4 @@
-module WiFi_tx_string #(
+module UART_tx_string #(
 	parameter MAX_BYTES = 64,
 	parameter CLK_FREQ  = 50_000_000,
 	parameter BAUD_RATE = 115200

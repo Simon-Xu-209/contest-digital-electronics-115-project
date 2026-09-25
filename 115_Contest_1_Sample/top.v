@@ -2,14 +2,14 @@ module top (
 	input  wire clk,           // CPLD/FPGA 50MHz
 	input  wire rst_n,         // CPLD/FPGA Reset 按鍵 (Low Active)
 	
-	input  [7:0]  switch_8bit, // 8Bit 指撥開關 (SW1 ~ SW8)
+	input  wire [7:0] switch_8bit, // 8Bit 指撥開關 (SW1 ~ SW8)
 	
-	input  wire [1:0]  Keyboard_column_2x2, // 2x2 無段式開關 行(Column)
-	output wire [1:0]  Keyboard_row_2x2,    // 2x2 無段式開關 列(Row)
-	input  wire [2:0]  Keyboard_column_3x3, // 3x3 無段式開關 行(Column)
-	output wire [2:0]  Keyboard_row_3x3,    // 3x3 無段式開關 列(Row)
-	input  wire [3:0]  Keyboard_column_4x4, // 4x4 無段式開關 行(Column)
-	output wire [3:0]  Keyboard_row_4x4,    // 4x4 無段式開關 列(Row)
+	input  wire [1:0] Keyboard_column_2x2, // 2x2 無段式開關 行(Column)
+	output wire [1:0] Keyboard_row_2x2,    // 2x2 無段式開關 列(Row)
+	input  wire [2:0] Keyboard_column_3x3, // 3x3 無段式開關 行(Column)
+	output wire [2:0] Keyboard_row_3x3,    // 3x3 無段式開關 列(Row)
+	input  wire [3:0] Keyboard_column_4x4, // 4x4 無段式開關 行(Column)
+	output wire [3:0] Keyboard_row_4x4,    // 4x4 無段式開關 列(Row)
 	
 	output wire ADS1115_SCL,  // ADS1115 ADC SCL
 	inout  wire ADS1115_SDA,  // ADS1115 ADC SDA   (用於輸出搖桿數值)
@@ -24,22 +24,22 @@ module top (
 	output wire MPU6050_AD0, // MPU-6050 六軸感測器 AD0
 	input  wire MPU6050_INT, // MPU-6050 六軸感測器 INT
 	
-	input  wire        OV2640_PCLK,  // OV2640 鏡頭模組 PCLK (輸出像素時脈)
-	input  wire        OV2640_HREF,  // OV2640 鏡頭模組 HREF
-	input  wire        OV2640_VSYNC, // OV2640 鏡頭模組 VSYNC
-	input  wire [9:0]  OV2640_Y,     // OV2640 鏡頭模組 J2_Y9 ~ J2_Y2 (8-bit 資料，對應 D7~D0)
-	inout  wire        OV2640_SIO_D, // OV2640 鏡頭模組 SCCB Data
-	output wire        OV2640_SIO_C, // OV2640 鏡頭模組 SCCB Clock
-	output wire        OV2640_RESET, // OV2640 鏡頭模組 Reset
-	output wire        OV2640_PWDN,  // OV2640 鏡頭模組 Power Down
-	output wire        OV2640_XCLK,  // OV2640 鏡頭模組 XCLK (主時脈)
+	input  wire       OV2640_PCLK,  // OV2640 鏡頭模組 PCLK (輸出像素時脈)
+	input  wire       OV2640_HREF,  // OV2640 鏡頭模組 HREF
+	input  wire       OV2640_VSYNC, // OV2640 鏡頭模組 VSYNC
+	input  wire [9:0] OV2640_Y,     // OV2640 鏡頭模組 J2_Y9 ~ J2_Y2 (8-bit 資料，對應 D7~D0)
+	inout  wire       OV2640_SIO_D, // OV2640 鏡頭模組 SCCB Data
+	output wire       OV2640_SIO_C, // OV2640 鏡頭模組 SCCB Clock
+	output wire       OV2640_RESET, // OV2640 鏡頭模組 Reset
+	output wire       OV2640_PWDN,  // OV2640 鏡頭模組 Power Down
+	output wire       OV2640_XCLK,  // OV2640 鏡頭模組 XCLK (主時脈)
 	*/
 	
 	output wire [7:0] seven_segment_Seg, // 七段顯示器資料腳位 (.gfedcba)
 	output wire [7:0] seven_segment_Com, // 七段顯示器位數腳位 (Dig1 ~ Dig8)
 	
-	output wire WS2812_8x8_DIN,  // WS2812 8x8 BRG LED 矩陣 DOUT (末端溢位資料 可不接)
-	output wire WS2812_8x8_DOUT, // WS2812 8x8 BRG LED 矩陣 DIN
+	output wire WS2812B_8x8_DIN,  // WS2812B 8x8 BRG LED 矩陣 DOUT (末端溢位資料 可不接)
+	output wire WS2812B_8x8_DOUT, // WS2812B 8x8 BRG LED 矩陣 DIN
 	
 	output wire ST7735S_SCL, // ST7735S 128x160 RGB TFT LCD 各接腳
 	output wire ST7735S_SDA,
@@ -86,6 +86,15 @@ Main_Controller Main_Controller_u1 (
 	.KEY_Pressed_4x4 (KEY_Pressed_4x4)  // 4x4 無段式開關 偵測按下
 );
 
+Keyboard_2x2 Keyboard_2x2_u1 (
+	.clk     (clk),                 // 50MHz
+	.rst_n   (rst_n),               // Reset
+	.column  (Keyboard_column_2x2), // 2x2 無段式開關 行(Column)
+	.row     (Keyboard_row_2x2),    // 2x2 無段式開關 列(Row)
+	.Pressed (KEY_Pressed_2x2),     // 偵測是否按下按鍵
+	.KEY     (KEY_2x2)              // 輸出按鍵值
+);
+
 Keyboard_3x3 Keyboard_3x3_u1 (
 	.clk     (clk),                 // 50MHz
 	.rst_n   (rst_n),               // Reset
@@ -93,6 +102,15 @@ Keyboard_3x3 Keyboard_3x3_u1 (
 	.row     (Keyboard_row_3x3),    // 3x3 無段式開關 列(Row)
 	.Pressed (KEY_Pressed_3x3),     // 偵測是否按下按鍵
 	.KEY     (KEY_3x3)              // 輸出按鍵值
+);
+
+Joystick Joystick_u1 (
+	.clk         (clk),
+	.rst_n       (rst_n),
+	.ADS1115_SCL (ADS1115_SCL),  // ADS1115 ADC SCL
+	.ADS1115_SDA (ADS1115_SDA),  // ADS1115 ADC SDA   (用於輸出搖桿數值)
+	.ADS1115_ALRT(ADS1115_ALRT), // ADS1115 ADC ALERT (可不接)
+	.Joystick_SW (Joystick_SW)   // 搖桿按鈕 (z 軸)
 );
 
 // 補全控制 Wi-Fi 模組所需的內部線路 (Wire)
@@ -133,6 +151,20 @@ WiFi_Controller #(
 	.rx_done       (rx_done),      // 資料接收完成脈衝
 	
 	.init_done     (WiFi_init_done) // ESP8266 Wi-Fi 初始化完畢
+);
+
+Seven_Segment_Display (
+	.clk              (clk),
+	.rst_n            (rst_n),
+	.seven_segment_Seg(seven_segment_Seg), // 七段顯示器資料腳位 (.gfedcba)
+	.seven_segment_Com(seven_segment_Com)  // 七段顯示器位數腳位 (Dig1 ~ Dig8)
+);
+
+WS2812B WS2812B_u1 (
+	.clk             (clk),
+	.rst_n           (rst_n),
+	.WS2812B_8x8_DIN (WS2812B_8x8_DIN),  // WS2812B 8x8 BRG LED 矩陣 DOUT (末端溢位資料 可不接)
+	.WS2812B_8x8_DOUT(WS2812B_8x8_DOUT), // WS2812B 8x8 BRG LED 矩陣 DIN
 );
 
 // ST7735S 128x160 RGB TFT LCD 模組

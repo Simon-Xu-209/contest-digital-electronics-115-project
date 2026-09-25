@@ -63,16 +63,16 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 // -------------------------------------------------------------
-// 呼叫底層 WiFi_rx_string 模組
+// 呼叫底層 UART_rx_string 模組
 // -------------------------------------------------------------
 wire       rx_byte_en;
 wire [7:0] rx_byte;
 
-WiFi_rx_string #(
+UART_rx_string #(
 	.MAX_BYTES(MAX_RX_LEN),
 	.CLK_FREQ (CLK_FREQ),
 	.BAUD_RATE(BAUD_RATE)
-) WiFi_rx_string_u1 (
+) UART_rx_string_u1 (
 	.clk          (clk),
 	.rst_n        (rst_n),
 	.rx           (WiFi_rx_sync2),
@@ -86,18 +86,18 @@ WiFi_rx_string #(
 );
 
 // -------------------------------------------------------------
-// 呼叫底層 WiFi_tx_string 模組
+// 呼叫底層 UART_tx_string 模組
 // -------------------------------------------------------------
 reg                      tx_start;
 reg  [8*MAX_CMD_LEN-1:0] tx_CmdData_reg;
 wire                     tx_done;
 wire                     got_ready;
 
-WiFi_tx_string #(
+UART_tx_string #(
 	.MAX_BYTES(MAX_CMD_LEN),
 	.CLK_FREQ (CLK_FREQ),
 	.BAUD_RATE(BAUD_RATE)
-) WiFi_tx_string_u1 (
+) UART_tx_string_u1 (
 	.clk            (clk),
 	.rst_n          (rst_n),
 	.tx_start       (tx_start),

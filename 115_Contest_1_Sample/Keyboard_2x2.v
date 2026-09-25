@@ -1,4 +1,4 @@
-module keyboard_2x2(
+module Keyboard_2x2 (
 	input  wire clk,         // 50MHz
 	input  wire rst_n,
 	input  wire [1:0] column,
