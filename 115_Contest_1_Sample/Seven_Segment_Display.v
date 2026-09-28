@@ -99,7 +99,7 @@ always @(*) begin
 		"V", "v": seg_decoded = 7'b001_1100; // v: c,d,e
 		"W", "w": seg_decoded = 7'b001_1101; // W: c,d,e,f,g
 		"X", "x": seg_decoded = 7'b100_1001; // X: a,d,g
-		"Y", "y": seg_decoded = 7'b110_0110; // Y: b,c,f,g
+		"Y", "y": seg_decoded = 7'b110_1110; // Y: b,c,d,f,g
 		"Z", "z": seg_decoded = 7'b101_1011; // Z: a,b,d,e,g
 
 		default:  seg_decoded = 7'b000_0000; // 預設熄滅 (例如空白格 ' ')

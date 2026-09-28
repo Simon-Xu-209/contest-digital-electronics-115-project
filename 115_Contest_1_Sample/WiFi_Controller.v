@@ -1,5 +1,5 @@
 module WiFi_Controller #(
-	parameter MAX_CMD_LEN = 64,
+	parameter MAX_TX_LEN = 64,
 	parameter MAX_RX_LEN  = 32,
 	parameter CLK_FREQ    = 50_000_000,
 	parameter BAUD_RATE   = 115200
@@ -8,29 +8,29 @@ module WiFi_Controller #(
 	input  wire                     rst_n,
 	
 	// 硬體外設腳位
-	input  wire                     WiFi_rx,    // ESP8266 tx
-	output wire                     WiFi_tx,    // ESP8266 tx
-	output wire                     WiFi_rst_n, // ESP8266 RST
+	input  wire                     WiFi_rx,
+	output wire                     WiFi_tx,
+	output wire                     WiFi_rst_n,
 	
 	// 上層控制與發送暫存器介面
-	input  wire                     send_en,        // 上層發起傳送脈衝
-	input  wire [3:0]               send_target_id, // 目標 Client ID
-	input  wire [8*MAX_CMD_LEN-1:0] send_data_reg,  // 傳送資料暫存器
-	output wire                     tx_busy,        // 傳送模組忙碌旗標
-
+	input  wire                     send_en,
+	input  wire [3:0]               send_target_id,
+	input  wire [8*MAX_TX_LEN-1:0] send_data_reg,
+	output wire                     tx_busy,
+	
 	// 上層接收暫存器介面
-	output wire [3:0]               rx_link_id,    // 接收到的 ID
-	output wire [15:0]              rx_data_len,   // 接收到的位元數
-	output wire [8*MAX_RX_LEN-1:0]  rx_data_reg,   // 接收資料暫存器
-	output wire                     rx_done,       // 接收完成脈衝
-		 
+	output wire [3:0]               rx_link_id,
+	output wire [15:0]              rx_data_len,
+	output wire [8*MAX_RX_LEN-1:0]  rx_data_reg,
+	output wire                     rx_done,
+	
 	// 狀態輸出
-	output reg                      init_done      // Wi-Fi 初始化完成
+	output reg                      init_done
 );
 
-// 硬體 RST 腳位保持恆高 (不進行硬體重置)
 assign WiFi_rst_n = 1'b1;
 
+// 訊號同步
 reg WiFi_rx_sync1, WiFi_rx_sync2;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
@@ -43,27 +43,7 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 // -------------------------------------------------------------
-// 硬體 Reset & Boot Delay
-// -------------------------------------------------------------
-reg [27:0] boot_cnt;
-reg        boot_ready;
-
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		boot_cnt   <= 28'd0;
-		boot_ready <= 1'b0;
-	end else if (!boot_ready) begin
-		// 等待上電穩定 (或抓到 ready，或等待 2 秒超時) 後開始發送 AT 指令
-		if (got_ready || boot_cnt >= 28'd100_000_000) begin
-			boot_ready <= 1'b1; // 2 秒 (100MHz 系統) / 100M 週期
-		end else begin
-			boot_cnt <= boot_cnt + 1'b1;
-		end
-	end
-end
-
-// -------------------------------------------------------------
-// 呼叫底層 UART_rx_string 模組
+// UART RX
 // -------------------------------------------------------------
 wire       rx_byte_en;
 wire [7:0] rx_byte;
@@ -86,15 +66,15 @@ UART_rx_string #(
 );
 
 // -------------------------------------------------------------
-// 呼叫底層 UART_tx_string 模組
+// UART TX
 // -------------------------------------------------------------
 reg                      tx_start;
-reg  [8*MAX_CMD_LEN-1:0] tx_CmdData_reg;
-wire                     tx_done;
-wire                     got_ready;
+reg  [8*MAX_TX_LEN-1:0] tx_CmdData_reg;
+wire                     uart_tx_busy;
+wire                     uart_tx_done;
 
 UART_tx_string #(
-	.MAX_BYTES(MAX_CMD_LEN),
+	.MAX_BYTES(MAX_TX_LEN),
 	.CLK_FREQ (CLK_FREQ),
 	.BAUD_RATE(BAUD_RATE)
 ) UART_tx_string_u1 (
@@ -103,104 +83,133 @@ UART_tx_string #(
 	.tx_start       (tx_start),
 	.tx_CmdData_reg (tx_CmdData_reg),
 	.WiFi_tx        (WiFi_tx),
-	.rx_byte_en     (rx_byte_en),
-	.rx_byte        (rx_byte),
-	.tx_busy        (tx_busy), // 指令/資料傳送中旗標
-	.tx_done        (tx_done), // 指令/資料傳送成功旗標
-	.got_connect    (),
-	.got_ready      (got_ready) // 偵測 Wi-Fi 是否重置完畢
+	.tx_busy        (uart_tx_busy),
+	.tx_done        (uart_tx_done)
 );
 
 // -------------------------------------------------------------
-// 初始化列表狀態機 (AT Initialization Sequence)
+// ESP8266 指令回應檢查器
 // -------------------------------------------------------------
-reg [3:0] init_step;
-reg [27:0] rst_timeout_cnt; // 防呆計數器 (避免沒抓到 ready 死鎖)
+wire resp_checking;
+wire resp_ok;
+wire got_ready;
+wire resp_timeout;
+
+ESP8266_Response_Checker #(
+	.CLK_FREQ(CLK_FREQ)
+) ESP8266_Resp_Checker_u1 (
+	.clk          (clk),
+	.rst_n        (rst_n),
+	.check_enable (uart_tx_done), // 當 UART 實體位元組傳送完畢，觸發檢查器啟動
+	.rx_byte_en   (rx_byte_en),
+	.rx_byte      (rx_byte),
+	.checking     (resp_checking),
+	.resp_ok      (resp_ok),
+	.got_ready    (got_ready),
+	.resp_timeout (resp_timeout)
+);
+
+assign tx_busy = uart_tx_busy || resp_checking;
+
+// -------------------------------------------------------------
+// AT 指令初始化狀態機
+// -------------------------------------------------------------
+reg [3:0]  init_step;
+reg [27:0] boot_cnt;
+reg [27:0] rst_wait_cnt;
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		init_step      <= 4'd0;
 		init_done      <= 1'b0;
 		tx_start       <= 1'b0;
-		tx_CmdData_reg <= {8*MAX_CMD_LEN{1'b0}};
-	end else if (boot_ready && !init_done) begin
+		tx_CmdData_reg <= {8*MAX_TX_LEN{1'b0}};
+		boot_cnt       <= 28'd0;
+		rst_wait_cnt   <= 28'd0;
+	end else if (!init_done) begin
 		tx_start <= 1'b0;
 		case (init_step)
-			// Step 0: 發送軟體重置指令 AT+RST
+			// 上電延遲 1 秒
 			4'd0: begin
-				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+RST\r\n"; 
-					tx_start       <= 1'b1; 
-					init_step      <= 4'd1;
-				end
+				if (boot_cnt >= CLK_FREQ) init_step <= 4'd1;
+				else boot_cnt <= boot_cnt + 1'b1;
 			end
+
+			// Step 1: AT+RST
 			4'd1: begin
-				rst_timeout_cnt <= rst_timeout_cnt + 1'b1;
-				// 等待 ESP8266 回傳的 ready，或者等待 5 秒 (250_000_000 週期) 強制進行下一步
-				if (got_ready || rst_timeout_cnt >= 28'd250_000_000) begin
-					init_step <= 4'd2;
-				end
-			end
-
-			// Step 1: 設定 RF 功率
-			4'd2: begin
 				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+RFPOWER=0\r\n"; 
-					tx_start       <= 1'b1; 
-					init_step      <= 4'd3;
-				end
-			end
-			4'd3: if (tx_done) init_step <= 4'd4;
-
-			// Step 2: 設定模式為 AP
-			4'd4: begin
-				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+CWMODE=2\r\n"; 
-					tx_start       <= 1'b1; 
-					init_step      <= 4'd5;
-				end
-			end
-			4'd5: if (tx_done) init_step <= 4'd6;
-
-			// Step 3: 設定 AP 參數 (SSID, Password 等)
-			4'd6: begin
-				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+CWSAP=\"WiFi_FPGA\",\"048778414\",1,4\r\n"; 
-					tx_start       <= 1'b1; 
-					init_step      <= 4'd7;
-				end
-			end
-			4'd7: if (tx_done) init_step <= 4'd8;
-
-			// Step 4: 啟動多連線模式 (CIPMUX=1)
-			4'd8: begin
-				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+CIPMUX=1\r\n"; 
-					tx_start       <= 1'b1; 
-					init_step      <= 4'd9;
-				end
-			end
-			4'd9: if (tx_done) init_step <= 4'd10;
-
-			// Step 5: 啟動 TCP Server (Port 80)
-			4'd10: begin
-				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+CIPSERVER=1,80\r\n";
+					tx_CmdData_reg <= "AT+RST\r\n"; // 重啟 ESP8266 晶片
 					tx_start       <= 1'b1;
-					init_step      <= 4'd11;
+					rst_wait_cnt   <= 28'd0;
+					init_step      <= 4'd2;
 				end
 			end
-			4'd11: if (tx_done) init_step <= 4'd12;
+			// 等待 ESP8266 輸出 ready (或 3 秒防呆超時)
+			4'd2: begin
+				rst_wait_cnt <= rst_wait_cnt + 1'b1;
+				if (got_ready || rst_wait_cnt >= CLK_FREQ * 3) begin
+					init_step <= 4'd3;
+				end
+			end
 
-			// 完成初始化
-			4'd12: begin
+			// Step 2: AT+RFPOWER=0
+			4'd3: begin
+				if (!tx_busy) begin
+					tx_CmdData_reg <= "AT+RFPOWER=0\r\n"; // 設定 RF 發射功率 (0 dBm)
+					tx_start       <= 1'b1;
+					init_step      <= 4'd4;
+				end
+			end
+			4'd4: if (resp_ok || resp_timeout) init_step <= 4'd5;
+
+			// Step 3: AT+CWMODE=2
+			4'd5: begin
+				if (!tx_busy) begin
+					tx_CmdData_reg <= "AT+CWMODE=2\r\n"; // 設定 Wi-Fi 模式 （1 為 Station 模式連別人的 Wi-Fi; 2 為 AP 模式自己發熱點; 3 為雙模共存）
+					tx_start       <= 1'b1;
+					init_step      <= 4'd6;
+				end
+			end
+			4'd6: if (resp_ok || resp_timeout) init_step <= 4'd7;
+
+			// Step 4: AT+CWSAP
+			4'd7: begin
+				if (!tx_busy) begin
+					tx_CmdData_reg <= "AT+CWSAP=\"WiFi_FPGA\",\"048778414\",1,4\r\n"; // 設定 AP 熱點參數 (<SSID>, <密碼>, <頻道>, <加密方式(4 表示 WPA2_PSK 加密)>)
+					tx_start       <= 1'b1;
+					init_step      <= 4'd8;
+				end
+			end
+			4'd8: if (resp_ok || resp_timeout) init_step <= 4'd9;
+
+			// Step 5: AT+CIPMUX=1
+			4'd9: begin
+				if (!tx_busy) begin
+					tx_CmdData_reg <= "AT+CIPMUX=1\r\n"; // 開啟多連線模式 (Client 連線 ID 0~4，表示最多可以連線其他 5 台裝置/晶片)
+					tx_start       <= 1'b1;
+					init_step      <= 4'd10;
+				end
+			end
+			4'd10: if (resp_ok || resp_timeout) init_step <= 4'd11;
+
+			// Step 6: AT+CIPSERVER=1,80
+			4'd11: begin
+				if (!tx_busy) begin
+					tx_CmdData_reg <= "AT+CIPSERVER=1,80\r\n"; // 啟動 TCP 伺服器 (80 表示 Port 80，即標準 HTTP 埠號)
+					tx_start       <= 1'b1;
+					init_step      <= 4'd12;
+				end
+			end
+			4'd12: if (resp_ok || resp_timeout) init_step <= 4'd13;
+
+			// 初始化完成
+			4'd13: begin
 				init_done <= 1'b1;
 			end
-			
-			default: ;
+
+			default: init_step <= 4'd0;
 		endcase
 	end else if (init_done && send_en && !tx_busy) begin
-		// 初始化完成後，上層發起傳輸
 		tx_CmdData_reg <= send_data_reg;
 		tx_start       <= 1'b1;
 	end else begin

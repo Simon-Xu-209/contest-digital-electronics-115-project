@@ -59,33 +59,44 @@ module top (
 	output wire KEY_Pressed_2x2, // 2x2 無段式開關 偵測按下
 	output wire [3:0] KEY_3x3,   // 3x3 無段式開關 按鍵數值
 	output wire KEY_Pressed_3x3, // 3x3 無段式開關 偵測按下
-	output wire [4:0] KEY_4x4,   // 4x4 無段式開關 按鍵數值
-	output wire KEY_Pressed_4x4, // 4x4 無段式開關 偵測按下
 	
 	output wire USB2UART_WiFi_tx, // USB to TTL 的 rx
 	output wire USB2UART_WiFi_rx  // USB to TTL 的 rx
 );
 
-parameter CLK_FREQ        = 50_000_000; // 50MHz
-parameter BAUD            = 115200;     // UART 鮑率
-parameter MAX_COMMAND_LEN = 32;         // UART 最大可接收/傳送的 AT 指令位元數
-parameter MAX_DATA_LEN    = 32;         // UART 最大可接收/傳送的資料位元數
+parameter CLK_FREQ    = 50_000_000; // 50MHz
+parameter BAUD        = 115200;     // UART 鮑率
+parameter MAX_TX_LEN  = 64;         // UART 最大可接收的 AT 指令/資料位元數
+parameter MAX_RX_LEN  = 32;         // UART 最大可接收的資料位元數
 
-// 可透過串口調適助手檢查 ESP8266 Wi-Fi 模組傳送/接收的資料
+// 可透過串口調適助手檢查傳送給 ESP8266 Wi-Fi 模組以及接收的資料
 assign USB2UART_WiFi_tx = WiFi_tx;
 assign USB2UART_WiFi_rx = WiFi_rx;
 
+
+
+// 專案主控制電路
 Main_Controller Main_Controller_u1 (
-	.clk             (clk),             // 50MHz
-	.rst_n           (rst_n),           // Reset
-	.KEY_2x2         (KEY_2x2),         // 2x2 無段式開關 按鍵數值
-	.KEY_Pressed_2x2 (KEY_Pressed_2x2), // 2x2 無段式開關 偵測按下
-	.KEY_3x3         (KEY_3x3),         // 3x3 無段式開關 按鍵數值
-	.KEY_Pressed_3x3 (KEY_Pressed_3x3), // 3x3 無段式開關 偵測按下
-	.KEY_4x4         (KEY_4x4),         // 4x4 無段式開關 按鍵數值
-	.KEY_Pressed_4x4 (KEY_Pressed_4x4)  // 4x4 無段式開關 偵測按下
+	.clk             (clk),                    // 50MHz
+	.rst_n           (rst_n),                  // Reset
+	.switch_8bit     (switch_8bit),            // 8Bit 指撥開關
+	.KEY_2x2         (KEY_2x2),                // 2x2 無段式開關
+	.KEY_Pressed_2x2 (KEY_Pressed_2x2),        // 偵測按下
+	
+	// 加入搖桿輸入線路
+	.joy_x           (joystick_x),
+	.joy_y           (joystick_y),
+	.joy_z           (joystick_z),
+	
+	.seven_segment_chars(seven_segment_chars), // 七段顯示器顯示文字
+	
+	.ws_draw_en      (ws_draw_en),             // 輸出繪製脈衝
+	.ws_led_grb_data (ws_led_grb_data)         // 輸出 1536-bit 向量
 );
 
+
+
+// 鍵盤掃描模組
 Keyboard_2x2 Keyboard_2x2_u1 (
 	.clk     (clk),                 // 50MHz
 	.rst_n   (rst_n),               // Reset
@@ -104,16 +115,29 @@ Keyboard_3x3 Keyboard_3x3_u1 (
 	.KEY     (KEY_3x3)              // 輸出按鍵值
 );
 
+
+
+// 搖桿控制模組(使用 ADS1115 讀取數值)
+wire [15:0] joystick_x;
+wire [15:0] joystick_y;
+wire        joystick_z;
+
 Joystick Joystick_u1 (
 	.clk         (clk),
 	.rst_n       (rst_n),
 	.ADS1115_SCL (ADS1115_SCL),  // ADS1115 ADC SCL
-	.ADS1115_SDA (ADS1115_SDA),  // ADS1115 ADC SDA   (用於輸出搖桿數值)
-	.ADS1115_ALRT(ADS1115_ALRT), // ADS1115 ADC ALERT (可不接)
-	.Joystick_SW (Joystick_SW)   // 搖桿按鈕 (z 軸)
+	.ADS1115_SDA (ADS1115_SDA),  // ADS1115 ADC SDA
+	.ADS1115_ALRT(ADS1115_ALRT), // ADS1115 ADC ALERT
+	.Joystick_SW (Joystick_SW),  // 搖桿按鈕 (z 軸)
+	
+	.joy_x       (joystick_x),   // X 軸 16-bit 暫存器
+	.joy_y       (joystick_y),   // Y 軸 16-bit 暫存器
+	.joy_z       (joystick_z)    // Debounced Z 軸按鈕
 );
 
-// 補全控制 Wi-Fi 模組所需的內部線路 (Wire)
+
+
+// ESP8266 Wi-Fi 主控制器
 wire            send_en = 1'b0;
 wire [8*64-1:0] send_data_reg = 0;
 wire            tx_busy;
@@ -123,10 +147,9 @@ wire [8*32-1:0] rx_data_reg;
 wire            rx_done;
 wire            WiFi_init_done;
 
-// ESP8266 Wi-Fi 主控制器
 WiFi_Controller #(
-	.MAX_CMD_LEN(64),
-	.MAX_RX_LEN(32),
+	.MAX_TX_LEN(MAX_TX_LEN),
+	.MAX_RX_LEN(MAX_RX_LEN),
 	.CLK_FREQ(50_000_000),
 	.BAUD_RATE(115200)
 ) WiFi_Controller_u1 (
@@ -153,19 +176,41 @@ WiFi_Controller #(
 	.init_done     (WiFi_init_done) // ESP8266 Wi-Fi 初始化完畢
 );
 
+
+
+// 七段顯示器控制電路
+wire [63:0] seven_segment_chars;
+wire [7:0] brightness_pwm = 8'd255; // (不建議低於 31)
+
 Seven_Segment_Display (
 	.clk              (clk),
 	.rst_n            (rst_n),
-	.seven_segment_Seg(seven_segment_Seg), // 七段顯示器資料腳位 (.gfedcba)
-	.seven_segment_Com(seven_segment_Com)  // 七段顯示器位數腳位 (Dig1 ~ Dig8)
+	.display_chars    (seven_segment_chars), // 七段顯示器顯示文字 (八位數)
+	.brightness_pwm   (brightness_pwm),      // 七段顯示器亮度 (0~255)
+	.seven_segment_Seg(seven_segment_Seg),   // 七段顯示器資料腳位 (.gfedcba)
+	.seven_segment_Com(seven_segment_Com)    // 七段顯示器位數腳位 (Dig1 ~ Dig8)
 );
 
-WS2812B WS2812B_u1 (
+
+
+// WS2812B 8x8 BRG LED 矩陣控制電路
+wire          ws_draw_en;
+wire [1535:0] ws_led_grb_data;
+wire          ws_busy;
+
+WS2812B #(
+	.CLK_FREQ(50_000_000)
+) WS2812B_u1 (
 	.clk             (clk),
 	.rst_n           (rst_n),
-	.WS2812B_8x8_DIN (WS2812B_8x8_DIN),  // WS2812B 8x8 BRG LED 矩陣 DOUT (末端溢位資料 可不接)
-	.WS2812B_8x8_DOUT(WS2812B_8x8_DOUT), // WS2812B 8x8 BRG LED 矩陣 DIN
+	.draw_en         (ws_draw_en),      // 來自 Main_Controller 的繪製脈衝
+	.led_grb_data    (ws_led_grb_data), // 1536-bit 展開向量
+	.busy            (ws_busy),         // GRB LED 資料傳送中旗標
+	.WS2812B_8x8_DIN (WS2812B_8x8_DIN), // WS2812B 8x8 BRG LED 矩陣 DOUT
+	.WS2812B_8x8_DOUT(WS2812B_8x8_DOUT) // WS2812B 8x8 BRG LED 矩陣 DIN
 );
+
+
 
 // ST7735S 128x160 RGB TFT LCD 模組
 TFT_LCD TFT_LCD_u1 (
