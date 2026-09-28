@@ -77,30 +77,39 @@ assign USB2UART_WiFi_rx = WiFi_rx;
 
 // 專案主控制電路
 Main_Controller Main_Controller_u1 (
-	.clk             (clk),                    // 50MHz
-	.rst_n           (rst_n),                  // Reset
-	.switch_8bit     (switch_8bit),            // 8Bit 指撥開關
-	.KEY_2x2         (KEY_2x2),                // 2x2 無段式開關
-	.KEY_Pressed_2x2 (KEY_Pressed_2x2),        // 偵測按下
+	.clk             (clk),
+	.rst_n           (rst_n),
+	.switch_8bit     (switch_8bit),
+	.KEY_2x2         (KEY_2x2),
+	.KEY_Pressed_2x2 (KEY_Pressed_2x2),
 	
-	// 加入搖桿輸入線路
 	.joy_x           (joystick_x),
 	.joy_y           (joystick_y),
 	.joy_z           (joystick_z),
 	
-	.seven_segment_chars(seven_segment_chars), // 七段顯示器顯示文字
+	.seven_segment_chars(seven_segment_chars),
 	
-	.ws_draw_en      (ws_draw_en),             // 輸出繪製脈衝
-	.ws_led_grb_data (ws_led_grb_data),        // 輸出 1536-bit 向量
+	.ws_draw_en      (ws_draw_en),
+	.ws_led_grb_data (ws_led_grb_data),
 	
 	.send_en       (send_en),
-	.send_target_id(rx_link_id),    // 目標 Clinet 連線 ID 暫存器
-	.send_data_reg (send_data_reg), // 傳送指令/資料暫存器
-	.tx_busy       (tx_busy),       // 指令/資料傳送中旗標
-	.rx_link_id    (rx_link_id),    // Client 連線 ID 暫存器
-	.rx_data_len   (rx_data_len),   // 接收資料長度暫存器 (Byte)
-	.rx_data_reg   (rx_data_reg),   // 接收資料暫存器
-	.rx_done       (rx_done)        // 資料接收完成脈衝
+	.send_target_id(rx_link_id),
+	.send_data_reg (send_data_reg),
+	.tx_busy       (tx_busy),
+	.rx_link_id    (rx_link_id),
+	.rx_data_len   (rx_data_len),
+	.rx_data_reg   (rx_data_reg),
+	.rx_done       (rx_done),
+
+	// TFT LCD Command API 連接
+	.lcd_cmd_valid     (lcd_cmd_valid),
+	.lcd_cmd_type      (lcd_cmd_type),
+	.lcd_cmd_char_index(lcd_cmd_char_index),
+	.lcd_cmd_ascii     (lcd_cmd_ascii),
+	.lcd_cmd_x         (lcd_cmd_x),
+	.lcd_cmd_y         (lcd_cmd_y),
+	.lcd_cmd_color     (lcd_cmd_color),
+	.lcd_cmd_scale     (lcd_cmd_scale)
 );
 
 
@@ -221,16 +230,42 @@ WS2812B #(
 
 
 
-// ST7735S 128x160 RGB TFT LCD 模組
-TFT_LCD TFT_LCD_u1 (
-	.clk  (clk),
-	.rst_n(rst_n),
-	.SCL  (ST7735S_SCL),
-	.SDA  (ST7735S_SDA),
-	.RES  (ST7735S_RES),
-	.DC   (ST7735S_DC),
-	.CS   (ST7735S_CS),
-	.BLK  (ST7735S_BLK)
+// ------------------------------------------------------------------------
+// Command Bus (TFT LCD API 連接線路)
+// ------------------------------------------------------------------------
+wire        lcd_cmd_valid;
+wire [3:0]  lcd_cmd_type;
+wire [7:0]  lcd_cmd_char_index;
+wire [7:0]  lcd_cmd_ascii;
+wire [7:0]  lcd_cmd_x;
+wire [7:0]  lcd_cmd_y;
+wire [15:0] lcd_cmd_color;
+wire [3:0]  lcd_cmd_scale;
+
+// ST7735S 128x160 RGB TFT LCD 模組 (實體化與 API 對接)
+TFT_LCD #(
+	.MAX_CHARS(32)
+) TFT_LCD_u1 (
+	.clk           (clk),
+	.rst_n         (rst_n),
+
+	// API Command Bus 對接
+	.cmd_valid     (lcd_cmd_valid),
+	.cmd_type      (lcd_cmd_type),
+	.cmd_char_index(lcd_cmd_char_index),
+	.cmd_ascii     (lcd_cmd_ascii),
+	.cmd_x         (lcd_cmd_x),
+	.cmd_y         (lcd_cmd_y),
+	.cmd_color     (lcd_cmd_color),
+	.cmd_scale     (lcd_cmd_scale),
+
+	// 硬體實體 SPI 腳位
+	.SCL(ST7735S_SCL),
+	.SDA(ST7735S_SDA),
+	.RES(ST7735S_RES),
+	.DC (ST7735S_DC),
+	.CS (ST7735S_CS),
+	.BLK(ST7735S_BLK)
 );
 
 endmodule
