@@ -1,30 +1,35 @@
 module WS2812B #(
 	parameter CLK_FREQ = 50_000_000 // 50MHz 時脈
 )(
-	input  wire                   clk,
-	input  wire                   rst_n,
+	input  wire             clk,
+	input  wire             rst_n,
 	
 	// 控制介面
-	input  wire                   draw_en,      // 繪製旗標 (正緣觸發更新並送出資料)
-	input  wire [64*24-1:0]       led_grb_data, // 64顆 LED 展開向量 (LED0:[23:0] ... LED63:[1535:1512])
-	output reg                    busy,         // 傳送中旗標
+	input  wire             draw_en,      // 繪製旗標 (正緣觸發更新並送出資料)
+	input  wire [64*24-1:0] led_grb_data, // 64顆 LED 展開向量 (LED0:[23:0] ... LED63:[1535:1512]，總共 1536 bits)
+	output reg              busy,         // 資料傳送中旗標 (High 表示正在發送波形)
 	
 	// 硬體腳位
-	output wire                   WS2812B_8x8_DIN,  // 溢位資料腳位
-	output reg                    WS2812B_8x8_DOUT  // DIN 資料輸出腳位
+	output reg              WS2812B_8x8_DIN, // DIN 資料輸出腳位
+	output wire             WS2812B_8x8_DOUT // 溢位資料腳位
 );
 
-assign WS2812B_8x8_DIN = 1'b1;
+assign WS2812B_8x8_DOUT = 1'b1;
 
 // -------------------------------------------------------------
-// 時序參數 (50MHz)
+// 時序參數定義 (50MHz 下: 1 cycle = 20ns)
+// WS2812B 規格：
+//   - T0H (碼 0 高電位時間): ~0.35us (17 cycles * 20ns = 340ns)
+//   - T1H (碼 1 高電位時間): ~0.70us (35 cycles * 20ns = 700ns)
+//   - TBIT (單一 Bit 總週期): ~1.25us (62 cycles * 20ns = 1240ns)
+//   - TRS  (Reset 低電位時間): > 50us  (3000 cycles * 20ns = 60us)
 // -------------------------------------------------------------
 localparam T0H_CYCLES = 17;   // 0.34us
 localparam T1H_CYCLES = 35;   // 0.70us
 localparam BIT_CYCLES = 62;   // 1.24us
 localparam RST_CYCLES = 3000; // 60us Reset
 
-// 正緣偵測 draw_en
+// 正緣觸發偵測器 (draw_en)
 reg draw_en_d1, draw_en_d2;
 wire draw_pos_edge = (draw_en_d1 && !draw_en_d2);
 
@@ -39,33 +44,34 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 reg [1535:0] shift_reg;     // 儲存 64 顆 LED 靜態資料 (不移位)
-reg [10:0]   total_bit_cnt; // 總共發送的 bit 數 (0 ~ 1535)
-reg [12:0]   clk_cnt;
+reg [10:0]   total_bit_cnt; // 已傳送的 Bit 總數計數器 (0 ~ 1535)
+reg [12:0]   clk_cnt;       // 單一 Bit / Reset 時序計數器
 reg [1:0]    state;
 
 localparam ST_IDLE  = 2'd0,
            ST_SEND  = 2'd1,
            ST_RESET = 2'd2;
 
-// -------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
 // 動態索引計算 (Index Mapping)
-// (total_bit_cnt / 24) * 24：計算目前是第幾顆 LED (0~63) 的基底位址
-// 23 - (total_bit_cnt % 24)：該顆 LED 24-bit 內，由高位元 (Bit 23) 優先送出
-// -------------------------------------------------------------
+// 說明：
+// 1. (total_bit_cnt / 24) * 24 : 計算出當前為第幾顆 LED 的 24-bit 起始 Base 位址
+// 2. (23 - (total_bit_cnt % 24)): WS2812B 規定每顆 LED 的 GRB 24-bit 必須由 MSB (Bit 23) 優先送出
+// ------------------------------------------------------------------------------------------------
 wire [10:0] bit_index = ((total_bit_cnt / 11'd24) * 11'd24) + (11'd23 - (total_bit_cnt % 11'd24));
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		state            <= ST_IDLE;
 		busy             <= 1'b0;
-		WS2812B_8x8_DOUT <= 1'b0;
+		WS2812B_8x8_DIN <= 1'b0;
 		clk_cnt          <= 13'd0;
 		total_bit_cnt    <= 11'd0;
 		shift_reg        <= {1536{1'b0}};
 	end else begin
 		case (state)
 			ST_IDLE: begin
-				WS2812B_8x8_DOUT <= 1'b0;
+				WS2812B_8x8_DIN <= 1'b0;
 				clk_cnt          <= 13'd0;
 				total_bit_cnt    <= 11'd0;
 				if (draw_pos_edge) begin
@@ -80,9 +86,9 @@ always @(posedge clk or negedge rst_n) begin
 			ST_SEND: begin
 				// 根據 bit_index 直接獲取當前應該輸出的 bit 值
 				if (shift_reg[bit_index]) begin
-					WS2812B_8x8_DOUT <= (clk_cnt < T1H_CYCLES);
+					WS2812B_8x8_DIN <= (clk_cnt < T1H_CYCLES);// 發送 '1' 碼波形
 				end else begin
-					WS2812B_8x8_DOUT <= (clk_cnt < T0H_CYCLES);
+					WS2812B_8x8_DIN <= (clk_cnt < T0H_CYCLES);// 發送 '0' 碼波形
 				end
 
 				// 單一 Bit 的脈衝週期計數
@@ -91,7 +97,7 @@ always @(posedge clk or negedge rst_n) begin
 				end else begin
 					clk_cnt <= 13'd0;
 					
-					// 累加發送的總位元數
+					// 推進至下一個 Bit
 					if (total_bit_cnt < 1535) begin
 						total_bit_cnt <= total_bit_cnt + 1'b1;
 					end else begin
@@ -101,7 +107,7 @@ always @(posedge clk or negedge rst_n) begin
 			end
 
 			ST_RESET: begin
-				WS2812B_8x8_DOUT <= 1'b0;
+				WS2812B_8x8_DIN <= 1'b0; // 低電位保持以觸發 Reset/Latch 波形
 				if (clk_cnt < RST_CYCLES - 1) begin
 					clk_cnt <= clk_cnt + 1'b1;
 				end else begin

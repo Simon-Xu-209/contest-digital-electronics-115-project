@@ -15,7 +15,7 @@ module WiFi_Controller #(
 	// 上層控制與發送暫存器介面
 	input  wire                     send_en,
 	input  wire [3:0]               send_target_id,
-	input  wire [8*MAX_TX_LEN-1:0] send_data_reg,
+	input  wire [8*MAX_TX_LEN-1:0]  send_data_reg,
 	output wire                     tx_busy,
 	
 	// 上層接收暫存器介面
@@ -55,36 +55,36 @@ UART_rx_string #(
 ) UART_rx_string_u1 (
 	.clk          (clk),
 	.rst_n        (rst_n),
-	.rx           (WiFi_rx_sync2),
+	.UART_rx      (WiFi_rx_sync2),
 	.rx_byte_en   (rx_byte_en),
 	.rx_byte      (rx_byte),
 	.link_ID      (rx_link_id),
-	.rx_Data_len  (rx_data_len),
-	.rx_Data_reg  (rx_data_reg),
+	.rx_data_len  (rx_data_len),
+	.rx_data_reg  (rx_data_reg),
 	.rx_done      (rx_done),
-	.Data_reg_busy()
+	.data_reg_busy()
 );
 
 // -------------------------------------------------------------
 // UART TX
 // -------------------------------------------------------------
-reg                      tx_start;
-reg  [8*MAX_TX_LEN-1:0] tx_CmdData_reg;
-wire                     uart_tx_busy;
-wire                     uart_tx_done;
+reg                     tx_start;
+reg  [8*MAX_TX_LEN-1:0] tx_data_reg;
+wire                    uart_tx_busy;
+wire                    uart_tx_done;
 
 UART_tx_string #(
 	.MAX_BYTES(MAX_TX_LEN),
 	.CLK_FREQ (CLK_FREQ),
 	.BAUD_RATE(BAUD_RATE)
 ) UART_tx_string_u1 (
-	.clk            (clk),
-	.rst_n          (rst_n),
-	.tx_start       (tx_start),
-	.tx_CmdData_reg (tx_CmdData_reg),
-	.WiFi_tx        (WiFi_tx),
-	.tx_busy        (uart_tx_busy),
-	.tx_done        (uart_tx_done)
+	.clk        (clk),
+	.rst_n      (rst_n),
+	.tx_start   (tx_start),
+	.tx_data_reg(tx_data_reg),
+	.UART_tx    (WiFi_tx),
+	.tx_busy    (uart_tx_busy),
+	.tx_done    (uart_tx_done)
 );
 
 // -------------------------------------------------------------
@@ -123,22 +123,22 @@ always @(posedge clk or negedge rst_n) begin
 		init_step      <= 4'd0;
 		init_done      <= 1'b0;
 		tx_start       <= 1'b0;
-		tx_CmdData_reg <= {8*MAX_TX_LEN{1'b0}};
+		tx_data_reg <= {8*MAX_TX_LEN{1'b0}};
 		boot_cnt       <= 28'd0;
 		rst_wait_cnt   <= 28'd0;
 	end else if (!init_done) begin
 		tx_start <= 1'b0;
 		case (init_step)
-			// 上電延遲 1 秒
+			// 上電延遲 0.5 秒
 			4'd0: begin
-				if (boot_cnt >= CLK_FREQ) init_step <= 4'd1;
+				if (boot_cnt >= CLK_FREQ/2) init_step <= 4'd1;
 				else boot_cnt <= boot_cnt + 1'b1;
 			end
 
 			// Step 1: AT+RST
 			4'd1: begin
 				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+RST\r\n"; // 重啟 ESP8266 晶片
+					tx_data_reg <= "AT+RST\r\n"; // 重啟 ESP8266 晶片
 					tx_start       <= 1'b1;
 					rst_wait_cnt   <= 28'd0;
 					init_step      <= 4'd2;
@@ -155,7 +155,7 @@ always @(posedge clk or negedge rst_n) begin
 			// Step 2: AT+RFPOWER=0
 			4'd3: begin
 				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+RFPOWER=0\r\n"; // 設定 RF 發射功率 (0 dBm)
+					tx_data_reg <= "AT+RFPOWER=0\r\n"; // 設定 RF 發射功率 (0 dBm)
 					tx_start       <= 1'b1;
 					init_step      <= 4'd4;
 				end
@@ -165,7 +165,7 @@ always @(posedge clk or negedge rst_n) begin
 			// Step 3: AT+CWMODE=2
 			4'd5: begin
 				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+CWMODE=2\r\n"; // 設定 Wi-Fi 模式 （1 為 Station 模式連別人的 Wi-Fi; 2 為 AP 模式自己發熱點; 3 為雙模共存）
+					tx_data_reg <= "AT+CWMODE=2\r\n"; // 設定 Wi-Fi 模式 （1 為 Station 模式連別人的 Wi-Fi; 2 為 AP 模式自己發熱點; 3 為雙模共存）
 					tx_start       <= 1'b1;
 					init_step      <= 4'd6;
 				end
@@ -175,7 +175,7 @@ always @(posedge clk or negedge rst_n) begin
 			// Step 4: AT+CWSAP
 			4'd7: begin
 				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+CWSAP=\"WiFi_FPGA\",\"048778414\",1,4\r\n"; // 設定 AP 熱點參數 (<SSID>, <密碼>, <頻道>, <加密方式(4 表示 WPA2_PSK 加密)>)
+					tx_data_reg <= "AT+CWSAP=\"WiFi_FPGA\",\"048778414\",1,4\r\n"; // 設定 AP 熱點參數 (<SSID>, <密碼>, <頻道>, <加密方式(4 表示 WPA2_PSK 加密)>)
 					tx_start       <= 1'b1;
 					init_step      <= 4'd8;
 				end
@@ -185,7 +185,7 @@ always @(posedge clk or negedge rst_n) begin
 			// Step 5: AT+CIPMUX=1
 			4'd9: begin
 				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+CIPMUX=1\r\n"; // 開啟多連線模式 (Client 連線 ID 0~4，表示最多可以連線其他 5 台裝置/晶片)
+					tx_data_reg <= "AT+CIPMUX=1\r\n"; // 開啟多連線模式 (Client 連線 ID 0~4，表示最多可以連線其他 5 台裝置/晶片)
 					tx_start       <= 1'b1;
 					init_step      <= 4'd10;
 				end
@@ -195,7 +195,7 @@ always @(posedge clk or negedge rst_n) begin
 			// Step 6: AT+CIPSERVER=1,80
 			4'd11: begin
 				if (!tx_busy) begin
-					tx_CmdData_reg <= "AT+CIPSERVER=1,80\r\n"; // 啟動 TCP 伺服器 (80 表示 Port 80，即標準 HTTP 埠號)
+					tx_data_reg <= "AT+CIPSERVER=1,80\r\n"; // 啟動 TCP 伺服器 (80 表示 Port 80，即標準 HTTP 埠號)
 					tx_start       <= 1'b1;
 					init_step      <= 4'd12;
 				end
@@ -210,7 +210,7 @@ always @(posedge clk or negedge rst_n) begin
 			default: init_step <= 4'd0;
 		endcase
 	end else if (init_done && send_en && !tx_busy) begin
-		tx_CmdData_reg <= send_data_reg;
+		tx_data_reg <= send_data_reg;
 		tx_start       <= 1'b1;
 	end else begin
 		tx_start <= 1'b0;

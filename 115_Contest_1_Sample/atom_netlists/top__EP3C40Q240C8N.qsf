@@ -49,8 +49,8 @@ set_location_assignment PIN_57 -to Keyboard_column_2x2[1]
 set_location_assignment PIN_68 -to Keyboard_column_2x2[0]
 set_location_assignment PIN_51 -to Keyboard_row_2x2[1]
 set_location_assignment PIN_55 -to Keyboard_row_2x2[0]
-set_location_assignment PIN_88 -to WS2812B_8x8_DIN
-set_location_assignment PIN_84 -to WS2812B_8x8_DOUT
+set_location_assignment PIN_84 -to WS2812B_8x8_DIN
+set_location_assignment PIN_88 -to WS2812B_8x8_DOUT
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
 set_global_assignment -name FAMILY "Cyclone III"
 set_global_assignment -name DEVICE EP3C40Q240C8
@@ -84,3 +84,6 @@ set_global_assignment -name VERILOG_FILE UART_tx_string.v
 set_global_assignment -name VERILOG_FILE Joystick.v
 set_global_assignment -name VERILOG_FILE Seven_Segment_Display.v
 set_global_assignment -name VERILOG_FILE WS2812B.v
+set_global_assignment -name VERILOG_FILE ESP8266_Response_Checker.v
+set_global_assignment -name VERILOG_FILE ADS1115_Driver.v
+set_global_assignment -name VERILOG_FILE I2C_Master.v

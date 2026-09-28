@@ -5,7 +5,7 @@ module UART_rx_string #(
 )(
 	input  wire                   clk,
 	input  wire                   rst_n,
-	input  wire                   rx,
+	input  wire                   UART_rx,
 	
 	// 輸出至 WiFi_tx_string 供其檢查回應字元
 	output reg                    rx_byte_en,
@@ -13,10 +13,10 @@ module UART_rx_string #(
 	
 	// 資料暫存器與狀態
 	output reg  [3:0]             link_ID,         // 連線 ID 暫存器
-	output reg  [15:0]            rx_Data_len,     // 資料位元組長度暫存器
-	output reg  [8*MAX_BYTES-1:0] rx_Data_reg,     // 資料暫存器 (Payload)
+	output reg  [15:0]            rx_data_len,     // 資料位元組長度暫存器
+	output reg  [8*MAX_BYTES-1:0] rx_data_reg,     // 資料暫存器 (Payload)
 	output reg                    rx_done,         // 接收完成脈衝
-	output reg                    Data_reg_busy    // 接收中忙碌旗標
+	output reg                    data_reg_busy    // 接收中忙碌旗標
 );
 
 // -------------------------------------------------------------
@@ -43,7 +43,7 @@ always @(posedge clk or negedge rst_n) begin
 		rx_byte_en <= 1'b0;
 		case (rx_state)
 			RX_IDLE: begin
-				if (!rx) begin
+				if (!UART_rx) begin
 					rx_state <= RX_START;
 					cnt      <= SAMPLE_TICKS / 2;
 				end
@@ -58,7 +58,7 @@ always @(posedge clk or negedge rst_n) begin
 			RX_DATA: begin
 				if (cnt == SAMPLE_TICKS - 1) begin
 					cnt            <= 16'd0;
-					rdata[bit_cnt] <= rx;
+					rdata[bit_cnt] <= UART_rx;
 					bit_cnt        <= bit_cnt + 1'b1;
 					if (bit_cnt == 4'd7) rx_state <= RX_STOP;
 				end else cnt <= cnt + 1'b1;
@@ -77,13 +77,15 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 // -------------------------------------------------------------
-// IPD 封包解析器 (+IPD,<ID>,<LEN>:<Data>)
+// IPD 封包解析器
+// 語法目標格式: "+IPD,<link_id>,<len>:<data>"
+// 範例: "+IPD,0,5:HELLO" -> link_id=0, len=5, data="HELLO"
 // -------------------------------------------------------------
-localparam S_SEARCH_PLUS = 3'd0,
-			  S_MATCH_IPD   = 3'd1,
-			  S_PARSE_ID    = 3'd2,
-			  S_PARSE_LEN   = 3'd3,
-			  S_RECV_DATA   = 3'd4;
+localparam S_SEARCH_PLUS = 3'd0, // 搜尋 Prefix '+'
+			  S_MATCH_IPD   = 3'd1, // 比對 "IPD" 字串
+			  S_PARSE_ID    = 3'd2, // 解析 Link ID (0~4)
+			  S_PARSE_LEN   = 3'd3, // 解析資料長度 (ASCII 轉十進位整數)
+			  S_RECV_DATA   = 3'd4; // 依長度移位存入 Payload 暫存器
 
 reg [2:0]  parse_state;
 reg [1:0]  ipd_step;
@@ -94,11 +96,11 @@ always @(posedge clk or negedge rst_n) begin
 		parse_state   <= S_SEARCH_PLUS;
 		ipd_step      <= 2'd0;
 		link_ID       <= 4'd0;
-		rx_Data_len   <= 16'd0;
-		rx_Data_reg   <= {8*MAX_BYTES{1'b0}};
+		rx_data_len   <= 16'd0;
+		rx_data_reg   <= {8*MAX_BYTES{1'b0}};
 		data_cnt      <= 16'd0;
 		rx_done      <= 1'b0;
-		Data_reg_busy <= 1'b0;
+		data_reg_busy <= 1'b0;
 	end else begin
 		rx_done <= 1'b0;
 
@@ -106,11 +108,11 @@ always @(posedge clk or negedge rst_n) begin
 			case (parse_state)
 				S_SEARCH_PLUS: begin
 					if (rx_byte == "+") begin
-						Data_reg_busy <= 1'b1;
+						data_reg_busy <= 1'b1;
 						ipd_step      <= 2'd0;
 						parse_state   <= S_MATCH_IPD;
 					end else begin
-						Data_reg_busy <= 1'b0;
+						data_reg_busy <= 1'b0;
 					end
 				end
 
@@ -132,27 +134,27 @@ always @(posedge clk or negedge rst_n) begin
 					if (rx_byte >= "0" && rx_byte <= "9") begin
 						link_ID <= rx_byte - "0";
 					end else if (rx_byte == ",") begin
-						rx_Data_len <= 16'd0;
+						rx_data_len <= 16'd0;
 						parse_state <= S_PARSE_LEN;
 					end else parse_state <= S_SEARCH_PLUS;
 				end
 
 				S_PARSE_LEN: begin
 					if (rx_byte >= "0" && rx_byte <= "9") begin
-						rx_Data_len <= (rx_Data_len * 10) + (rx_byte - "0");
+						rx_data_len <= (rx_data_len * 10) + (rx_byte - "0");
 					end else if (rx_byte == ":") begin
 						data_cnt    <= 16'd0;
-						rx_Data_reg <= {8*MAX_BYTES{1'b0}};
+						rx_data_reg <= {8*MAX_BYTES{1'b0}};
 						parse_state <= S_RECV_DATA;
 					end else parse_state <= S_SEARCH_PLUS;
 				end
 
 				S_RECV_DATA: begin
-					rx_Data_reg <= {rx_Data_reg[8*(MAX_BYTES-1)-1:0], rx_byte};
+					rx_data_reg <= {rx_data_reg[8*(MAX_BYTES-1)-1:0], rx_byte};
 
-					if (data_cnt + 1'b1 >= rx_Data_len || data_cnt + 1'b1 >= MAX_BYTES) begin
+					if (data_cnt + 1'b1 >= rx_data_len || data_cnt + 1'b1 >= MAX_BYTES) begin
 						rx_done      <= 1'b1;
-						Data_reg_busy <= 1'b0;
+						data_reg_busy <= 1'b0;
 						parse_state   <= S_SEARCH_PLUS;
 					end else begin
 						data_cnt <= data_cnt + 1'b1;

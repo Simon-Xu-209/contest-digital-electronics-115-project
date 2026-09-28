@@ -24,19 +24,19 @@ reg [2:0]  ok_step;
 reg [2:0]  ready_step;
 
 // -------------------------------------------------------------
-// 獨立監聽 "ready"（不限於 ST_CHK 狀態）
+// 獨立監聽 "ready"（不受主 FSM 狀態限制，隨時接收重啟訊號）
 // -------------------------------------------------------------
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		ready_step <= 3'd0;
 		got_ready  <= 1'b0;
 	end else begin
-		got_ready <= 1'b0; // 單一脈衝
+		got_ready <= 1'b0; // 預設維持 1-Clock Cycle 的 High Pulse
 		
 		if (rx_byte_en) begin
 			case (ready_step)
 				3'd0: if (rx_byte == "r" || rx_byte == "R") ready_step <= 3'd1;
-				3'd1: if (rx_byte == "e" || rx_byte == "E") ready_step <= 3'd2; else ready_step <= 3'd0;
+				3'd1: if (rx_byte == "e" || rx_byte == "E") ready_step <= 3'd2; else ready_step <= 3'd0; // 比對失敗即歸零重來
 				3'd2: if (rx_byte == "a" || rx_byte == "A") ready_step <= 3'd3; else ready_step <= 3'd0;
 				3'd3: if (rx_byte == "d" || rx_byte == "D") ready_step <= 3'd4; else ready_step <= 3'd0;
 				3'd4: begin

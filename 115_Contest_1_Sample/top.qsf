@@ -119,8 +119,8 @@ set_global_assignment -name VERILOG_FILE UART_tx_string.v
 set_global_assignment -name VERILOG_FILE Joystick.v
 set_global_assignment -name VERILOG_FILE Seven_Segment_Display.v
 set_global_assignment -name VERILOG_FILE WS2812B.v
-set_location_assignment PIN_88 -to WS2812B_8x8_DIN
-set_location_assignment PIN_84 -to WS2812B_8x8_DOUT
+set_location_assignment PIN_84 -to WS2812B_8x8_DIN
+set_location_assignment PIN_88 -to WS2812B_8x8_DOUT
 set_global_assignment -name VERILOG_FILE ESP8266_Response_Checker.v
 set_global_assignment -name VERILOG_FILE ADS1115_Driver.v
 set_global_assignment -name VERILOG_FILE I2C_Master.v

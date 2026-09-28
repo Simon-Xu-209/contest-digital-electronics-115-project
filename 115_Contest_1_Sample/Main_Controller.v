@@ -1,4 +1,7 @@
-module Main_Controller (
+module Main_Controller  #(
+	parameter MAX_TX_LEN = 64,
+	parameter MAX_RX_LEN  = 32
+)(
 	input  wire clk,
 	input  wire rst_n,
 	
@@ -15,7 +18,16 @@ module Main_Controller (
 	output wire [63:0] seven_segment_chars, // 8 個 ASCII 字元
 	
 	output reg           ws_draw_en,
-	output wire [1535:0] ws_led_grb_data
+	output wire [1535:0] ws_led_grb_data,
+	
+	output wire                    send_en,
+	output wire [3:0]              send_target_id,
+	output wire [8*MAX_TX_LEN-1:0] send_data_reg,
+	input  wire                    tx_busy,
+	input  wire [3:0]              rx_link_id,
+	input  wire [15:0]             rx_data_len,
+	input  wire [8*MAX_RX_LEN-1:0] rx_data_reg,
+	input  wire                    rx_done
 );
 
 // ------------------------------------------------------------------------
@@ -77,16 +89,20 @@ assign seven_segment_chars = {
 	8'h20                                // Dig1: 空白 ' '
 };
 
+
+
 // ------------------------------------------------------------------------
-// WS2812B 邏輯
+// WS2812B 邏輯與色彩定義
+// 注意：WS2812B 色彩排列順序為 24-bit [23:0] -> G[7:0] + R[7:0] + B[7:0]
 // ------------------------------------------------------------------------
 reg [1535:0] frame_buffer;
 assign ws_led_grb_data = frame_buffer;
 
-localparam COLOR_OFF   = 24'h00_00_00;
-localparam COLOR_RED   = 24'h00_1F_00;
-localparam COLOR_GREEN = 24'h1F_00_00;
-localparam COLOR_BLUE  = 24'h00_00_1F;
+// 色彩格式：24'hGG_RR_BB (為避免亮度過高刺眼，預設調低 PWM 輸出值至 0x1F)
+localparam COLOR_OFF   = 24'h00_00_00; // 滅
+localparam COLOR_RED   = 24'h00_1F_00; // 紅色 (G=0x00, R=0x1F, B=0x00)
+localparam COLOR_GREEN = 24'h1F_00_00; // 綠色 (G=0x1F, R=0x00, B=0x00)
+localparam COLOR_BLUE  = 24'h00_00_1F; // 藍色 (G=0x00, R=0x00, B=0x1F)
 
 reg [7:0] switch_d1;
 reg       key_2x2_d1;

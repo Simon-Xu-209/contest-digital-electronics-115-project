@@ -151,7 +151,7 @@ switch[5]                    : 80        : input  : 2.5 V             :         
 switch[2]                    : 81        : input  : 2.5 V             :         : 3         : Y              
 switch[4]                    : 82        : input  : 2.5 V             :         : 3         : Y              
 switch[3]                    : 83        : input  : 2.5 V             :         : 3         : Y              
-DOUT                         : 84        : output : 2.5 V             :         : 3         : Y              
+DIN                          : 84        : output : 2.5 V             :         : 3         : Y              
 VCCINT                       : 85        : power  :                   : 1.2V    :           :                
 GND                          : 86        : gnd    :                   :         :           :                
 seg_data[8]                  : 87        : output : 2.5 V             :         : 3         : N              

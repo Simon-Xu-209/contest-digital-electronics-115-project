@@ -38,8 +38,8 @@ module top (
 	output wire [7:0] seven_segment_Seg, // 七段顯示器資料腳位 (.gfedcba)
 	output wire [7:0] seven_segment_Com, // 七段顯示器位數腳位 (Dig1 ~ Dig8)
 	
-	output wire WS2812B_8x8_DIN,  // WS2812B 8x8 BRG LED 矩陣 DOUT (末端溢位資料 可不接)
-	output wire WS2812B_8x8_DOUT, // WS2812B 8x8 BRG LED 矩陣 DIN
+	output wire WS2812B_8x8_DIN,  // WS2812B 8x8 BRG LED 矩陣 DIN
+	output wire WS2812B_8x8_DOUT, // WS2812B 8x8 BRG LED 矩陣 DOUT (末端溢位資料 可不接)
 	
 	output wire ST7735S_SCL, // ST7735S 128x160 RGB TFT LCD 各接腳
 	output wire ST7735S_SDA,
@@ -91,7 +91,16 @@ Main_Controller Main_Controller_u1 (
 	.seven_segment_chars(seven_segment_chars), // 七段顯示器顯示文字
 	
 	.ws_draw_en      (ws_draw_en),             // 輸出繪製脈衝
-	.ws_led_grb_data (ws_led_grb_data)         // 輸出 1536-bit 向量
+	.ws_led_grb_data (ws_led_grb_data),        // 輸出 1536-bit 向量
+	
+	.send_en       (send_en),
+	.send_target_id(rx_link_id),    // 目標 Clinet 連線 ID 暫存器
+	.send_data_reg (send_data_reg), // 傳送指令/資料暫存器
+	.tx_busy       (tx_busy),       // 指令/資料傳送中旗標
+	.rx_link_id    (rx_link_id),    // Client 連線 ID 暫存器
+	.rx_data_len   (rx_data_len),   // 接收資料長度暫存器 (Byte)
+	.rx_data_reg   (rx_data_reg),   // 接收資料暫存器
+	.rx_done       (rx_done)        // 資料接收完成脈衝
 );
 
 
@@ -138,8 +147,8 @@ Joystick Joystick_u1 (
 
 
 // ESP8266 Wi-Fi 主控制器
-wire            send_en = 1'b0;
-wire [8*64-1:0] send_data_reg = 0;
+wire            send_en;
+wire [8*64-1:0] send_data_reg;
 wire            tx_busy;
 wire [3:0]      rx_link_id;
 wire [15:0]     rx_data_len;
@@ -206,8 +215,8 @@ WS2812B #(
 	.draw_en         (ws_draw_en),      // 來自 Main_Controller 的繪製脈衝
 	.led_grb_data    (ws_led_grb_data), // 1536-bit 展開向量
 	.busy            (ws_busy),         // GRB LED 資料傳送中旗標
-	.WS2812B_8x8_DIN (WS2812B_8x8_DIN), // WS2812B 8x8 BRG LED 矩陣 DOUT
-	.WS2812B_8x8_DOUT(WS2812B_8x8_DOUT) // WS2812B 8x8 BRG LED 矩陣 DIN
+	.WS2812B_8x8_DIN (WS2812B_8x8_DIN), // WS2812B 8x8 BRG LED 矩陣 DIN
+	.WS2812B_8x8_DOUT(WS2812B_8x8_DOUT) // WS2812B 8x8 BRG LED 矩陣 DOUT
 );
 
 
