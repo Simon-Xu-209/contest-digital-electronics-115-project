@@ -69,6 +69,9 @@ parameter BAUD        = 115200;     // UART 鮑率
 parameter MAX_TX_LEN  = 64;         // UART 最大可接收的 AT 指令/資料位元數
 parameter MAX_RX_LEN  = 32;         // UART 最大可接收的資料位元數
 
+
+parameter LCD_MAX_CHARS = 32;
+
 // 可透過串口調適助手檢查傳送給 ESP8266 Wi-Fi 模組以及接收的資料
 assign USB2UART_WiFi_tx = WiFi_tx;
 assign USB2UART_WiFi_rx = WiFi_rx;
@@ -76,7 +79,11 @@ assign USB2UART_WiFi_rx = WiFi_rx;
 
 
 // 專案主控制電路
-Main_Controller Main_Controller_u1 (
+Main_Controller #(
+	.MAX_TX_LEN(MAX_TX_LEN),
+	.MAX_RX_LEN(MAX_RX_LEN),
+	.MAX_CHARS(LCD_MAX_CHARS)
+) Main_Controller_u1 (
 	.clk             (clk),
 	.rst_n           (rst_n),
 	.switch_8bit     (switch_8bit),
@@ -244,7 +251,7 @@ wire [3:0]  lcd_cmd_scale;
 
 // ST7735S 128x160 RGB TFT LCD 模組 (實體化與 API 對接)
 TFT_LCD #(
-	.MAX_CHARS(32)
+	.MAX_CHARS(LCD_MAX_CHARS)
 ) TFT_LCD_u1 (
 	.clk           (clk),
 	.rst_n         (rst_n),
