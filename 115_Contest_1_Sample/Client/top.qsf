@@ -46,14 +46,12 @@ set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 1
-set_global_assignment -name EDA_SIMULATION_TOOL "<None>"
-set_global_assignment -name EDA_OUTPUT_DATA_FORMAT NONE -section_id eda_simulation
-set_global_assignment -name VERILOG_FILE top.v
+set_global_assignment -name EDA_SIMULATION_TOOL "ModelSim-Altera (VHDL)"
+set_global_assignment -name EDA_OUTPUT_DATA_FORMAT VHDL -section_id eda_simulation
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "2.5 V"
-set_global_assignment -name VERILOG_FILE Keyboard_3x3.v
 set_location_assignment PIN_70 -to switch_8bit[7]
 set_location_assignment PIN_76 -to switch_8bit[6]
 set_location_assignment PIN_80 -to switch_8bit[5]
@@ -89,20 +87,12 @@ set_location_assignment PIN_69 -to Keyboard_column_3x3[0]
 set_location_assignment PIN_46 -to Keyboard_row_3x3[2]
 set_location_assignment PIN_50 -to Keyboard_row_3x3[1]
 set_location_assignment PIN_52 -to Keyboard_row_3x3[0]
-set_global_assignment -name VERILOG_FILE Main_Controller.v
-set_global_assignment -name VERILOG_FILE TFT_LCD.v
 set_location_assignment PIN_131 -to ST7735S_BLK
 set_location_assignment PIN_132 -to ST7735S_CS
 set_location_assignment PIN_133 -to ST7735S_DC
 set_location_assignment PIN_134 -to ST7735S_RES
 set_location_assignment PIN_137 -to ST7735S_SCL
 set_location_assignment PIN_135 -to ST7735S_SDA
-set_global_assignment -name VERILOG_FILE font_rom_32to126.v
-set_global_assignment -name VERILOG_FILE SPI_Driver_ST7735S.v
-set_global_assignment -name VERILOG_FILE output_files/image_rom.v
-set_global_assignment -name VERILOG_FILE WiFi_Controller.v
-set_global_assignment -name VERILOG_FILE WiFi_rx_string.v
-set_global_assignment -name VERILOG_FILE WiFi_tx_string.v
 set_location_assignment PIN_166 -to USB2UART_WiFi_tx
 set_location_assignment PIN_164 -to USB2UART_WiFi_rx
 set_location_assignment PIN_114 -to Joystick_SW
@@ -113,19 +103,29 @@ set_location_assignment PIN_57 -to Keyboard_column_2x2[1]
 set_location_assignment PIN_68 -to Keyboard_column_2x2[0]
 set_location_assignment PIN_51 -to Keyboard_row_2x2[1]
 set_location_assignment PIN_55 -to Keyboard_row_2x2[0]
+set_location_assignment PIN_84 -to WS2812B_8x8_DIN
+set_location_assignment PIN_88 -to WS2812B_8x8_DOUT
+set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
+set_global_assignment -name SMART_RECOMPILE ON
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+set_global_assignment -name VERILOG_FILE top.v
+set_global_assignment -name VERILOG_FILE Keyboard_3x3.v
+set_global_assignment -name VERILOG_FILE Main_Controller.v
+set_global_assignment -name VERILOG_FILE TFT_LCD.v
+set_global_assignment -name VERILOG_FILE font_rom_32to126.v
+set_global_assignment -name VERILOG_FILE SPI_Driver_ST7735S.v
+set_global_assignment -name VERILOG_FILE output_files/image_rom.v
+set_global_assignment -name VERILOG_FILE WiFi_Controller.v
+set_global_assignment -name VERILOG_FILE WiFi_rx_string.v
+set_global_assignment -name VERILOG_FILE WiFi_tx_string.v
 set_global_assignment -name VERILOG_FILE Keyboard_2x2.v
 set_global_assignment -name VERILOG_FILE UART_rx_string.v
 set_global_assignment -name VERILOG_FILE UART_tx_string.v
 set_global_assignment -name VERILOG_FILE Joystick.v
 set_global_assignment -name VERILOG_FILE Seven_Segment_Display.v
 set_global_assignment -name VERILOG_FILE WS2812B.v
-set_location_assignment PIN_84 -to WS2812B_8x8_DIN
-set_location_assignment PIN_88 -to WS2812B_8x8_DOUT
 set_global_assignment -name VERILOG_FILE ESP8266_Response_Checker.v
 set_global_assignment -name VERILOG_FILE ADS1115_Driver.v
 set_global_assignment -name VERILOG_FILE I2C_Master.v
-set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
-set_global_assignment -name SMART_RECOMPILE OFF
-set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
-set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

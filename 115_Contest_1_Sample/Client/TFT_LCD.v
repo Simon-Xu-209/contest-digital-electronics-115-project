@@ -3,7 +3,7 @@
 // 功能描述：ST7735S 繪圖 API 模組，開放 Command Bus 接收動態文字與指令
 // =========================================================================
 module TFT_LCD #(
-	parameter MAX_CHARS = 16,        // 支援更多動態文字數 (放寬至 32 字)
+	parameter MAX_CHARS = 32,        // 支援更多動態文字數 (放寬至 32 字)
 	parameter FONT_W    = 4'd8,      // 原始字寬
 	parameter FONT_H    = 5'd16      // 原始字高
 )(

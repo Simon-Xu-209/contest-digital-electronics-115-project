@@ -70,7 +70,7 @@ parameter MAX_TX_LEN  = 64;         // UART 最大可接收的 AT 指令/資料�
 parameter MAX_RX_LEN  = 32;         // UART 最大可接收的資料位元數
 
 
-parameter LCD_MAX_CHARS = 16;
+parameter LCD_MAX_CHARS = 32;
 
 // 可透過串口調適助手檢查傳送給 ESP8266 Wi-Fi 模組以及接收的資料
 assign USB2UART_WiFi_tx = WiFi_tx;
@@ -89,6 +89,8 @@ Main_Controller #(
 	.switch_8bit     (switch_8bit),
 	.KEY_2x2         (KEY_2x2),
 	.KEY_Pressed_2x2 (KEY_Pressed_2x2),
+	.KEY_3x3         (KEY_3x3),
+	.KEY_Pressed_3x3 (KEY_Pressed_3x3),
 	
 	.joy_x           (joystick_x),
 	.joy_y           (joystick_y),
@@ -146,7 +148,7 @@ Keyboard_3x3 Keyboard_3x3_u1 (
 wire [15:0] joystick_x;
 wire [15:0] joystick_y;
 wire        joystick_z;
-
+/*
 Joystick Joystick_u1 (
 	.clk         (clk),
 	.rst_n       (rst_n),
@@ -159,12 +161,13 @@ Joystick Joystick_u1 (
 	.joy_y       (joystick_y),   // Y 軸 16-bit 暫存器
 	.joy_z       (joystick_z)    // Debounced Z 軸按鈕
 );
-
+*/
 
 
 // ESP8266 Wi-Fi 主控制器
 wire            send_en;
 wire [8*64-1:0] send_data_reg;
+wire [3:0]      tx_link_id;
 wire            tx_busy;
 wire [3:0]      rx_link_id;
 wire [15:0]     rx_data_len;
@@ -188,7 +191,7 @@ WiFi_Controller #(
 	
 	// 發送介面
 	.send_en       (send_en),
-	.send_target_id(rx_link_id),    // 目標 Clinet 連線 ID 暫存器
+	.send_target_id(tx_link_id),    // 目標 Clinet 連線 ID 暫存器
 	.send_data_reg (send_data_reg), // 傳送指令/資料暫存器
 	.tx_busy       (tx_busy),       // 指令/資料傳送中旗標
 	
@@ -206,7 +209,7 @@ WiFi_Controller #(
 // 七段顯示器控制電路
 wire [63:0] seven_segment_chars;
 wire [7:0] brightness_pwm = 8'd255; // (不建議低於 31)
-
+/*
 Seven_Segment_Display (
 	.clk              (clk),
 	.rst_n            (rst_n),
@@ -215,14 +218,14 @@ Seven_Segment_Display (
 	.seven_segment_Seg(seven_segment_Seg),   // 七段顯示器資料腳位 (.gfedcba)
 	.seven_segment_Com(seven_segment_Com)    // 七段顯示器位數腳位 (Dig1 ~ Dig8)
 );
-
+*/
 
 
 // WS2812B 8x8 BRG LED 矩陣控制電路
 wire          ws_draw_en;
 wire [1535:0] ws_led_grb_data;
 wire          ws_busy;
-
+/*
 WS2812B #(
 	.CLK_FREQ(50_000_000)
 ) WS2812B_u1 (
@@ -234,7 +237,7 @@ WS2812B #(
 	.WS2812B_8x8_DIN (WS2812B_8x8_DIN), // WS2812B 8x8 BRG LED 矩陣 DIN
 	.WS2812B_8x8_DOUT(WS2812B_8x8_DOUT) // WS2812B 8x8 BRG LED 矩陣 DOUT
 );
-
+*/
 
 
 // ------------------------------------------------------------------------
@@ -248,7 +251,7 @@ wire [7:0]  lcd_cmd_x;
 wire [7:0]  lcd_cmd_y;
 wire [15:0] lcd_cmd_color;
 wire [3:0]  lcd_cmd_scale;
-
+/*
 // ST7735S 128x160 RGB TFT LCD 模組 (實體化與 API 對接)
 TFT_LCD #(
 	.MAX_CHARS(LCD_MAX_CHARS)
@@ -274,5 +277,6 @@ TFT_LCD #(
 	.CS (ST7735S_CS),
 	.BLK(ST7735S_BLK)
 );
+*/
 
 endmodule
