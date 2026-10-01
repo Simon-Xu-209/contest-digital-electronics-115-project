@@ -20,7 +20,7 @@ applicable agreement for further details.
 */
 (header "symbol" (version "1.1"))
 (symbol
-	(rect 16 16 272 160)
+	(rect 16 16 208 160)
 	(text "UART_Server" (rect 5 0 68 12)(font "Arial" ))
 	(text "inst" (rect 8 128 20 140)(font "Arial" ))
 	(port
@@ -40,64 +40,54 @@ applicable agreement for further details.
 	(port
 		(pt 0 64)
 		(input)
-		(text "switch_8bit[7..0]" (rect 0 0 62 12)(font "Arial" ))
-		(text "switch_8bit[7..0]" (rect 21 59 83 71)(font "Arial" ))
-		(line (pt 0 64)(pt 16 64)(line_width 3))
+		(text "tx_en" (rect 0 0 22 12)(font "Arial" ))
+		(text "tx_en" (rect 21 59 43 71)(font "Arial" ))
+		(line (pt 0 64)(pt 16 64)(line_width 1))
 	)
 	(port
 		(pt 0 80)
 		(input)
-		(text "WiFi_rx" (rect 0 0 33 12)(font "Arial" ))
-		(text "WiFi_rx" (rect 21 75 54 87)(font "Arial" ))
+		(text "rx" (rect 0 0 8 12)(font "Arial" ))
+		(text "rx" (rect 21 75 29 87)(font "Arial" ))
 		(line (pt 0 80)(pt 16 80)(line_width 1))
 	)
 	(port
-		(pt 256 32)
+		(pt 192 32)
 		(output)
-		(text "WiFi_tx" (rect 0 0 31 12)(font "Arial" ))
-		(text "WiFi_tx" (rect 204 27 235 39)(font "Arial" ))
-		(line (pt 256 32)(pt 240 32)(line_width 1))
+		(text "tx" (rect 0 0 7 12)(font "Arial" ))
+		(text "tx" (rect 164 27 171 39)(font "Arial" ))
+		(line (pt 192 32)(pt 176 32)(line_width 1))
 	)
 	(port
-		(pt 256 48)
+		(pt 192 48)
 		(output)
-		(text "WiFi_RST" (rect 0 0 44 12)(font "Arial" ))
-		(text "WiFi_RST" (rect 191 43 235 55)(font "Arial" ))
-		(line (pt 256 48)(pt 240 48)(line_width 1))
+		(text "LED[7..0]" (rect 0 0 40 12)(font "Arial" ))
+		(text "LED[7..0]" (rect 131 43 171 55)(font "Arial" ))
+		(line (pt 192 48)(pt 176 48)(line_width 3))
 	)
 	(port
-		(pt 256 64)
+		(pt 192 64)
+		(output)
+		(text "Server_WiFi_txd" (rect 0 0 70 12)(font "Arial" ))
+		(text "Server_WiFi_txd" (rect 101 59 171 71)(font "Arial" ))
+		(line (pt 192 64)(pt 176 64)(line_width 1))
+	)
+	(port
+		(pt 192 80)
+		(output)
+		(text "RST_WiFi" (rect 0 0 44 12)(font "Arial" ))
+		(text "RST_WiFi" (rect 127 75 171 87)(font "Arial" ))
+		(line (pt 192 80)(pt 176 80)(line_width 1))
+	)
+	(port
+		(pt 192 96)
 		(output)
 		(text "WiFi_signal[15..0]" (rect 0 0 69 12)(font "Arial" ))
-		(text "WiFi_signal[15..0]" (rect 166 59 235 71)(font "Arial" ))
-		(line (pt 256 64)(pt 240 64)(line_width 3))
-	)
-	(port
-		(pt 256 80)
-		(output)
-		(text "USB2UART_WiFi_tx" (rect 0 0 90 12)(font "Arial" ))
-		(text "USB2UART_WiFi_tx" (rect 145 75 235 87)(font "Arial" ))
-		(line (pt 256 80)(pt 240 80)(line_width 1))
-	)
-	(port
-		(pt 256 96)
-		(output)
-		(text "USB2UART_WiFi_rx" (rect 0 0 92 12)(font "Arial" ))
-		(text "USB2UART_WiFi_rx" (rect 143 91 235 103)(font "Arial" ))
-		(line (pt 256 96)(pt 240 96)(line_width 1))
+		(text "WiFi_signal[15..0]" (rect 102 91 171 103)(font "Arial" ))
+		(line (pt 192 96)(pt 176 96)(line_width 3))
 	)
 	(parameter
-		"CLK_FREQ"
-		"50000000"
-		""
-		(type "PARAMETER_SIGNED_DEC")	)
-	(parameter
-		"BAUD"
-		"115200"
-		""
-		(type "PARAMETER_SIGNED_DEC")	)
-	(parameter
-		"MAX_TX_LEN"
+		"MAX_CMD_LEN"
 		"64"
 		""
 		(type "PARAMETER_SIGNED_DEC")	)
@@ -106,13 +96,8 @@ applicable agreement for further details.
 		"32"
 		""
 		(type "PARAMETER_SIGNED_DEC")	)
-	(parameter
-		"LCD_MAX_CHARS"
-		"16"
-		""
-		(type "PARAMETER_SIGNED_DEC")	)
 	(drawing
-		(rectangle (rect 16 16 240 128)(line_width 1))
+		(rectangle (rect 16 16 176 128)(line_width 1))
 	)
-	(annotation_block (parameter)(rect 272 -64 372 16))
+	(annotation_block (parameter)(rect 208 -64 308 16))
 )

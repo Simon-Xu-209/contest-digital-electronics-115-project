@@ -121,9 +121,9 @@ end
 // 搖桿方向判定與 Auto-repeat 觸發脈衝
 // =========================================================================
 wire joy_up    = (y_axis < 16'd1000);
-wire joy_down  = (y_axis > 16'd10000);
+wire joy_down  = (y_axis > 16'd13900);
 wire joy_left  = (x_axis < 16'd1000);
-wire joy_right = (x_axis > 16'd10000);
+wire joy_right = (x_axis > 16'd13000);
 wire joy_active = joy_up || joy_down || joy_left || joy_right;
 
 reg [23:0] move_timer;

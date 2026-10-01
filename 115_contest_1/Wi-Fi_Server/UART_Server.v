@@ -1,189 +1,146 @@
-module UART_Server(
-	input         clk,       // 50MHz
-	input         rst_n,     // FPGA 板上的 Reset 按鍵 (Low Active)
-	input         tx_en,
-	input         rx,
-	output        tx,
-	output [7:0]  LED,
-	output        Server_WiFi_txd,
-	output reg    RST_WiFi,  // 連接到 Wi-Fi 模組的 RST 腳位
-	//output        rse_wifi,
-	output [15:0] WiFi_signal
+module UART_Server (
+	input  wire clk,           // CPLD/FPGA 50MHz
+	input  wire rst_n,         // CPLD/FPGA Reset 按鍵 (Low Active)
+
+	input  wire [7:0] switch_8bit, // 8Bit 指撥開關 (SW1 ~ SW8)
+
+	output wire WiFi_tx,      // ESP8266 Wi-Fi 的 rx
+	input  wire WiFi_rx,      // ESP8266 Wi-Fi 的 tx
+	output wire WiFi_RST,     // ESP8266 Wi-Fi 的 RST
+	
+	output reg  [15:0] WiFi_signal,
+	
+	//===================================================
+	// Debug 用
+	//===================================================
+	output wire USB2UART_WiFi_tx, // USB to TTL 的 rx
+	output wire USB2UART_WiFi_rx  // USB to TTL 的 rx
 );
 
-assign Server_WiFi_txd = rx;
-//assign rse_wifi = rst_n;
+parameter CLK_FREQ    = 50_000_000; // 50MHz
+parameter BAUD        = 115200;     // UART 鮑率
+parameter MAX_TX_LEN  = 64;         // UART 最大可接收的 AT 指令/資料位元數
+parameter MAX_RX_LEN  = 32;         // UART 最大可接收的資料位元數
 
-reg rx_sync1, rx_sync2;
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		rx_sync1 <= 1'b1;
-		rx_sync2 <= 1'b1;
-	end else begin
-	rx_sync1 <= rx;
-	rx_sync2 <= rx_sync1;
-	end
-end
 
-// -------------------------------------------------------------
-// Wi-Fi 硬體 Reset 延遲產生器
-// 產生約 20ms 的乾淨低電位 Reset 脈衝，然後拉高
-// -------------------------------------------------------------
-reg [20:0] rst_cnt;
-reg        wifi_rst_done;
+parameter LCD_MAX_CHARS = 16;
 
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		rst_cnt       <= 21'd0;
-		RST_WiFi      <= 1'b0; // 保持低電位，觸發 Wi-Fi 重置
-		wifi_rst_done <= 1'b0;
-	end else begin
-		if (rst_cnt < 21'd1_000_000) begin // 50MHz 下約 20ms (1,000,000 * 20ns)
-			rst_cnt       <= rst_cnt + 1'b1;
-			RST_WiFi      <= 1'b0;
-			wifi_rst_done <= 1'b0;
-		end else begin
-			RST_WiFi      <= 1'b1; // 釋放 Reset，拉高
-			wifi_rst_done <= 1'b1; // 重置完成
-		end
-	end
-end
+// 可透過串口調適助手檢查傳送給 ESP8266 Wi-Fi 模組以及接收的資料
+assign USB2UART_WiFi_tx = WiFi_tx;
+assign USB2UART_WiFi_rx = WiFi_rx;
 
-// -------------------------------------------------------------
-// AT 指令發送狀態機 (等待 Wi-Fi 重置完成 + 延遲後才開始發送)
-// -------------------------------------------------------------
-parameter MAX_CMD_LEN = 64;
-reg [8*MAX_CMD_LEN-1:0] current_cmd;
-    
-reg        tx_start;
-wire       tx_busy;
-wire       cmd_done;
 
-// 啟動延遲計數器 (Wi-Fi 重置後需等待約 500ms 讓 ESP 開機完成吐出 ready)
-reg [24:0] boot_delay_cnt;
-reg        boot_ready;
 
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		boot_delay_cnt <= 0;
-		boot_ready     <= 0;
-	end else if (wifi_rst_done) begin
-		if (boot_delay_cnt < 25'd25_000_000) begin // 50MHz 下約 500ms
-			boot_delay_cnt <= boot_delay_cnt + 1'b1;
-			boot_ready     <= 1'b0;
-		end else begin
-			boot_ready     <= 1'b1;
-		end
-	end
-end
+// ESP8266 Wi-Fi 主控制器
+wire            send_en;
+wire [3:0]      tx_link_id;
+wire [8*64-1:0] send_data_reg;
+wire            tx_busy;
+wire [3:0]      rx_link_id;
+wire [15:0]     rx_data_len;
+wire [8*32-1:0] rx_data_reg;
+wire            rx_done;
+wire            WiFi_init_done;
 
-// UART TX 發送模組
-uart_tx_string #(
-	.MAX_BYTES(MAX_CMD_LEN)
-) uart_tx_u1 (
-	.clk    (clk),
-	.rst_n   (rst_n),
-	.tx_start(tx_start),
-	.tx_cmd  (current_cmd),
-	.tx      (tx),
-	.tx_busy (tx_busy),
-	.cmd_done(cmd_done)
-);
-
-// UART RX 接收模組
-parameter MAX_RX_LEN = 32;
-wire rx_ready;
-wire [3:0] link_ID;
-wire [15:0] rx_Data_len;
-wire [255:0] rx_Data_reg;
-wire Data_reg_busy;
-
-uart_rx_string #(
-	.MAX_BYTES(MAX_RX_LEN),
+WiFi_Controller #(
+	.MAX_TX_LEN(MAX_TX_LEN),
+	.MAX_RX_LEN(MAX_RX_LEN),
 	.CLK_FREQ(50_000_000),
 	.BAUD_RATE(115200)
-) u_uart_rx (
-	.clk          (clk),
-	.rst_n        (rst_n),
-	.rx           (rx_sync2),
-	.link_ID      (link_ID),      // Wi-Fi 連線 ID 暫存器
-	.rx_Data_len  (rx_Data_len),  // 資料長度暫存器(位元組)
-	.rx_Data_reg  (rx_Data_reg),  // 輸出穩定的正式資料暫存器
-	.rx_ready     (rx_ready),     // 接收完成脈衝
-	.Data_reg_busy(Data_reg_busy) // 忙碌旗標
+) WiFi_Controller_u1 (
+	.clk           (clk),
+	.rst_n         (rst_n),
+	
+	// 腳位分配
+	.WiFi_rx       (WiFi_rx),
+	.WiFi_tx       (WiFi_tx),
+	.WiFi_rst_n    (WiFi_RST),
+	
+	// 發送介面
+	.send_en       (send_en),
+	.send_target_id(tx_link_id),    // 目標 Clinet 連線 ID 暫存器
+	.send_data_reg (send_data_reg), // 傳送指令/資料暫存器
+	.tx_busy       (tx_busy),       // 指令/資料傳送中旗標
+	
+	// 接收介面
+	.rx_link_id    (rx_link_id),   // Client 連線 ID 暫存器
+	.rx_data_len   (rx_data_len),  // 接收資料長度暫存器 (Byte)
+	.rx_data_reg   (rx_data_reg),  // 接收資料暫存器
+	.rx_done       (rx_done),      // 資料接收完成脈衝
+	
+	.init_done     (WiFi_init_done) // ESP8266 Wi-Fi 初始化完畢
 );
 
 
-// -------------------------------------------------------------
-// AT 初始化指令狀態機
-// -------------------------------------------------------------
-reg [3:0]  cmd_step;
-reg [22:0] delay_cnt;
-reg        delay_en;
-reg        init_done;
+// 拆解 32 個 Byte (bytes[0] 為 lowest byte，即最後收到的字元)
+wire [7:0] bytes[0:MAX_RX_LEN-1];
+genvar g;
+generate
+	for (g = 0; g < MAX_RX_LEN; g = g + 1) begin : BYTE_ASSIGN
+		assign bytes[g] = rx_data_reg[8*g +: 8];
+	end
+endgenerate
 
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		cmd_step    <= 0;
-		tx_start    <= 0;
-		current_cmd <= "";
-		delay_cnt   <= 0;
-		delay_en    <= 0;
-		init_done   <= 0;
-	end else if (tx_en && boot_ready && !init_done) begin
-		tx_start <= 1'b0;
+// 搜尋 "Num:" (字串靠右存入，較早收到的字元索引較大)
+// 格式範例：bytes[g+4]="N", bytes[g+3]="u", bytes[g+2]="m", bytes[g+1]=':', bytes[g]="1", bytes[g-1]="\r", bytes[g-2]="\n"
+wire [MAX_RX_LEN-1:0] match_num;    // 偵測資料所在位元組位置
+reg  [8:0]            detected_num; // 偵測到的資料
+reg                   num_found;
 
-		if (delay_en) begin
-			if (delay_cnt < 23'd2_500_000) begin // 50ms
-				delay_cnt <= delay_cnt + 1'b1;
-			end else begin
-				delay_cnt <= 0;
-				delay_en  <= 0;
-			end
-		end else begin
-			case (cmd_step)
-				4'd0: begin current_cmd <= "AT+RFPOWER=0\r\n"; tx_start <= 1'b1; cmd_step <= 4'd1; end
-				4'd1: if (cmd_done) begin delay_en <= 1; cmd_step <= 4'd2; end
-				4'd2: begin current_cmd <= "AT+CWMODE=2\r\n"; tx_start <= 1'b1; cmd_step <= 4'd3; end
-				4'd3: if (cmd_done) begin delay_en <= 1; cmd_step <= 4'd4; end
-				4'd4: begin current_cmd <= "AT+CWSAP=\"WiFi_FPGA\",\"048778414\",1,4\r\n"; tx_start <= 1'b1; cmd_step <= 4'd5; end
-				4'd5: if (cmd_done) begin delay_en <= 1; cmd_step <= 4'd6; end
-				4'd6: begin current_cmd <= "AT+CIPMUX=1\r\n"; tx_start <= 1'b1; cmd_step <= 4'd7; end
-				4'd7: if (cmd_done) begin delay_en <= 1; cmd_step <= 4'd8; end
-				4'd8: begin current_cmd <= "AT+CIPSERVER=1,80\r\n"; tx_start <= 1'b1; cmd_step <= 4'd9; end
-				4'd9: if (cmd_done) begin delay_en <= 1; cmd_step <= 4'd10; end
-				4'd10: begin current_cmd <= "AT+CIPAP=\"192.168.4.1\",\"192.168.4.1\",\"255.255.255.0\"\r\n"; tx_start <= 1'b1; cmd_step <= 4'd11; end
-				4'd11: if (cmd_done) begin delay_en <= 1; cmd_step <= 4'd12; end
-				4'd12: begin current_cmd <= "AT+CIPSTO=0\r\n"; tx_start <= 1'b1; cmd_step <= 4'd13; end
-				4'd13: if (cmd_done) begin delay_en <= 1; cmd_step <= 4'd14; end
-				4'd14: begin init_done <= 1'b1; end
-				default:;
-			endcase
+generate
+	for (g = 0; g < MAX_RX_LEN-4; g = g + 1) begin : MATCH_GEN
+		assign match_num[g] = (bytes[g+4] == "N") && 
+									(bytes[g+3] == "u") && 
+									(bytes[g+2] == "m") && 
+									(bytes[g+1] == ":");
+	end
+endgenerate
+
+// Num: 擷取
+integer k;
+always @(*) begin
+	num_found    = 1'b0;
+	detected_num = 8'd0;
+	for (k = 0; k < MAX_RX_LEN; k = k + 1) begin
+		if (match_num[k] && !num_found) begin
+			num_found    = 1'b1;
+			// 擷取 "Num:" 後方的 1 碼，高位 Byte 擺左側
+			detected_num = bytes[k];
 		end
 	end
 end
 
+// --------------------------------------------------------------------
+// 主邏輯匯總控制區塊 (單一順序驅動關鍵暫存器)
+// --------------------------------------------------------------------
+reg [2:0] prev_system_state; 
 
-
-/*
-reg [255:0] rx_Data_reg_test;
-always @(*) begin
-    rx_Data_reg_test = "                           Num:F"; 
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		WiFi_signal <= 16'd15;
+	end else begin
+		if (detected_num == "0") begin
+			WiFi_signal <= 16'd0; // 七段顯示器顯示:"InF:  00"
+		end else if (detected_num == "1") begin
+			WiFi_signal <= 16'd1;
+		end else if (detected_num == "2") begin
+			WiFi_signal <= 16'd2;
+		end else if (detected_num == "3") begin
+			WiFi_signal <= 16'd3;
+		end else if (detected_num == "4") begin
+			WiFi_signal <= 16'd4;
+		end else if (detected_num == "5") begin
+			WiFi_signal <= 16'd5;
+		end else if (detected_num == "6") begin
+			WiFi_signal <= 16'd6;
+		end else if (detected_num == "7") begin
+			WiFi_signal <= 16'd7;
+		end else if (detected_num == "8") begin
+			WiFi_signal <= 16'd8;
+		end else begin
+			WiFi_signal <= 16'd16;
+		end
+	end
 end
-*/
-
-// LED 模組
-mode_LED #(
-	.MAX_RX_LEN(MAX_RX_LEN)
-) mode_LED_u1(
-	.clk          (clk),
-	.rst_n        (rst_n),
-	.RECEIVE_END  (rx_ready),
-	.Data_reg_busy(Data_reg_busy),
-	.rx_Data_reg  (rx_Data_reg),
-	.SEND_END_cmd (init_done),
-	.LED          (LED),
-	.WiFi_signal  (WiFi_signal)
-);
 
 endmodule
