@@ -89,15 +89,8 @@ Main_Controller #(
 	.switch_8bit     (switch_8bit),
 	.KEY_2x2         (KEY_2x2),
 	.KEY_Pressed_2x2 (KEY_Pressed_2x2),
-	
-	.joy_x           (joystick_x),
-	.joy_y           (joystick_y),
-	.joy_z           (joystick_z),
-	
+
 	.seven_segment_chars(seven_segment_chars),
-	
-	.ws_draw_en      (ws_draw_en),
-	.ws_led_grb_data (ws_led_grb_data),
 	
 	.send_en       (send_en),
 	.send_target_id(rx_link_id),
@@ -106,17 +99,7 @@ Main_Controller #(
 	.rx_link_id    (rx_link_id),
 	.rx_data_len   (rx_data_len),
 	.rx_data_reg   (rx_data_reg),
-	.rx_done       (rx_done),
-
-	// TFT LCD Command API 連接
-	.lcd_cmd_valid     (lcd_cmd_valid),
-	.lcd_cmd_type      (lcd_cmd_type),
-	.lcd_cmd_char_index(lcd_cmd_char_index),
-	.lcd_cmd_ascii     (lcd_cmd_ascii),
-	.lcd_cmd_x         (lcd_cmd_x),
-	.lcd_cmd_y         (lcd_cmd_y),
-	.lcd_cmd_color     (lcd_cmd_color),
-	.lcd_cmd_scale     (lcd_cmd_scale)
+	.rx_done       (rx_done)
 );
 
 
@@ -139,28 +122,6 @@ Keyboard_3x3 Keyboard_3x3_u1 (
 	.Pressed (KEY_Pressed_3x3),     // 偵測是否按下按鍵
 	.KEY     (KEY_3x3)              // 輸出按鍵值
 );
-
-
-
-// 搖桿控制模組(使用 ADS1115 讀取數值)
-wire [15:0] joystick_x;
-wire [15:0] joystick_y;
-wire        joystick_z;
-
-Joystick Joystick_u1 (
-	.clk         (clk),
-	.rst_n       (rst_n),
-	.ADS1115_SCL (ADS1115_SCL),  // ADS1115 ADC SCL
-	.ADS1115_SDA (ADS1115_SDA),  // ADS1115 ADC SDA
-	.ADS1115_ALRT(ADS1115_ALRT), // ADS1115 ADC ALERT
-	.Joystick_SW (Joystick_SW),  // 搖桿按鈕 (z 軸)
-	
-	.joy_x       (joystick_x),   // X 軸 16-bit 暫存器
-	.joy_y       (joystick_y),   // Y 軸 16-bit 暫存器
-	.joy_z       (joystick_z)    // Debounced Z 軸按鈕
-);
-
-
 
 // ESP8266 Wi-Fi 主控制器
 wire            send_en;
@@ -215,65 +176,6 @@ Seven_Segment_Display (
 	.brightness_pwm   (brightness_pwm),      // 七段顯示器亮度 (0~255)
 	.seven_segment_Seg(seven_segment_Seg),   // 七段顯示器資料腳位 (.gfedcba)
 	.seven_segment_Com(seven_segment_Com)    // 七段顯示器位數腳位 (Dig1 ~ Dig8)
-);
-
-
-
-// WS2812B 8x8 BRG LED 矩陣控制電路
-wire          ws_draw_en;
-wire [1535:0] ws_led_grb_data;
-wire          ws_busy;
-
-WS2812B #(
-	.CLK_FREQ(50_000_000)
-) WS2812B_u1 (
-	.clk             (clk),
-	.rst_n           (rst_n),
-	.draw_en         (ws_draw_en),      // 來自 Main_Controller 的繪製脈衝
-	.led_grb_data    (ws_led_grb_data), // 1536-bit 展開向量
-	.busy            (ws_busy),         // GRB LED 資料傳送中旗標
-	.WS2812B_8x8_DIN (WS2812B_8x8_DIN), // WS2812B 8x8 BRG LED 矩陣 DIN
-	.WS2812B_8x8_DOUT(WS2812B_8x8_DOUT) // WS2812B 8x8 BRG LED 矩陣 DOUT
-);
-
-
-
-// ------------------------------------------------------------------------
-// Command Bus (TFT LCD API 連接線路)
-// ------------------------------------------------------------------------
-wire        lcd_cmd_valid;
-wire [3:0]  lcd_cmd_type;
-wire [7:0]  lcd_cmd_char_index;
-wire [7:0]  lcd_cmd_ascii;
-wire [7:0]  lcd_cmd_x;
-wire [7:0]  lcd_cmd_y;
-wire [15:0] lcd_cmd_color;
-wire [3:0]  lcd_cmd_scale;
-
-// ST7735S 128x160 RGB TFT LCD 模組 (實體化與 API 對接)
-TFT_LCD #(
-	.MAX_CHARS(LCD_MAX_CHARS)
-) TFT_LCD_u1 (
-	.clk           (clk),
-	.rst_n         (rst_n),
-
-	// API Command Bus 對接
-	.cmd_valid     (lcd_cmd_valid),
-	.cmd_type      (lcd_cmd_type),
-	.cmd_char_index(lcd_cmd_char_index),
-	.cmd_ascii     (lcd_cmd_ascii),
-	.cmd_x         (lcd_cmd_x),
-	.cmd_y         (lcd_cmd_y),
-	.cmd_color     (lcd_cmd_color),
-	.cmd_scale     (lcd_cmd_scale),
-
-	// 硬體實體 SPI 腳位
-	.SCL(ST7735S_SCL),
-	.SDA(ST7735S_SDA),
-	.RES(ST7735S_RES),
-	.DC (ST7735S_DC),
-	.CS (ST7735S_CS),
-	.BLK(ST7735S_BLK)
 );
 
 endmodule

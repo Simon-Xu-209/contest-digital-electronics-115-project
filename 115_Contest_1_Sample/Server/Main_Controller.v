@@ -142,6 +142,51 @@ wire joy_down_pulse  = joystick_down  && !joystick_down_d1;
 wire joy_left_pulse  = joystick_left  && !joystick_left_d1;
 wire joy_right_pulse = joystick_right && !joystick_right_d1;
 
+
+
+// 拆解 32 個 Byte (bytes[0] 為 lowest byte，即最後收到的字元)
+wire [7:0] bytes[0:MAX_RX_LEN-1];
+genvar g;
+generate
+	for (g = 0; g < MAX_RX_LEN; g = g + 1) begin : BYTE_ASSIGN
+		assign bytes[g] = rx_data_reg[8*g +: 8];
+	end
+endgenerate
+
+// 搜尋 "Num:" (字串靠右存入，較早收到的字元索引較大)
+// 格式範例：bytes[g+4]="N", bytes[g+3]="u", bytes[g+2]="m", bytes[g+1]=':', bytes[g]="1", bytes[g-1]="\r", bytes[g-2]="\n"
+wire [MAX_RX_LEN-1:0] match_num;
+reg  [8:0]            detected_num;
+reg                   num_found;
+
+generate
+	for (g = 0; g < MAX_RX_LEN-4; g = g + 1) begin : MATCH_GEN
+		assign match_num[g] = (bytes[g+4] == "N") && 
+									(bytes[g+3] == "u") && 
+									(bytes[g+2] == "m") && 
+									(bytes[g+1] == ":");
+	end
+endgenerate
+
+// Num: 擷取
+integer k;
+always @(*) begin
+	num_found    = 1'b0;
+	detected_num = 8'd0;
+	for (k = 0; k < MAX_RX_LEN; k = k + 1) begin
+		if (match_num[k] && !num_found) begin
+			num_found    = 1'b1;
+			// 擷取 "Num:" 後方的 1 碼，高位 Byte 擺左側
+			detected_num = bytes[k];
+		end
+	end
+end
+
+
+
+
+
+
 // --------------------------------------------------------------------
 // 走馬燈動畫內部暫存器
 // --------------------------------------------------------------------
@@ -300,6 +345,15 @@ always @(posedge clk or negedge rst_n) begin
 					lcd_cmd_valid <= 1'b1;
 					lcd_cmd_type  <= 4'd0;
 					lcd_cmd_color <= COLOR_WHITE;
+					if (detected_num == "0") begin
+						seven_segment_chars <= {"INF", 8'h80, "  00"};
+					end else if (detected_num == "1") begin
+						seven_segment_chars <= {"INF", 8'h80, "  01"};
+					end else if (detected_num == "2") begin
+						seven_segment_chars <= {"INF", 8'h80, "  02"};
+					end else if (detected_num == "3") begin
+						seven_segment_chars <= {"INF", 8'h80, "  03"};
+					end
 				end
 				
 				SYS_JOYSTICK: begin
