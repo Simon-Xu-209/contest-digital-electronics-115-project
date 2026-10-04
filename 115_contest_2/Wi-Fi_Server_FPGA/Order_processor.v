@@ -1,29 +1,38 @@
 module Order_processor #(
-	parameter MAX_RX_LEN = 32
+	parameter MAX_RX_LEN = 32,
+	parameter MAX_TX_LEN = 64
 )(
 	input wire                    clk,
 	input wire                    rst_n,
-	input wire                    start_proc,  // 來自 connect_detector 的 conn_pulse
-	input wire [8*MAX_RX_LEN-1:0] rx_Data_reg, // 資料暫存器
-	input wire                    rx_ready,    // 接收完成脈衝
+	input wire                    start_proc,      // 連線觸發脈衝 (conn_pulse)
+	input wire [3:0]              client_id_in,    // 連線的 Client ID
+	input wire [8*MAX_RX_LEN-1:0] rx_Data_reg,     // 接收資料暫存器
+	input wire                    rx_ready,        // 接收完成脈衝
+	input wire                    tx_busy,         // Wi-Fi 傳送忙碌訊號
 
 	input wire [7:0] switch_8bit,
 	input wire [3:0] KEY,
 	input wire       Pressed,
 
+	// 傳送控制與暫存器介面
+	output reg                     send_en,
+	output reg  [3:0]              send_target_id,
+	output reg  [8*MAX_TX_LEN-1:0] send_data_reg,
+
 	// 內部原始訂單資料
-	output reg  [31:0] orderID,       // 訂單 ID (字串)
+	output reg  [31:0] orderID,       // 訂單 ID
 	output reg  [15:0] orderQuantity, // 訂購數量
 	output reg  [15:0] bidAmount,     // 出價金額
 	output reg  [15:0] productQuota,  // 商品配額
 	output wire [31:0] grandTotal,    // 付款總額
 
-	// 專為外送/VB介面打包的傳輸暫存器
-	output reg [31:0] sendID, // 對應 VB 訂單ID
-	output reg [63:0] sendQA, // 對應 VB 訂購數量與出價金額欄位
-	output reg [63:0] sendQT, // 對應 VB 配額與付款總額
+	// 外送/VB介面打包暫存器
+	output reg  [31:0] sendID,
+	output reg  [63:0] sendQA,
+	output reg  [63:0] sendQT,
 
-	output reg proc_done // 通知 tx_buffer_controller 開始發送
+	output reg         proc_done,
+	input  wire        resp_ok
 );
 
 // 拆解 32 個 Byte (bytes[0] 為 lowest byte，即最後收到的字元)
@@ -259,137 +268,187 @@ always@(posedge clk or negedge rst_n) begin
 	end
 end
 
-// 資料傳送狀態機
-reg [1:0] current_send_state;
-reg [1:0] next_send_state;
-localparam S_IDLE = 2'd0,
-			  S_INIT = 2'd1,
-			  S_BACK = 2'd2,
-			  S_SEND = 2'd3;
+// -------------------------------------------------------------
+// 資料傳送與序列發送狀態機 (Auto Sequential Send)
+// -------------------------------------------------------------
+localparam S_IDLE         = 4'd0,
+           S_PREP_DATA    = 4'd1,
+			  
+			  S_INIT_ID      = 4'd2,
+			  S_INIT_QA      = 4'd3,
+			  S_INIT_QT      = 4'd4,
+			  S_WAIT_INIT_ID = 4'd5,
+			  S_WAIT_INIT_QA = 4'd6,
+			  S_WAIT_INIT_QT = 4'd7,
+			  
+           S_TX_ID        = 4'd8,
+           S_WAIT_ID      = 4'd9,
+           S_TX_QA        = 4'd10,
+           S_WAIT_QA      = 4'd11,
+           S_TX_QT        = 4'd12,
+           S_WAIT_QT      = 4'd13;
+
+reg [3:0] tx_seq_state;
+reg [3:0] latched_client_id;
 
 reg rx_ready_flag;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		rx_ready_flag <= 1'b0;
 	end else begin
-		if (rx_ready) begin
-			rx_ready_flag <= 1'b1; // 抓到 rx_ready 脈衝就鎖存住
-		end else if (current_send_state == S_BACK) begin
-			rx_ready_flag <= 1'b0; // 成功進入 S_BACK 後清空
-		end
+		if (rx_ready) rx_ready_flag <= 1'b1;
+		else if (tx_seq_state == S_PREP_DATA) rx_ready_flag <= 1'b0;
 	end
 end
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		current_send_state <= S_IDLE;
+		tx_seq_state      <= S_IDLE;
+		send_en           <= 1'b0;
+		send_target_id    <= 4'd0;
+		send_data_reg     <= {8*MAX_TX_LEN{1'b0}};
+		latched_client_id <= 4'd0;
+		proc_done         <= 1'b0;
+		sendID            <= 32'd0;
+		sendQA            <= 64'd0;
+		sendQT            <= 64'd0;
 	end else begin
-		current_send_state <= next_send_state;
-	end
-end
-
-always @(*) begin
-	next_send_state = current_send_state;
-	case(current_send_state)
-		S_IDLE: begin
-			if ((switch_8bit == 8'b0001_0000) && start_proc) begin
-				next_send_state = S_INIT;
-			end else if (((detected_id == "9901") || (detected_id == "9902")) && rx_ready_flag) begin
-				next_send_state = S_BACK;
-			end
-		end
-		
-		S_INIT: begin
-			next_send_state = S_SEND;
-		end
-		
-		S_BACK: begin
-			next_send_state = S_SEND;
-		end
-		
-		S_SEND: begin
-			next_send_state = S_IDLE;
-		end
-		
-		default:begin
-			next_send_state = S_IDLE;
-		end
-		
-	endcase
-end
-
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
+		send_en   <= 1'b0;
 		proc_done <= 1'b0;
 
-		// 傳輸暫存器預設值
-		sendID <= orderID;
-		sendQA <= {
-					  "0",
-					  "0",
-					  quantity_01_tens, // 訂單01 訂購數量
-					  quantity_01_ones, // 訂單01 訂購數量
-					  "0",
-					  "0",
-					  quantity_02_tens, // 訂單02 訂購數量
-					  quantity_02_ones  // 訂單02 訂購數量
-		};
-		sendQT <= "0000    ";
-	end else begin
-		proc_done <= 1'b0;
-			case (current_send_state)
+		case (tx_seq_state)
 			S_IDLE: begin
-				
+				if (start_proc) begin
+					latched_client_id <= client_id_in; // 鎖存 Client ID
+					// 預載初始化預設資料
+					sendID <= "0102";
+					sendQA <= {"0", "0", quantity_01_tens, quantity_01_ones, "0", "0", quantity_02_tens, quantity_02_ones};
+					sendQT <= "0000    ";
+					tx_seq_state <= S_INIT_ID;
+				end else if (((detected_id == "9901") || (detected_id == "9902")) && rx_ready_flag) begin
+					tx_seq_state <= S_PREP_DATA;
+				end
 			end
 
-			S_INIT: begin
-				// 傳送初始化預設資料給 VB
-				sendID <= "0102"; // 訂單 ID
+			S_PREP_DATA: begin
+				// 收到 VB 查詢回應的裝載邏輯
+				sendID <= detected_id;
 				sendQA <= {
-					  "0",
-					  "0",
-					  quantity_01_tens, // 訂單01 訂購數量
-					  quantity_01_ones, // 訂單01 訂購數量
-					  "0",
-					  "0",
-					  quantity_02_tens, // 訂單02 訂購數量
-					  quantity_02_ones  // 訂單02 訂購數量
-				 };
-				sendQT <= "0000    ";
-			end
-			
-			S_BACK: begin
-				// 收到 VB 查詢資料後，回傳資料給 VB
-				sendID <= detected_id; // 訂單 ID
-				sendQA <= {
-					  "0",
-					  "0",
-					  (detected_id == "9901") ? quantity_01_tens : quantity_02_tens, // 訂購數量
-					  (detected_id == "9901") ? quantity_01_ones : quantity_02_ones, // 訂購數量
-					  "0",
-					  "0",
-					  (detected_id == "9901") ? amount_01_tens : amount_02_tens, // 出價金額
-					  (detected_id == "9901") ? amount_01_ones : amount_02_ones  // 出價金額
-				 };
+					"0", "0",
+					(detected_id == "9901") ? quantity_01_tens : quantity_02_tens,
+					(detected_id == "9901") ? quantity_01_ones : quantity_02_ones,
+					"0", "0",
+					(detected_id == "9901") ? amount_01_tens : amount_02_tens,
+					(detected_id == "9901") ? amount_01_ones : amount_02_ones
+				};
 				sendQT <= {
 					"#",
 					(detected_id == "9901") ? quota_01_tens : quota_02_tens,
 					(detected_id == "9901") ? quota_01_ones : quota_02_ones,
 					"$",
 					(detected_id == "9901") ? total_01_thousands : total_02_thousands,
-					(detected_id == "9901") ? total_01_hundreds : total_02_hundreds,
-					(detected_id == "9901") ? total_01_tens : total_02_tens,
-					(detected_id == "9901") ? total_01_ones : total_02_ones
+					(detected_id == "9901") ? total_01_hundreds  : total_02_hundreds,
+					(detected_id == "9901") ? total_01_tens      : total_02_tens,
+					(detected_id == "9901") ? total_01_ones      : total_02_ones
 				};
+				tx_seq_state <= S_TX_ID;
 			end
 
-			S_SEND: begin
-				proc_done <= 1'b1; // 發送單週期完成脈衝
-			end
-
-			default: begin
+			S_INIT_ID: begin
+				if (!tx_busy) begin
+					send_target_id <= latched_client_id;
+					send_data_reg  <= "0102\r\n";
+					send_en        <= 1'b1;
+					tx_seq_state   <= S_WAIT_INIT_ID;
+				end
 			end
 			
+			S_WAIT_INIT_ID: begin
+				if (!tx_busy && !send_en) begin
+					tx_seq_state <= S_INIT_QA;
+				end
+			end
+			
+			S_INIT_QA: begin
+				if (!tx_busy) begin
+					send_target_id <= latched_client_id;
+					send_data_reg  <= "0102\r\n";
+					send_en        <= 1'b1;
+					tx_seq_state   <= S_WAIT_INIT_QA;
+				end
+			end
+			
+			S_WAIT_INIT_QA: begin
+				if (!tx_busy && !send_en) begin
+					tx_seq_state <= S_INIT_QT;
+				end
+			end
+			
+			S_INIT_QT: begin
+				if (!tx_busy) begin
+					send_target_id <= latched_client_id;
+					send_data_reg  <= "0102\r\n";
+					send_en        <= 1'b1;
+					tx_seq_state   <= S_WAIT_INIT_QT;
+				end
+			end
+			
+			S_WAIT_INIT_QT: begin
+				if (!tx_busy && !send_en) begin
+					tx_seq_state <= S_IDLE;
+				end
+			end
+			
+			// 1. 發送 sendID
+			S_TX_ID: begin
+				if (!tx_busy && resp_ok) begin
+					send_target_id <= latched_client_id;
+					send_data_reg  <= {sendID, "\r\n"};
+					send_en        <= 1'b1;
+					tx_seq_state   <= S_WAIT_ID;
+				end
+			end
+
+			S_WAIT_ID: begin
+				if (!tx_busy && !send_en) begin
+					tx_seq_state <= S_TX_QA;
+				end
+			end
+
+			// 2. 發送 sendQA
+			S_TX_QA: begin
+				if (!tx_busy && resp_ok) begin
+					send_target_id <= latched_client_id;
+					// send_data_reg  <= {sendQA, "\r\n"};
+					send_data_reg  <= {"0", "0", quantity_01_tens, quantity_01_ones, "0", "0", quantity_02_tens, quantity_02_ones};
+					send_en        <= 1'b1;
+					tx_seq_state   <= S_WAIT_QA;
+				end
+			end
+
+			S_WAIT_QA: begin
+				if (!tx_busy && !send_en) begin
+					tx_seq_state <= S_TX_QT;
+				end
+			end
+
+			// 3. 發送 sendQT
+			S_TX_QT: begin
+				if (!tx_busy && resp_ok) begin
+					send_target_id <= latched_client_id;
+					send_data_reg  <= {sendQT, "\r\n"};
+					send_en        <= 1'b1;
+					tx_seq_state   <= S_WAIT_QT;
+				end
+			end
+
+			S_WAIT_QT: begin
+				if (!tx_busy && !send_en) begin
+					tx_seq_state <= S_IDLE;
+				end
+			end
+
+			default: tx_seq_state <= S_IDLE;
 		endcase
 	end
 end

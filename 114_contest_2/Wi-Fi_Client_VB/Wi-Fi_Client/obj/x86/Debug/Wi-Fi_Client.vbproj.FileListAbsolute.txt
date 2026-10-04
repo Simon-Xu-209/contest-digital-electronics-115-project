@@ -38,3 +38,14 @@ C:\Users\student\Desktop\115 Project\114_contest_2\Wi-Fi_Client_VB\Wi-Fi_Client\
 C:\Users\student\Desktop\115 Project\114_contest_2\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\WindowsApplication1.Form1.resources
 C:\Users\student\Desktop\115 Project\114_contest_2\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\WindowsApplication1.Resources.resources
 C:\Users\student\Desktop\115 Project\114_contest_2\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.vbproj.GenerateResource.Cache
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\bin\Debug\Wi-Fi_Client.exe
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\bin\Debug\Wi-Fi_Client.pdb
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\bin\Debug\Wi-Fi_Client.xml
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.vbproj.AssemblyReference.cache
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\WindowsApplication1.Form1.resources
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\WindowsApplication1.Resources.resources
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.vbproj.GenerateResource.cache
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.vbproj.CoreCompileInputs.cache
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.exe
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.xml
+C:\Users\adminuser\Desktop\115 Project\114_contest_2 (old)\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.pdb
