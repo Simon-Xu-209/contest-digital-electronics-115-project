@@ -153,10 +153,10 @@ always @(posedge clk or negedge rst_n) begin
 				end
 			end
 
-			// Step 2: AT+RFPOWER=0
+			// Step 2: AT+CWMODE=1
 			4'd3: begin
 				if (!tx_busy) begin
-					tx_data_reg <= "AT+RFPOWER=0\r\n"; // 設定為 Station (Client) 模式 (CWMODE=1)
+					tx_data_reg <= "AT+CWMODE=1\r\n"; // 設定 Wi-Fi 模式 （1 為 Station 模式連別人的 Wi-Fi; 2 為 AP 模式自己發熱點; 3 為雙模共存）
 					tx_start       <= 1'b1;
 					init_step      <= 4'd4;
 				end
