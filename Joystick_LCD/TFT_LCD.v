@@ -28,6 +28,8 @@ parameter CLK_FREQ = 32'd50_000_000; // 請根據實際開發板時脈調整 (�
 reg [31:0] one_sec_cnt;
 reg        one_sec_pulse;
 
+reg [31:0] timer_cnt;
+
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		one_sec_cnt   <= 0;
@@ -70,12 +72,14 @@ reg [3:0] coord_col;      // 1~8
 
 
 
-reg [1:0] current_sys_mode;
-reg [1:0] next_sys_mode;
-localparam SYS_IDLE       = 2'd0,
-			  SYS_INITIAL    = 2'd1,
-			  SYS_ANIMATION  = 2'd2,
-			  SYS_COORDINATE = 2'd3;
+reg [2:0] current_sys_mode;
+reg [2:0] next_sys_mode;
+localparam SYS_IDLE        = 3'd0,
+			  SYS_INITIAL     = 3'd1,
+			  SYS_ARROW_RIGHT = 3'd2,
+			  SYS_ARROW_DOWN  = 3'd3,
+			  SYS_ARROW_LEFT  = 3'd4,
+			  SYS_ARROW_UP    = 3'd5;
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
@@ -88,23 +92,39 @@ end
 always @(*) begin
 	next_sys_mode = current_sys_mode;
 	case(current_sys_mode)
-		SYS_IDLE: begin end
-		
-		SYS_INITIAL: begin
-			next_sys_mode = SYS_ANIMATION;
+		SYS_IDLE: begin
+			next_sys_mode = SYS_ARROW_RIGHT;
 		end
 		
-		SYS_ANIMATION: begin end
+		SYS_ARROW_RIGHT: begin
+			if (img_move_x >= 64) begin
+				next_sys_mode = SYS_ARROW_DOWN;
+			end
+		end
 		
-		SYS_COORDINATE: begin end
+		SYS_ARROW_DOWN: begin
+			if (img_move_y >= 96) begin
+				next_sys_mode = SYS_ARROW_LEFT;
+			end
+		end
+		
+		SYS_ARROW_LEFT: begin
+			if (img_move_x <= 0) begin
+				next_sys_mode = SYS_ARROW_UP;
+			end
+		end
+		
+		SYS_ARROW_UP: begin
+			if (img_move_y <= 0) begin
+				next_sys_mode = SYS_ARROW_RIGHT;
+			end
+		end
 		
 		default:;
 	endcase
 	
-	if ((switch_8bit[1:0] == 2'b00)/* && (key2x2_pulse == 0)*/) begin
-		next_sys_mode = SYS_ANIMATION;
-	end else if ((switch_8bit[1:0] == 2'b11)/* && (key2x2_pulse == 0)*/) begin
-		next_sys_mode = SYS_COORDINATE;
+	if ((switch_8bit[1:0] == 2'b11)) begin
+		next_sys_mode = SYS_IDLE;
 	end
 end
 
@@ -120,71 +140,49 @@ always @(posedge clk or negedge rst_n) begin
 		for (i = 0; i < MAX_CHARS; i = i + 1) begin
 			char_scale[i] <= 2'd2;
 		end
-
-		// 上方 4 個紅色英文字母位置
-		char_color[0] <= COLOR_RED; char_x[0] <= 8'd16; char_y[0] <= 8'd10;
-		char_color[1] <= COLOR_RED; char_x[1] <= 8'd40; char_y[1] <= 8'd10;
-		char_color[2] <= COLOR_RED; char_x[2] <= 8'd64; char_y[2] <= 8'd10;
-		char_color[3] <= COLOR_RED; char_x[3] <= 8'd88; char_y[3] <= 8'd10;
 		
 	end else begin
+		if (timer_cnt < CLK_FREQ/100) begin
+			timer_cnt <= timer_cnt + 1;
+		end else begin
+			timer_cnt <= 32'd0;
+		end
+		
 		case(current_sys_mode)
 			SYS_IDLE: begin end
 			
 			SYS_INITIAL: begin end
 			
-			SYS_ANIMATION: begin
-				 if (one_sec_pulse) begin
-					char_ascii[4] <= "["; char_ascii[6] <= ","; char_ascii[8] <= "]";
-					// 下方 5 個藍色座標文字位置
-					char_scale[4] <= 2'd2; char_color[4] <= COLOR_BLUE; char_x[4] <= 8'd5;   char_y[4] <= 8'd65;
-					char_scale[5] <= 2'd2; char_color[5] <= COLOR_BLUE; char_x[5] <= 8'd29;  char_y[5] <= 8'd65; // Row
-					char_scale[6] <= 2'd2; char_color[6] <= COLOR_BLUE; char_x[6] <= 8'd53;  char_y[6] <= 8'd65;
-					char_scale[7] <= 2'd2; char_color[7] <= COLOR_BLUE; char_x[7] <= 8'd77;  char_y[7] <= 8'd65; // Col
-					char_scale[8] <= 2'd2; char_color[8] <= COLOR_BLUE; char_x[8] <= 8'd101; char_y[8] <= 8'd65;
-				
-					if (char_group_cnt < 6)
-						char_group_cnt <= char_group_cnt + 1;
-					else
-						char_group_cnt <= 0;
-					case (char_group_cnt)
-						3'd0: begin char_ascii[0] <= "A"; char_ascii[1] <= "B"; char_ascii[2] <= "C"; char_ascii[3] <= "D"; end
-						3'd1: begin char_ascii[0] <= "E"; char_ascii[1] <= "F"; char_ascii[2] <= "G"; char_ascii[3] <= "H"; end
-						3'd2: begin char_ascii[0] <= "I"; char_ascii[1] <= "J"; char_ascii[2] <= "K"; char_ascii[3] <= "L"; end
-						3'd3: begin char_ascii[0] <= "M"; char_ascii[1] <= "N"; char_ascii[2] <= "O"; char_ascii[3] <= "P"; end
-						3'd4: begin char_ascii[0] <= "Q"; char_ascii[1] <= "R"; char_ascii[2] <= "S"; char_ascii[3] <= "T"; end
-						3'd5: begin char_ascii[0] <= "U"; char_ascii[1] <= "V"; char_ascii[2] <= "W"; char_ascii[3] <= "X"; end
-						3'd6: begin char_ascii[0] <= "Y"; char_ascii[1] <= "Z"; char_ascii[2] <= " "; char_ascii[3] <= " "; end
-						default: begin char_ascii[0] <= " "; char_ascii[1] <= " "; char_ascii[2] <= " "; char_ascii[3] <= " "; end
-					endcase
-					
-					if (coord_col < 8) begin
-						coord_col <= coord_col + 1;
-					end else begin
-						coord_col <= 1;
-						if (coord_row < 8) begin
-							coord_row <= coord_row + 1;
-						end else begin
-							coord_row <= 0;
-						end
+			SYS_ARROW_RIGHT: begin
+				if (timer_cnt >= CLK_FREQ/100) begin
+					if (img_move_x < 64) begin
+						img_move_x <= img_move_x + 1;
 					end
-
-					// 將數字轉為 ASCII 碼 (加上 8'd48)
-					char_ascii[5] <= 8'd48 + coord_row;
-					char_ascii[7] <= 8'd48 + coord_col;
 				end
 			end
 			
-			SYS_COORDINATE: begin
-				char_scale[0] <= 2'd2; char_ascii[0] <= "A";
-				char_scale[1] <= 2'd2; char_ascii[1] <= "B";
-				char_scale[2] <= 2'd2; char_ascii[2] <= "C";
-				char_scale[3] <= 2'd2; char_ascii[3] <= "D";
-				char_scale[4] <= 2'd1; char_ascii[4] <= "["; char_x[4] <= 8'd24; char_y[4] <= 8'd65;
-				char_scale[5] <= 2'd1; char_ascii[5] <= 8'd48; char_x[5] <= 8'd40; char_y[5] <= 8'd65; //
-				char_scale[6] <= 2'd1; char_ascii[6] <= ","; char_x[6] <= 8'd56; char_y[6] <= 8'd65;
-				char_scale[7] <= 2'd1; char_ascii[7] <= 8'd48; char_x[7] <= 8'd72; char_y[7] <= 8'd65; //
-				char_scale[8] <= 2'd1; char_ascii[8] <= "]"; char_x[8] <= 8'd88; char_y[8] <= 8'd65;
+			SYS_ARROW_DOWN: begin
+				if (timer_cnt >= CLK_FREQ/100) begin
+					if (img_move_y < 96) begin
+						img_move_y <= img_move_y + 1;
+					end
+				end
+			end
+			
+			SYS_ARROW_LEFT: begin
+				if (timer_cnt >= CLK_FREQ/100) begin
+					if (img_move_x > 0) begin
+						img_move_x <= img_move_x - 1;
+					end
+				end
+			end
+			
+			SYS_ARROW_UP: begin
+				if (timer_cnt >= CLK_FREQ/100) begin
+					if (img_move_y > 0) begin
+						img_move_y <= img_move_y - 1;
+					end
+				end
 			end
 			
 			default:;
@@ -242,8 +240,7 @@ wire ascii_pixel_on = hit_text && ascii_bits[4'd7 - active_lx];
 
 // 根據 x_cnt 的低 3 位 (0~7) 判斷當前像素是 Byte 中的哪一位
 // 註：若圖檔高低位顛倒，可自行將 4'd7 - x_cnt[2:0] 改為 x_cnt[2:0]
-wire arrow_pixel_on = hit_img && arrow_rom_data[x_cnt[2:0]];
-
+wire arrow_pixel_on = hit_img && ~arrow_rom_data[arrow_bit_idx];
 reg hit_img;
 always@(*)begin
 	if (x_cnt >= img_move_x && x_cnt < (64 + img_move_x) &&
@@ -257,16 +254,15 @@ end
 
 reg [6:0] img_move_x;
 reg [6:0] img_move_y;
-always@(posedge one_sec_pulse)begin
-	if (img_move_x < 64) begin
-		img_move_x <= img_move_x + 8;
-	end else if (img_move_y < 64) begin
-		img_move_y <= img_move_y + 8;
-	end else if ((img_move_x >= 64) && (img_move_y >= 64)) begin
-		img_move_x <= 0;
-		img_move_y <= 0;
-	end
-end
+
+wire [6:0] img_rel_x = x_cnt - img_move_x; // 相對 X 座標 (0~63)
+wire [6:0] img_rel_y = y_cnt - img_move_y; // 相對 Y 座標 (0~63)
+
+wire [7:0] arrow_rom_data;
+
+// 將相對 X 座標轉換為 Byte 索引 (0~7)
+wire [2:0] arrow_col_byte = 3'd7 - img_rel_x[5:3];
+wire [2:0] arrow_bit_idx = 3'd7 - img_rel_x[2:0];
 
 /*
 wire [15:0] addr    = (char_idx << 4) + active_ly;
@@ -276,21 +272,21 @@ wire show_arrow_mode = (switch_8bit[2] == 1'b1);
 
 reg [15:0] pixel_color;
 always @(*) begin
-    if (show_arrow_mode) begin
-        // --- 顯示箭頭 ROM 模式 ---
-        if (arrow_pixel_on) begin
-            pixel_color = COLOR_WHITE; // 箭頭主體顏色
-        end else begin
-            pixel_color = COLOR_BLACK; // 箭頭背景顏色
-        end
-    end else begin
-        // --- 顯示原本的 ASCII 文字模式 ---
-        if (ascii_pixel_on) begin
-            pixel_color = active_color; // ASCII 前景色
-        end else begin
-            pixel_color = COLOR_BLACK;  // ASCII 背景色
-        end
-    end
+	if (show_arrow_mode) begin
+		// --- 顯示箭頭 ROM 模式 ---
+		if (arrow_pixel_on) begin
+			pixel_color = COLOR_BLACK;
+		end else begin
+			pixel_color = COLOR_WHITE;
+		end
+	end else begin
+		// --- 顯示原本的 ASCII 文字模式 ---
+		if (ascii_pixel_on) begin
+			pixel_color = active_color; // ASCII 前景色
+		end else begin
+			pixel_color = COLOR_BLACK;  // ASCII 背景色
+		end
+	end
 end
 
 
@@ -432,22 +428,12 @@ end
 
 
 // -------------------------------------------------------------------------
-// 1. 獨立的箭頭 ROM (UP_ROM) 介面與實例化
+// 獨立的箭頭 ROM (UP_ROM) 介面與實例化
 // -------------------------------------------------------------------------
-wire [7:0] arrow_rom_data;
-wire [2:0] arrow_col_byte = x_cnt[5:3]; // x_cnt / 8 (每 8 個像素為 1 個 Byte)
-/*
-UP_ROM UP_ROM_inst (
-	.row      (y_cnt),           // 垂直座標 (0~159)
-	.col_byte (arrow_col_byte),  // 水平 Byte 索引 (0~15)
-	.data_out (arrow_rom_data),
-	.joy_x    (joystick_x),
-	.joy_y    (joystick_y),
-	.joy_z    (joystick_z)
-);*/
-
 arrow_ROM arrow_ROM_inst (
-	.row      (y_cnt),           // 垂直座標 (0~63)
+	.sys_state(current_sys_mode),
+
+	.row      (img_rel_y),       // 垂直座標 (0~63)
 	.col_byte (arrow_col_byte),  // 水平 Byte 索引 (0~7)
 	.data_out (arrow_rom_data),
 	.joy_x    (joystick_x),

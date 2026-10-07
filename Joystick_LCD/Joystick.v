@@ -7,9 +7,11 @@ module Joystick (
 	input  wire ADS1115_ALRT, // ADS1115 ADC ALERT (可不接)
 	input  wire Joystick_SW,  // 搖桿按鈕 (z 軸，按下為 Low)
 
-	output wire [15:0] joy_x,  // X 軸類比數值暫存器
-	output wire [15:0] joy_y,  // Y 軸類比數值暫存器
-	output reg         joy_z   // Z 軸按鈕狀態 (去彈跳後，1: 放開, 0: 按下)
+	output reg [15:0] joy_x,  // X 軸類比數值暫存器
+	output reg [15:0] joy_y,  // Y 軸類比數值暫存器
+	output reg        joy_z,  // Z 軸按鈕狀態 (去彈跳後，1: 放開, 0: 按下)
+	
+	output reg joy_right, joy_left, joy_up, joy_down
 );
 
 // -------------------------------------------------------------
@@ -28,8 +30,20 @@ ADS1115_Driver ads_driver_u1 (
 	.update_valid()
 );
 
-assign joy_x = raw_x;
-assign joy_y = raw_y;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n)begin
+		joy_x = 8700;
+		joy_y = 8700;
+	end else begin
+		joy_x = raw_x;
+		joy_y = raw_y;
+		
+		joy_right <= (joy_x > 10000) ? 1'b1 : 1'b0;
+		joy_left  <= (joy_x < 6000)  ? 1'b1 : 1'b0;
+		joy_down  <= (joy_y > 10000) ? 1'b1 : 1'b0;
+		joy_up    <= (joy_y < 6000)  ? 1'b1 : 1'b0;
+	end
+end
 
 // -------------------------------------------------------------
 // Joystick Z 軸按鍵去彈跳邏輯 (Debounce Circuit)
