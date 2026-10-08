@@ -42,14 +42,16 @@ always @(*) begin
 end*/
 
 always @(*) begin
-	if (joy_x > 10000) begin
+	if (joy_x > 11000) begin
 		line_data = arrow_right_rom[row];
-	end else if (joy_y > 10000) begin
+	end else if (joy_y > 11000) begin
 		line_data = arrow_down_rom[row];
-	end else if (joy_x < 1000) begin
+	end else if (joy_x < 6000) begin
 		line_data = arrow_left_rom[row];
-	end else if (joy_y < 1000) begin
+	end else if (joy_y < 6000) begin
 		line_data = arrow_up_rom[row];
+	end else begin
+		line_data = ~64'd0;
 	end
 end
 

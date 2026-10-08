@@ -133,4 +133,5 @@ set_global_assignment -name OPTIMIZE_MULTI_CORNER_TIMING ON
 set_global_assignment -name VERILOG_FILE UP_ROM.v
 set_global_assignment -name VERILOG_FILE DOWN_ROM.v
 set_global_assignment -name VERILOG_FILE arrow_ROM.v
+set_global_assignment -name VERILOG_FILE Image_ROM_Bank.v
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

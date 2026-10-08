@@ -97,25 +97,25 @@ always @(*) begin
 		end
 		
 		SYS_ARROW_RIGHT: begin
-			if (img_move_x >= 64) begin
+			if (img_pos_x >= 64) begin
 				next_sys_mode = SYS_ARROW_DOWN;
 			end
 		end
 		
 		SYS_ARROW_DOWN: begin
-			if (img_move_y >= 96) begin
+			if (img_pos_y >= 96) begin
 				next_sys_mode = SYS_ARROW_LEFT;
 			end
 		end
 		
 		SYS_ARROW_LEFT: begin
-			if (img_move_x <= 0) begin
+			if (img_pos_x <= 0) begin
 				next_sys_mode = SYS_ARROW_UP;
 			end
 		end
 		
 		SYS_ARROW_UP: begin
-			if (img_move_y <= 0) begin
+			if (img_pos_y <= 0) begin
 				next_sys_mode = SYS_ARROW_RIGHT;
 			end
 		end
@@ -155,32 +155,32 @@ always @(posedge clk or negedge rst_n) begin
 			
 			SYS_ARROW_RIGHT: begin
 				if (timer_cnt >= CLK_FREQ/100) begin
-					if (img_move_x < 64) begin
-						img_move_x <= img_move_x + 1;
+					if (img_pos_x < 64) begin
+						img_pos_x <= img_pos_x + 1;
 					end
 				end
 			end
 			
 			SYS_ARROW_DOWN: begin
 				if (timer_cnt >= CLK_FREQ/100) begin
-					if (img_move_y < 96) begin
-						img_move_y <= img_move_y + 1;
+					if (img_pos_y < 96) begin
+						img_pos_y <= img_pos_y + 1;
 					end
 				end
 			end
 			
 			SYS_ARROW_LEFT: begin
 				if (timer_cnt >= CLK_FREQ/100) begin
-					if (img_move_x > 0) begin
-						img_move_x <= img_move_x - 1;
+					if (img_pos_x > 0) begin
+						img_pos_x <= img_pos_x - 1;
 					end
 				end
 			end
 			
 			SYS_ARROW_UP: begin
 				if (timer_cnt >= CLK_FREQ/100) begin
-					if (img_move_y > 0) begin
-						img_move_y <= img_move_y - 1;
+					if (img_pos_y > 0) begin
+						img_pos_y <= img_pos_y - 1;
 					end
 				end
 			end
@@ -238,56 +238,76 @@ wire [7:0]  ascii_bits = font_rom[ascii_addr];
 
 wire ascii_pixel_on = hit_text && ascii_bits[4'd7 - active_lx];
 
-// 根據 x_cnt 的低 3 位 (0~7) 判斷當前像素是 Byte 中的哪一位
-// 註：若圖檔高低位顛倒，可自行將 4'd7 - x_cnt[2:0] 改為 x_cnt[2:0]
-wire arrow_pixel_on = hit_img && ~arrow_rom_data[arrow_bit_idx];
-reg hit_img;
-always@(*)begin
-	if (x_cnt >= img_move_x && x_cnt < (64 + img_move_x) &&
-		y_cnt >= img_move_y && y_cnt < (64 + img_move_y)) begin
-
-		hit_img     = 1'b1;
-	end else begin
-		hit_img     = 1'b0;
-	end
-end
-
-reg [6:0] img_move_x;
-reg [6:0] img_move_y;
-
-wire [6:0] img_rel_x = x_cnt - img_move_x; // 相對 X 座標 (0~63)
-wire [6:0] img_rel_y = y_cnt - img_move_y; // 相對 Y 座標 (0~63)
-
-wire [7:0] arrow_rom_data;
-
-// 將相對 X 座標轉換為 Byte 索引 (0~7)
-wire [2:0] arrow_col_byte = 3'd7 - img_rel_x[5:3];
-wire [2:0] arrow_bit_idx = 3'd7 - img_rel_x[2:0];
-
-/*
-wire [15:0] addr    = (char_idx << 4) + active_ly;
-wire [7:0]  bits    = font_rom[addr];*/
-
 wire show_arrow_mode = (switch_8bit[2] == 1'b1);
 
 reg [15:0] pixel_color;
+
 always @(*) begin
-	if (show_arrow_mode) begin
-		// --- 顯示箭頭 ROM 模式 ---
-		if (arrow_pixel_on) begin
-			pixel_color = COLOR_BLACK;
-		end else begin
-			pixel_color = COLOR_WHITE;
-		end
-	end else begin
-		// --- 顯示原本的 ASCII 文字模式 ---
-		if (ascii_pixel_on) begin
-			pixel_color = active_color; // ASCII 前景色
-		end else begin
-			pixel_color = COLOR_BLACK;  // ASCII 背景色
-		end
+    if (show_arrow_mode) begin
+        pixel_color = draw_pixel_color;
+    end else begin
+        pixel_color = ascii_pixel_on ? active_color : COLOR_BLACK;
+    end
+end
+
+
+
+parameter IMG_W = 64;
+parameter IMG_H = 64;
+
+reg [6:0] img_pos_x, img_pos_y;
+
+wire is_inside_img_box = (x_cnt >= img_pos_x) && (x_cnt < (img_pos_x + IMG_W)) &&
+								 (y_cnt >= img_pos_y) && (y_cnt < (img_pos_y + IMG_H));
+
+// --- 計算相對座標 (Relative Coordinates) ---
+// 相對座標永遠為 0 ~ (IMG_SIZE - 1)，方便直接扔給 ROM 查詢
+wire [5:0] img_rel_x = is_inside_img_box ? (x_cnt - img_pos_x) : 6'd0;
+wire [5:0] img_rel_y = is_inside_img_box ? (y_cnt - img_pos_y) : 6'd0;
+
+// --- 多圖層顏色管線 (Color Pipeline) ---
+reg [15:0] draw_pixel_color;
+
+always @(*) begin
+// 預設背景色
+	draw_pixel_color = COLOR_BLACK;
+
+	// 圖層 1: 箭頭圖像 (當 Hit 且 ROM 對應位元被點亮時)
+	if (is_inside_img_box && img_pixel_active) begin
+		draw_pixel_color = COLOR_WHITE;
+	end
+	// 圖層 2: 文字 (如果有文字要蓋在上面或並存)
+	else if (ascii_pixel_on) begin
+		draw_pixel_color = active_color;
 	end
 end
+
+reg [1:0] current_direction;
+
+always @(*) begin
+	if (joy_x > 11000) begin
+		current_direction = 2'd0;
+	end else if (joy_y > 11000) begin
+		current_direction = 2'd1;
+	end else if (joy_x < 6000) begin
+		current_direction = 2'd2;
+	end else if (joy_y < 6000) begin
+		current_direction = 2'd3;
+	end
+end
+
+wire img_pixel_active;
+Image_ROM_Bank #(
+	.IMG_WIDTH(64),
+	.IMG_HEIGHT(64)
+) u_image_rom (
+	.img_index(0), // 0:RIGHT, 1:DOWN, 2:LEFT, 3:UP
+	.rel_x    (img_rel_x),
+	.rel_y    (img_rel_y),
+	.pixel_on (img_pixel_active)
+);
+
+
 
 
 
@@ -424,21 +444,5 @@ reg [7:0] font_rom [0:1519];
 initial begin
 	$readmemh("ASCII_32to126.txt", font_rom);
 end
-
-
-
-// -------------------------------------------------------------------------
-// 獨立的箭頭 ROM (UP_ROM) 介面與實例化
-// -------------------------------------------------------------------------
-arrow_ROM arrow_ROM_inst (
-	.sys_state(current_sys_mode),
-
-	.row      (img_rel_y),       // 垂直座標 (0~63)
-	.col_byte (arrow_col_byte),  // 水平 Byte 索引 (0~7)
-	.data_out (arrow_rom_data),
-	.joy_x    (joystick_x),
-	.joy_y    (joystick_y),
-	.joy_z    (joystick_z)  
-);
 
 endmodule
