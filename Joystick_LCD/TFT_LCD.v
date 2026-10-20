@@ -302,6 +302,18 @@ Image_ROM_Bank #(
 	.IMG_HEIGHT(64)
 ) u_image_rom (
 	.img_index(0), // 0:RIGHT, 1:DOWN, 2:LEFT, 3:UP
+	.rel_x    (),
+	.rel_y    (),
+	.pixel_on ()
+);
+
+Generic_Image_ROM #(
+	.IMG_WIDTH (64),
+	.IMG_HEIGHT(64),
+	.TOTAL_IMGS(4),
+	.FILE_PATH ("arrows_combined.txt")
+) u_small_icon_rom (
+	.img_index(current_direction),
 	.rel_x    (img_rel_x),
 	.rel_y    (img_rel_y),
 	.pixel_on (img_pixel_active)

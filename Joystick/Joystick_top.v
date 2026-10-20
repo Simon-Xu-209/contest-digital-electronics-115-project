@@ -2,7 +2,7 @@
 module Joystick_top (
 	input  wire         clk,        // 開發板系統時脈
 	input  wire         rst_n,      // 復位按鍵
-    
+   
 	// 開發板上的模組接腳
 	output wire SCL,    // ADC SCL      / J10_SCL
 	inout  wire SDA,    // ADC SDA      / J10_SDA
