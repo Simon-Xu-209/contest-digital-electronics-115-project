@@ -14,8 +14,8 @@ module L293D (
 always @(*) begin
 	case (dir_select)
 		2'b01: begin // 正轉
-			 IN1 = 1'b1;
-			 IN2 = 1'b0;
+			IN1 = 1'b1;
+			IN2 = 1'b0;
 		end
 		2'b10: begin // 反轉
 			IN1 = 1'b0;
