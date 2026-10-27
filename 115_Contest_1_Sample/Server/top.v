@@ -42,22 +42,23 @@ module top (
 	output wire USB2UART_WiFi_rx  // USB to TTL 的 rx
 );
 
-parameter CLK_FREQ    = 50_000_000; // 50MHz
-parameter BAUD        = 115200;     // UART 鮑率
-parameter MAX_TX_LEN  = 64;         // UART 最大可接收的 AT 指令/資料位元數
-parameter MAX_RX_LEN  = 32;         // UART 最大可接收的資料位元數
-parameter LCD_MAX_CHARS = 16;
+parameter CLK_FREQ      = 50_000_000; // 50MHz
+parameter BAUD          = 115200;     // UART 鮑率
+parameter MAX_TX_LEN    = 64;         // UART 最大可接收的 AT 指令/資料位元數
+parameter MAX_RX_LEN    = 32;         // UART 最大可接收的資料位元數
+parameter LCD_MAX_CHARS = 9;          // LCD 最多可顯示的 ASCII 碼數量
 
 assign USB2UART_WiFi_tx = WiFi_tx;
 assign USB2UART_WiFi_rx = WiFi_rx;
 
 // 內部控制線路連線
 wire [2:0] sys_state;
-wire       joy_z_pulse;
-wire       joy_up_pulse;
-wire       joy_down_pulse;
-wire       joy_left_pulse;
-wire       joy_right_pulse;
+
+wire       joystick_z_pulse;
+wire       joystick_up_pulse;
+wire       joystick_down_pulse;
+wire       joystick_left_pulse;
+wire       joystick_right_pulse;
 
 // 專案主控制電路
 Main_Controller #(
@@ -78,11 +79,6 @@ Main_Controller #(
 	.seven_segment_chars (seven_segment_chars),
 	
 	.sys_state           (sys_state),
-	.joy_z_pulse_out     (joy_z_pulse),
-	.joy_up_pulse_out    (joy_up_pulse),
-	.joy_down_pulse_out  (joy_down_pulse),
-	.joy_left_pulse_out  (joy_left_pulse),
-	.joy_right_pulse_out (joy_right_pulse),
 	
 	.send_en             (send_en),
 	.send_target_id      (rx_link_id),
@@ -119,15 +115,27 @@ wire [15:0] joystick_y;
 wire        joystick_z;
 
 Joystick Joystick_u1 (
-	.clk         (clk),
-	.rst_n       (rst_n),
-	.ADS1115_SCL (ADS1115_SCL),
-	.ADS1115_SDA (ADS1115_SDA),
-	.ADS1115_ALRT(ADS1115_ALRT),
-	.Joystick_SW (Joystick_SW),
-	.joy_x       (joystick_x),
-	.joy_y       (joystick_y),
-	.joy_z       (joystick_z)
+	.clk            (clk),
+	.rst_n          (rst_n),
+	.ADS1115_SCL    (ADS1115_SCL),
+	.ADS1115_SDA    (ADS1115_SDA),
+	.ADS1115_ALRT   (ADS1115_ALRT),
+	.Joystick_SW    (Joystick_SW),
+	
+	.joy_x          (joystick_x),
+	.joy_y          (joystick_y),
+	.joy_z          (joystick_z),
+	
+	.joystick_up    (joystick_up),
+	.joystick_down  (joystick_down),
+	.joystick_right (joystick_right),
+	.joystick_left  (joystick_left),
+	
+	.joystick_z_pulse    (joystick_z_pulse),
+	.joystick_up_pulse   (joystick_up_pulse),
+	.joystick_down_pulse (joystick_down_pulse),
+	.joystick_right_pulse(joystick_right_pulse),
+	.joystick_left_pulse  (joystick_left_pulse)
 );
 
 // ESP8266 Wi-Fi 模組
@@ -167,7 +175,7 @@ WiFi_Controller #(
 wire [63:0] seven_segment_chars;
 wire [7:0]  brightness_pwm = 8'd255;
 
-Seven_Segment_Display (
+Seven_Segment_Display Seven_Segment_Display_u1(
 	.clk              (clk),
 	.rst_n            (rst_n),
 	.display_chars    (seven_segment_chars),
@@ -177,22 +185,19 @@ Seven_Segment_Display (
 );
 
 // WS2812B 8x8 LED 矩陣模組
-wire ws_busy;
-
 WS2812B #(
 	.CLK_FREQ(50_000_000)
 ) WS2812B_u1 (
-	.clk             (clk),
-	.rst_n           (rst_n),
-	.sys_state       (sys_state),
-	.joy_z_pulse     (joy_z_pulse),
-	.joy_up_pulse    (joy_up_pulse),
-	.joy_down_pulse  (joy_down_pulse),
-	.joy_left_pulse  (joy_left_pulse),
-	.joy_right_pulse (joy_right_pulse),
-	.busy            (ws_busy),
-	.WS2812B_8x8_DIN (WS2812B_8x8_DIN),
-	.WS2812B_8x8_DOUT(WS2812B_8x8_DOUT)
+	.clk                 (clk),
+	.rst_n               (rst_n),
+	.sys_state           (sys_state),
+	.joystick_z_pulse    (joystick_z_pulse),
+	.joystick_up_pulse   (joystick_up_pulse),
+	.joystick_down_pulse (joystick_down_pulse),
+	.joystick_left_pulse (joystick_left_pulse),
+	.joystick_right_pulse(joystick_right_pulse),
+	.WS2812B_8x8_DIN     (WS2812B_8x8_DIN),
+	.WS2812B_8x8_DOUT    (WS2812B_8x8_DOUT)
 );
 
 // ST7735S TFT LCD 模組

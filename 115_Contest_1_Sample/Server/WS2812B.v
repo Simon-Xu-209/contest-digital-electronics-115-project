@@ -5,16 +5,14 @@ module WS2812B #(
 	input  wire        rst_n,
 	
 	// 控制介面 (直接接收狀態與座標)
-	input  wire [2:0]  sys_state,          // 系統狀態
-	input  wire [3:0]  coord_x,            // X 軸座標
-	input  wire [3:0]  coord_y,            // Y 軸座標
-	input  wire        joy_z_pulse,        // 搖桿按鈕脈衝
-	input  wire        joy_up_pulse,       // 搖桿上脈衝
-	input  wire        joy_down_pulse,     // 搖桿下脈衝
-	input  wire        joy_left_pulse,     // 搖桿左脈衝
-	input  wire        joy_right_pulse,    // 搖桿右脈衝
-	
-	output reg         busy,               // 資料傳送中旗標
+	input  wire [2:0]  sys_state,            // 系統狀態
+	input  wire [3:0]  coord_x,              // X 軸座標
+	input  wire [3:0]  coord_y,              // Y 軸座標
+	input  wire        joystick_z_pulse,     // 搖桿按鈕脈衝
+	input  wire        joystick_up_pulse,    // 搖桿上脈衝
+	input  wire        joystick_down_pulse,  // 搖桿下脈衝
+	input  wire        joystick_left_pulse,  // 搖桿左脈衝
+	input  wire        joystick_right_pulse, // 搖桿右脈衝
 	
 	// 硬體腳位
 	output reg         WS2812B_8x8_DIN,    // DIN 資料輸出腳位
@@ -73,29 +71,29 @@ always @(posedge clk or negedge rst_n) begin
 					anim_timer <= anim_timer + 24'd1;
 				end
 			end else begin
-				if (joy_z_pulse) begin
+				if (joystick_z_pulse) begin
 					integration_active <= ~integration_active;
 					cur_x <= 4'd4;
 					cur_y <= 4'd4;
 				end else if (integration_active) begin
-					if (joy_up_pulse    && (cur_y < 4'd7)) cur_y <= cur_y + 4'd1;
-					if (joy_down_pulse  && (cur_y > 4'd1)) cur_y <= cur_y - 4'd1;
-					if (joy_right_pulse && (cur_x > 4'd1)) cur_x <= cur_x - 4'd1;
-					if (joy_left_pulse  && (cur_x < 4'd7)) cur_x <= cur_x + 4'd1;
+					if (joystick_up_pulse    && (cur_y < 4'd7)) cur_y <= cur_y + 4'd1;
+					if (joystick_down_pulse  && (cur_y > 4'd1)) cur_y <= cur_y - 4'd1;
+					if (joystick_right_pulse && (cur_x > 4'd1)) cur_x <= cur_x - 4'd1;
+					if (joystick_left_pulse  && (cur_x < 4'd7)) cur_x <= cur_x + 4'd1;
 				end
 			end
 		end else if (sys_state == SYS_INTEGRATION) begin
 			animation_done <= 1'b0;
 			anim_head_idx  <= 6'd0;
-			if (joy_z_pulse) begin
+			if (joystick_z_pulse) begin
 				integration_active <= ~integration_active;
 				cur_x <= 4'd1;
 				cur_y <= 4'd1;
 			end else if (integration_active) begin
-				if (joy_up_pulse    && (cur_y < 4'd7)) cur_y <= cur_y + 4'd1;
-				if (joy_down_pulse  && (cur_y > 4'd1)) cur_y <= cur_y - 4'd1;
-				if (joy_right_pulse && (cur_x > 4'd1)) cur_x <= cur_x - 4'd1;
-				if (joy_left_pulse  && (cur_x < 4'd7)) cur_x <= cur_x + 4'd1;
+				if (joystick_up_pulse    && (cur_y < 4'd7)) cur_y <= cur_y + 4'd1;
+				if (joystick_down_pulse  && (cur_y > 4'd1)) cur_y <= cur_y - 4'd1;
+				if (joystick_right_pulse && (cur_x > 4'd1)) cur_x <= cur_x - 4'd1;
+				if (joystick_left_pulse  && (cur_x < 4'd7)) cur_x <= cur_x + 4'd1;
 			end
 		end else begin
 			animation_done     <= 1'b0;
@@ -153,7 +151,6 @@ end
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		state           <= ST_IDLE;
-		busy            <= 1'b0;
 		WS2812B_8x8_DIN <= 1'b0;
 		clk_cnt         <= 13'd0;
 		bit_cnt         <= 5'd0;
@@ -165,7 +162,6 @@ always @(posedge clk or negedge rst_n) begin
 				clk_cnt         <= 13'd0;
 				bit_cnt         <= 5'd0;
 				led_cnt         <= 6'd0;
-				busy            <= 1'b1;
 				state           <= ST_SEND;
 			end
 
@@ -199,7 +195,6 @@ always @(posedge clk or negedge rst_n) begin
 				if (clk_cnt < RST_CYCLES - 1) begin
 					clk_cnt <= clk_cnt + 1'b1;
 				end else begin
-					busy  <= 1'b0;
 					state <= ST_IDLE; // 自動循環刷新
 				end
 			end

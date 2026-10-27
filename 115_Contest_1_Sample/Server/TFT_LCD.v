@@ -52,7 +52,7 @@ reg [7:0]  char_ascii [0:MAX_CHARS-1];
 reg [7:0]  char_x     [0:MAX_CHARS-1]; 
 reg [7:0]  char_y     [0:MAX_CHARS-1]; 
 reg [15:0] char_color [0:MAX_CHARS-1]; 
-reg [1:0]  char_scale [0:MAX_CHARS-1]; 
+reg [3:0]  char_scale [0:MAX_CHARS-1]; 
 
 // --- 狀態控制暫存器 ---
 reg [2:0] char_group_cnt; // 0~6 組 (A~D, E~H, ..., YZ)
@@ -109,7 +109,7 @@ always @(posedge clk or negedge rst_n) begin
 
 		// 預設縮放倍率，可自由調整
 		for (i = 0; i < MAX_CHARS; i = i + 1) begin
-			char_scale[i] <= 2'd2;
+			char_scale[i] <= 4'd3;
 		end
 
 		// 上方 4 個紅色英文字母位置
@@ -128,11 +128,11 @@ always @(posedge clk or negedge rst_n) begin
 				 if (one_sec_pulse) begin
 					char_ascii[4] <= "["; char_ascii[6] <= ","; char_ascii[8] <= "]";
 					// 下方 5 個藍色座標文字位置
-					char_scale[4] <= 2'd2; char_color[4] <= COLOR_BLUE; char_x[4] <= 8'd5;   char_y[4] <= 8'd65;
-					char_scale[5] <= 2'd2; char_color[5] <= COLOR_BLUE; char_x[5] <= 8'd29;  char_y[5] <= 8'd65; // Row
-					char_scale[6] <= 2'd2; char_color[6] <= COLOR_BLUE; char_x[6] <= 8'd53;  char_y[6] <= 8'd65;
-					char_scale[7] <= 2'd2; char_color[7] <= COLOR_BLUE; char_x[7] <= 8'd77;  char_y[7] <= 8'd65; // Col
-					char_scale[8] <= 2'd2; char_color[8] <= COLOR_BLUE; char_x[8] <= 8'd101; char_y[8] <= 8'd65;
+					char_scale[4] <= 4'd3; char_color[4] <= COLOR_BLUE; char_x[4] <= 8'd5;   char_y[4] <= 8'd65;
+					char_scale[5] <= 4'd3; char_color[5] <= COLOR_BLUE; char_x[5] <= 8'd29;  char_y[5] <= 8'd65; // Row
+					char_scale[6] <= 4'd3; char_color[6] <= COLOR_BLUE; char_x[6] <= 8'd53;  char_y[6] <= 8'd65;
+					char_scale[7] <= 4'd3; char_color[7] <= COLOR_BLUE; char_x[7] <= 8'd77;  char_y[7] <= 8'd65; // Col
+					char_scale[8] <= 4'd3; char_color[8] <= COLOR_BLUE; char_x[8] <= 8'd101; char_y[8] <= 8'd65;
 				
 					if (char_group_cnt < 6)
 						char_group_cnt <= char_group_cnt + 1;
@@ -167,15 +167,15 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			
 			SYS_COORDINATE: begin
-				char_scale[0] <= 2'd2; char_ascii[0] <= "A";
-				char_scale[1] <= 2'd2; char_ascii[1] <= "B";
-				char_scale[2] <= 2'd2; char_ascii[2] <= "C";
-				char_scale[3] <= 2'd2; char_ascii[3] <= "D";
-				char_scale[4] <= 2'd1; char_ascii[4] <= "["; char_x[4] <= 8'd24; char_y[4] <= 8'd65;
-				char_scale[5] <= 2'd1; char_ascii[5] <= 8'd48; char_x[5] <= 8'd40; char_y[5] <= 8'd65; //
-				char_scale[6] <= 2'd1; char_ascii[6] <= ","; char_x[6] <= 8'd56; char_y[6] <= 8'd65;
-				char_scale[7] <= 2'd1; char_ascii[7] <= 8'd48; char_x[7] <= 8'd72; char_y[7] <= 8'd65; //
-				char_scale[8] <= 2'd1; char_ascii[8] <= "]"; char_x[8] <= 8'd88; char_y[8] <= 8'd65;
+				char_scale[0] <= 4'd3; char_ascii[0] <= "A";
+				char_scale[1] <= 4'd3; char_ascii[1] <= "B";
+				char_scale[2] <= 4'd3; char_ascii[2] <= "C";
+				char_scale[3] <= 4'd3; char_ascii[3] <= "D";
+				char_scale[4] <= 4'd3; char_ascii[4] <= "["; char_x[4] <= 8'd24; char_y[4] <= 8'd65;
+				char_scale[5] <= 4'd3; char_ascii[5] <= 8'd48; char_x[5] <= 8'd40; char_y[5] <= 8'd65; //
+				char_scale[6] <= 4'd3; char_ascii[6] <= ","; char_x[6] <= 8'd56; char_y[6] <= 8'd65;
+				char_scale[7] <= 4'd3; char_ascii[7] <= 8'd48; char_x[7] <= 8'd72; char_y[7] <= 8'd65; //
+				char_scale[8] <= 4'd3; char_ascii[8] <= "]"; char_x[8] <= 8'd88; char_y[8] <= 8'd65;
 			end
 			
 			default:;
@@ -197,7 +197,6 @@ reg        hit_text;
 
 integer scan_i;
 reg [7:0] char_w, char_h;
-reg [1:0] scale_factor;
 
 always @(*) begin
 	active_ascii = " ";
@@ -207,9 +206,8 @@ always @(*) begin
 	hit_text     = 1'b0;
 
 	for (scan_i = 0; scan_i < MAX_CHARS; scan_i = scan_i + 1) begin
-		scale_factor = char_scale[scan_i] + 1'b1;
-		char_w       = FONT_W * scale_factor;
-		char_h       = FONT_H * scale_factor;
+		char_w       = FONT_W * char_scale[scan_i];
+		char_h       = FONT_H * char_scale[scan_i];
 
 		if (x_cnt >= char_x[scan_i] && x_cnt < (char_x[scan_i] + char_w) &&
 		y_cnt >= char_y[scan_i] && y_cnt < (char_y[scan_i] + char_h)) begin
@@ -218,8 +216,8 @@ always @(*) begin
 			active_ascii = char_ascii[scan_i];
 			active_color = char_color[scan_i];
 			
-			active_lx    = (x_cnt - char_x[scan_i]) / scale_factor;
-			active_ly    = (y_cnt - char_y[scan_i]) / scale_factor;
+			active_lx    = (x_cnt - char_x[scan_i]) / char_scale[scan_i];
+			active_ly    = (y_cnt - char_y[scan_i]) / char_scale[scan_i];
 		end
 	end
 end

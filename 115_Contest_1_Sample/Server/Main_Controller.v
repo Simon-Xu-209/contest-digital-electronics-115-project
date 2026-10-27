@@ -20,11 +20,6 @@ module Main_Controller #(
 
 	// WS2812B 控制介面
 	output wire [2:0] sys_state,
-	output wire       joy_z_pulse_out,
-	output wire       joy_up_pulse_out,
-	output wire       joy_down_pulse_out,
-	output wire       joy_left_pulse_out,
-	output wire       joy_right_pulse_out,
 
 	output wire                    send_en,
 	output wire [3:0]              send_target_id,
@@ -76,43 +71,7 @@ always @(*) begin
 	end
 end
 
-// --------------------------------------------------------------------
-// 搖桿邊緣脈衝偵測器
-// --------------------------------------------------------------------
-reg joy_z_d1;
-wire joy_z_pulse;
 
-wire joystick_up    = (joy_y < 1000);
-wire joystick_down  = (joy_y > 10000);
-wire joystick_right = (joy_x > 10000);
-wire joystick_left  = (joy_x < 1000);
-
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) joy_z_d1 <= 1'b0;
-    else        joy_z_d1 <= joy_z;
-end
-assign joy_z_pulse = joy_z && !joy_z_d1;
-
-reg joystick_up_d1, joystick_down_d1, joystick_left_d1, joystick_right_d1;
-always @(posedge clk or negedge rst_n) begin
-    if (!rst_n) begin
-        joystick_up_d1    <= 1'b0;
-        joystick_down_d1  <= 1'b0;
-        joystick_left_d1  <= 1'b0;
-        joystick_right_d1 <= 1'b0;
-    end else begin
-        joystick_up_d1    <= joystick_up;
-        joystick_down_d1  <= joystick_down;
-        joystick_left_d1  <= joystick_left;
-        joystick_right_d1 <= joystick_right;
-    end
-end
-
-assign joy_z_pulse_out     = joy_z_pulse;
-assign joy_up_pulse_out    = joystick_up    && !joystick_up_d1;
-assign joy_down_pulse_out  = joystick_down  && !joystick_down_d1;
-assign joy_left_pulse_out  = joystick_left  && !joystick_left_d1;
-assign joy_right_pulse_out = joystick_right && !joystick_right_d1;
 
 // --------------------------------------------------------------------
 // UART 與 七段顯示器 邏輯
