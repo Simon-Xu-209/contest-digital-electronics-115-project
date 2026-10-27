@@ -1,10 +1,10 @@
-module keyboard_3x3(
-	input wire clk,         // 50MHz
-	input wire rst_n,
-	input wire [2:0] column,
-	output reg [2:0] row,
-	output reg Pressed,     // 邏輯去顫後的穩定 Pressed
-	output reg [3:0] KEY
+module Keyboard_3x3 (
+	input  wire clk,          // 50MHz
+	input  wire rst_n,        // Reset
+	input  wire [2:0] column, // 3x3 無段式開關 行(Column)
+	output reg  [2:0] row,    // 3x3 無段式開關 行(Column)
+	output reg  Pressed,      // 按鍵按下
+	output reg  [3:0] KEY     // 按鍵數值
 );
 
 // 輸入同步化
@@ -29,15 +29,33 @@ always @(posedge clk or negedge rst_n) begin
 	else scan_cnt <= scan_cnt + 1'b1;
 end
 
-// Continuous Row Scanning (輪詢 011 -> 101 -> 110)
+// Continuous Row Scanning (帶 111 沉降狀態的輪詢)
+// 順序：110 -> 111 -> 101 -> 111 -> 011 -> 111
+reg [2:0] scan_state;
+
 always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) 
-		row <= 3'b011;
-	else if (scan_tick) 
-		row <= {row[0], row[2:1]};
+	if (!rst_n) begin
+		scan_state <= 3'd0;
+		row        <= 3'b111;
+	end else if (scan_tick) begin
+		if (scan_state == 3'd5)
+			scan_state <= 3'd0;
+		else
+			scan_state <= scan_state + 1'b1;
+
+		case (scan_state)
+			3'd0: row <= 3'b110;
+			3'd1: row <= 3'b111; // 沉降期 1
+			3'd2: row <= 3'b101;
+			3'd3: row <= 3'b111; // 沉降期 2
+			3'd4: row <= 3'b011;
+			3'd5: row <= 3'b111; // 沉降期 3
+			default: row <= 3'b111;
+		endcase
+	end
 end
 
-// 掃描即時解碼 (捕捉瞬間按下的 key)
+// 掃描即時解碼
 reg [3:0] raw_key;
 reg raw_hit;
 
@@ -64,39 +82,44 @@ always @(*) begin
 end
 
 // 去顫與釋放鎖存邏輯
-reg [19:0] debounce_cnt;
-reg [19:0] release_cnt; // 專門處理放開彈跳的計數器
+reg [4:0] debounce_cnt;
+reg [5:0] release_cnt;
 reg [3:0] latched_key;
+
+// 判斷當前是否處於 111 的沉降階段
+wire is_blanking_time = (row == 3'b111);
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		debounce_cnt <= 20'd0;
-		release_cnt  <= 20'd0;
+		debounce_cnt <= 5'd0;
+		release_cnt  <= 5'd0;
 		Pressed      <= 1'b0;
 		KEY          <= 4'd15;
 		latched_key  <= 4'd15;
 	end else begin
-		// 當掃描碰巧命中任一按鍵時
-		if (raw_hit) begin
-			latched_key <= raw_key;  // 暫存被按下的鍵值
-			release_cnt <= 20'd1_500_000; // 刷新「放開保護期」(30ms)
-			
-			if (debounce_cnt < 20'd500_000) begin // 10ms 防抖
-				debounce_cnt <= debounce_cnt + 1'b1;
-			end else begin
-				Pressed <= 1'b1;
-				KEY     <= latched_key;
-            end
-		end else begin
-			// 掃描沒命中時，檢查是否是真的「放開按鍵」
-			if (release_cnt > 20'd0) begin
-				release_cnt <= release_cnt - 1'b1; // 還在保護期內（等待下次輪詢或去彈跳）
-			end else begin
-				// 超過 30ms 完全沒偵測到任何按鍵，才認定為放開
-				debounce_cnt <= 20'd0;
-				Pressed      <= 1'b0;
-				KEY          <= 4'd15;
+		// 在 scan_tick 觸發時（訊號最穩定時刻）進行去顫計算
+		if (scan_tick) begin
+			if (raw_hit) begin
+				latched_key <= raw_key;
+				release_cnt <= 6'd30; // 刷新放開保護期
+				
+				if (debounce_cnt < 5'd5) begin
+					debounce_cnt <= debounce_cnt + 1'b1;
+				end else begin
+					Pressed <= 1'b1;
+					KEY     <= latched_key;
+				end
+			end else if (!is_blanking_time) begin
+				// 關鍵：只有在「非沉降期 (row != 111)」且真的沒命中時，才扣減放開倒數
+				if (release_cnt > 6'd0) begin
+					release_cnt <= release_cnt - 1'b1;
+				end else begin
+					debounce_cnt <= 5'd0;
+					Pressed      <= 1'b0;
+					KEY          <= 4'd15;
+				end
 			end
+			// 如果處於 is_blanking_time (row == 111)，保持當前計數與狀態不變，避免誤扣放開計數
 		end
 	end
 end

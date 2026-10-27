@@ -1,0 +1,136 @@
+module Main_Controller #(
+	parameter MAX_TX_LEN = 64,
+	parameter MAX_RX_LEN = 32,
+	parameter MAX_CHARS  = 32
+)(
+	input  wire clk,
+	input  wire rst_n,
+
+	input  wire [7:0] switch_8bit, // 8Bit 指撥開關 (SW1 ~ SW8)
+
+	input  wire [2:0] KEY_2x2,
+	input  wire       KEY_Pressed_2x2,
+
+	// 搖桿輸入訊號
+	input  wire [15:0] joy_x,      // 16-bit ADC X 軸
+	input  wire [15:0] joy_y,      // 16-bit ADC Y 軸
+	input  wire        joy_z,      // 搖桿按鈕 (1 表示按下)
+
+	output reg [63:0] seven_segment_chars,
+
+	// WS2812B 控制介面
+	output reg  [2:0] current_system_state,
+
+	output wire                    send_en,
+	output wire [3:0]              send_target_id,
+	output wire [8*MAX_TX_LEN-1:0] send_data_reg,
+	input  wire                    tx_busy,
+	input  wire [3:0]              rx_link_id,
+	input  wire [15:0]             rx_data_len,
+	input  wire [8*MAX_RX_LEN-1:0] rx_data_reg,
+	input  wire                    rx_done
+);
+
+parameter CLK_FREQ = 50_000_000; // 50MHz 時脈
+
+// --------------------------------------------------------------------
+// 系統狀態機定義
+// --------------------------------------------------------------------
+reg [2:0] previous_system_state, next_system_state;
+parameter SYS_IDLE        = 3'd0,
+          SYS_INITIAL     = 3'd1,
+          SYS_LCD_WiFi    = 3'd2,
+          SYS_SEG         = 3'd3,
+          SYS_DATA_TEST   = 3'd4,
+          SYS_INTEGRATION = 3'd5;
+
+
+
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		previous_system_state <= SYS_IDLE;
+		current_system_state  <= SYS_IDLE;
+	end else begin
+		previous_system_state <= current_system_state;
+		current_system_state  <= next_system_state;
+	end
+end
+
+always @(*) begin
+	next_system_state = current_system_state;
+	
+	if (switch_8bit[1:0] == 2'b00) begin
+		next_system_state = SYS_LCD_WiFi;
+	end else if (switch_8bit[1:0] == 2'b01) begin
+		next_system_state = SYS_SEG;
+	end else if (switch_8bit[1:0] == 2'b10) begin
+		next_system_state = SYS_DATA_TEST;
+	end else if (switch_8bit[1:0] == 2'b11) begin
+		next_system_state = SYS_INTEGRATION;
+	end
+end
+
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		seven_segment_chars <= {8{8'h80 | "8"}};
+	end else begin
+		case (current_system_state)
+			SYS_SEG: begin
+				if (switch_8bit == 8'b0_0_000_1_01) begin
+					seven_segment_chars <= "";
+				end else if (switch_8bit == 8'b0_0_001_1_01) begin
+					seven_segment_chars <= {"MODE", "1", 8'h80, "XX"};
+				end else if (switch_8bit == 8'b0_0_010_1_01) begin
+					seven_segment_chars <= {"MODE", "1", 8'h80, "YY"};
+				end if (switch_8bit == 8'b0_0_100_1_01) begin
+					seven_segment_chars <= {"MODE", "1", 8'h80, "ZZ"};
+				end
+			end
+			default: ;
+		endcase
+	end
+end
+
+
+
+
+
+// --------------------------------------------------------------------
+// UART 與 七段顯示器 邏輯
+// --------------------------------------------------------------------
+wire [7:0] bytes[0:MAX_RX_LEN-1];
+genvar g;
+generate
+	for (g = 0; g < MAX_RX_LEN; g = g + 1) begin : BYTE_ASSIGN
+		assign bytes[g] = rx_data_reg[8*g +: 8];
+	end
+endgenerate
+
+wire [MAX_RX_LEN-1:0] match_num;
+reg  [8:0]            detected_num;
+reg                   num_found;
+
+generate
+	for (g = 0; g < MAX_RX_LEN-4; g = g + 1) begin : MATCH_GEN
+		assign match_num[g] = (bytes[g+4] == "N") && 
+									(bytes[g+3] == "u") && 
+									(bytes[g+2] == "m") && 
+									(bytes[g+1] == ":");
+	end
+endgenerate
+
+integer k;
+always @(*) begin
+	num_found    = 1'b0;
+	detected_num = 8'd0;
+	for (k = 0; k < MAX_RX_LEN; k = k + 1) begin
+		if (match_num[k] && !num_found) begin
+			num_found    = 1'b1;
+			detected_num = bytes[k];
+		end
+	end
+end
+
+assign send_en = 1'b0;
+
+endmodule

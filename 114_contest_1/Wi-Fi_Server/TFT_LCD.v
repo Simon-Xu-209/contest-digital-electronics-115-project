@@ -1,343 +1,120 @@
 module TFT_LCD #(
-	parameter MAX_RX_LEN = 32
+	parameter MAX_CHARS = 16,        // 支援更多動態文字數 (放寬至 32 字)
+	parameter FONT_W    = 4'd8,      // 原始字寬
+	parameter FONT_H    = 5'd16      // 原始字高
 )(
 	input wire clk,
 	input wire rst_n,
-	input wire [7:0] switch_8bit,
-	input wire [4:0] KEY, // 4x4
-	input wire       Pressed,
-	input wire [8*MAX_RX_LEN-1:0] rx_Data_reg, // 資料暫存器
-	input wire                    rx_ready,    // 接收完成脈衝
+	input wire [7:0]  switch_8bit,
+	input wire [2:0]  KEY_2x2,
+	input wire        KEY_Pressed_2x2,  // 2x2
+	input wire [3:0]  KEY_3x3,
+	input wire        KEY_Pressed_3x3,
+	input wire [2:0]  system_state,
+	input wire [15:0] WiFi_signal,
 	output reg  SCL, SDA, RES, DC, CS, BLK
 );
 
-// 拆解 32 個 Byte (bytes[0] 為 lowest byte，即最後收到的字元)
-wire [7:0] bytes[0:MAX_RX_LEN-1];
-genvar g;
-generate
-	for (g = 0; g < MAX_RX_LEN; g = g + 1) begin : BYTE_ASSIGN
-		assign bytes[g] = rx_Data_reg[8*g +: 8];
-	end
-endgenerate
+// =========================================================================
+// 1 秒時脈產生器 (以 50MHz 時脈為例：50,000,000 個週期 = 1 秒)
+// =========================================================================
+parameter CLK_FREQ = 32'd50_000_000; // 請根據實際開發板時脈調整 (如 50MHz)
+reg [31:0] one_sec_cnt;
+reg        one_sec_pulse;
 
-// 格式範例：bytes[g]="I", bytes[g-1]="D", bytes[g-2]=":", bytes[g-3]='9', ..., bytes[g-6]='1'
-wire [MAX_RX_LEN-1:0] match_id;
-reg  [7:0]            detected_key;
-reg                   id_found;
-
-generate
-    for (g = 4; g < MAX_RX_LEN; g = g + 1) begin : MATCH_GEN
-        assign match_id[g] = (bytes[g]   == "N") &&
-                             (bytes[g-1] == "u") &&
-                             (bytes[g-2] == "m") &&
-                             (bytes[g-3] == ":");
-    end
-    for (g = 0; g < 4; g = g + 1) begin : MATCH_ZERO
-        assign match_id[g] = 1'b0;
-    end
-endgenerate
-
-integer k;
-always @(*) begin
-    id_found    = 1'b0;
-    detected_key = 8'd0;
-    for (k = MAX_RX_LEN - 1; k >= 4; k = k - 1) begin
-        if (match_id[k] && !id_found) begin
-            id_found    = 1'b1;
-            detected_key = bytes[k-4];
-        end
-    end
-end
-
-reg Pressed_reg1, Pressed_reg2;
-wire Pressed_posedge = (Pressed_reg1 && !Pressed_reg2);
-wire Pressed_negedge = (!Pressed_reg1 && Pressed_reg2);
-always@(posedge clk) begin
-	if (!rst_n) begin
-		Pressed_reg1 <= 0;
-		Pressed_reg2 <= 0;
-	end else begin
-		Pressed_reg1 <= rx_ready;
-		Pressed_reg2 <= Pressed_reg1;
-	end
-end
-
-reg [7:0] key_latched;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		key_latched <= 8'd15;
-	end else if (rx_ready && !Pressed_reg1) begin // 只在剛按下的正緣鎖存 KEY
-		key_latched <= detected_key;
+		one_sec_cnt   <= 0;
+		one_sec_pulse <= 0;
 	end else begin
-		key_latched <= "";
-	end
-end
-
-reg [3:0] key_pulse;
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		key_pulse <= 4'b1111;
-	end else begin
-		// 當 Pressed 產生正緣（剛按下的瞬間）
-		if (Pressed && !Pressed_reg1) begin
-			key_pulse <= KEY;       // 存入當前按下的 key 值
+		if (one_sec_cnt >= CLK_FREQ - 1) begin
+			one_sec_cnt   <= 0;
+			one_sec_pulse <= 1'b1; // 產生 1 個 clk 週期的觸發脈衝
 		end else begin
-			key_pulse <= 4'b1111;   // 1 個 Clock 後自動歸位為預設值 15
+			one_sec_cnt   <= one_sec_cnt + 1;
+			one_sec_pulse <= 1'b0;
 		end
 	end
 end
 
-parameter CLK_FREQ = 32'd50_000_000; // 1s 所需週期(50MHz)
-
 // =========================================================================
 // 基本參數配置
 // =========================================================================
-parameter MAX_CHARS = 21; // 文字上限
-parameter FONT_W = 4'd8;  // 原始字寬
-parameter FONT_H = 5'd16; // 原始字高
-
 parameter COLOR_RED   = 16'hF800; // 紅色 (RGB565)
 parameter COLOR_GREEN = 16'h07E0; // 綠色 (RGB565)
 parameter COLOR_BLUE  = 16'h001F; // 藍色 (RGB565)
 parameter COLOR_WHITE = 16'hFFFF; // 白色 (RGB565)
 parameter COLOR_BLACK = 16'h0000; // 黑色 (RGB565)
 
-reg [7:0]  char_ascii [0:MAX_CHARS-1]; // 文字資料
-reg [7:0]  char_x     [0:MAX_CHARS-1]; // 文字 x 座標
-reg [7:0]  char_y     [0:MAX_CHARS-1]; // 文字 y 座標
-reg [15:0] char_color [0:MAX_CHARS-1]; // 文字顏色
-reg [3:0]  char_scale [0:MAX_CHARS-1]; // 文字大小 (不可輸入 0)
 
-reg [7:0] next_color;
-reg [2:0] current_display_state;
-reg [2:0] next_display_state;
-localparam display_CLEAR        = 3'd0,
-			  display_WiFi_TEST    = 3'd1,
-			  display_TEXT_B       = 3'd2,
-			  display_TEXT_R       = 3'd3,
-			  display_INFO_LINKAGE = 3'd4,
-			  display_DONE         = 3'd5;
+// =========================================================================
+// 動態文字物件屬性記憶體 (Text OAM)
+// 0~3: 上方英文字母 (紅色)
+// 4~8: 下方座標文字 (藍色，格式: "[", row, ",", col, "]")
+// =========================================================================
+reg [7:0]  char_ascii [0:MAX_CHARS-1]; 
+reg [7:0]  char_x     [0:MAX_CHARS-1]; 
+reg [7:0]  char_y     [0:MAX_CHARS-1]; 
+reg [15:0] char_color [0:MAX_CHARS-1]; 
+reg [3:0]  char_scale [0:MAX_CHARS-1]; 
 
-reg [9:0] number_mask;
+// --- 狀態控制暫存器 ---
+reg [2:0] char_group_cnt; // 0~6 組 (A~D, E~H, ..., YZ)
+reg [3:0] coord_row;      // 0~8
+reg [3:0] coord_col;      // 1~8
 
-reg [9:0] INFO_data_counter;
+
+
+reg [1:0] current_system_state, next_system_state;
+parameter SYS_IDLE        = 3'd0,
+			SYS_INITIAL     = 3'd1,
+			SYS_LCD_WiFi    = 3'd2,
+			SYS_SEG         = 3'd3,
+			SYS_DATA_TEST   = 3'd4,
+			SYS_INTEGRATION = 3'd5;
+
+
+
+// --- 每秒觸發：動態更新字母與座標 ---
+integer i;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		INFO_data_counter <= 10'd0;
-	end else if (key_latched == "F") begin
-		if (INFO_data_counter < 10'd999) begin
-			INFO_data_counter <= INFO_data_counter + 10'd1;
-		end else begin
-			INFO_data_counter <= 10'd0;
+		char_group_cnt <= 0;
+		coord_row      <= 0;
+		coord_col      <= 1;
+
+		// 預設縮放倍率
+		for (i = 0; i < MAX_CHARS; i = i + 1) begin
+			char_scale[i] <= 4'd4;
+			char_color[i] <= COLOR_WHITE;
 		end
-	end
-end
 
-
-
-always@(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		current_display_state <= display_CLEAR;
 	end else begin
-		current_display_state <= next_display_state;
-	end
-end
-
-integer text_number;
-always @(*) begin
-	next_display_state = current_display_state;
-	case(current_display_state)
-	
-		display_CLEAR: begin
-			
-		end
-		
-		display_WiFi_TEST: begin
-			
-		end
-		
-		display_INFO_LINKAGE: begin
-			
-		end
-		
-		display_DONE: begin end
-		
-		default:;
-	endcase
-	
-	if (switch_8bit[2:0] == 3'b100) begin
-		next_display_state = display_WiFi_TEST;
-		next_color <= COLOR_BLUE;
-	end if ((switch_8bit[2:0] == 3'b100) && (detected_key == "C")) begin
-		next_display_state = display_TEXT_B;
-	end if ((switch_8bit[2:0] == 3'b100) && (detected_key == "E")) begin
-		next_display_state = display_TEXT_R;
-	end if (switch_8bit[2:0] == 3'b110) begin
-		next_display_state = display_INFO_LINKAGE;
-	end
-end
-
-always@(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		number_mask <= 10'b0;
-	end else begin
-		case(current_display_state)
-		
-			display_CLEAR: begin
-				for (text_number = 0; text_number < MAX_CHARS; text_number = text_number + 1) begin
-					char_color[text_number] = COLOR_WHITE;
-					char_scale[text_number] = 4'd0;
-					char_ascii[text_number] = "";
+		case(system_state)
+			SYS_IDLE: begin end
+			SYS_LCD_WiFi: begin
+				for (i = 0; i < 9; i = i + 1) begin
+					char_ascii[i] <= "1" + i;
 				end
+				char_ascii[0] <= "1";
 			end
-		
-			display_WiFi_TEST: begin
-				if ((detected_key >= "1") && (detected_key <= "9")) begin
-					number_mask[detected_key - 8'd48] <= 1'b1;
-				end
-				for (text_number = 0; text_number < MAX_CHARS; text_number = text_number + 1) begin
-					char_ascii[text_number] = "";
-					char_scale[text_number] = 4'd0;
-				end
-				for (text_number = 0; text_number < 9; text_number = text_number + 1) begin
-					char_x[text_number] = 8'd42 * (text_number % 3) + 5;
-					char_y[text_number] = 8'd55 * (text_number / 3);
-					char_color[text_number] = COLOR_BLUE;
-					char_scale[text_number] = 4'd3;
-				end
-				char_ascii[0] = (number_mask[1]) ? "" : "1";
-				char_ascii[1] = (number_mask[2]) ? "" : "2";
-				char_ascii[2] = (number_mask[3]) ? "" : "3";
-				char_ascii[3] = (number_mask[4]) ? "" : "4";
-				char_ascii[4] = (number_mask[5]) ? "" : "5";
-				char_ascii[5] = (number_mask[6]) ? "" : "6";
-				char_ascii[6] = (number_mask[7]) ? "" : "7";
-				char_ascii[7] = (number_mask[8]) ? "" : "8";
-				char_ascii[8] = (number_mask[9]) ? "" : "9";
-			end
-				
-			
-			display_TEXT_B: begin
-				for (text_number = 0; text_number < MAX_CHARS; text_number = text_number + 1) begin
-					char_ascii[text_number] = "";
-				end
-				for (text_number = 0; text_number < 17; text_number = text_number + 1) begin
-					if (text_number < 6) begin
-						char_x[text_number] = 8'd21 * (text_number % 6) + 4;
-						char_y[text_number] = 8'd54 * 0 + 5;
-					end else if ((text_number >= 6) && (text_number < 10)) begin
-						char_x[text_number] = 8'd21 * ((text_number - 6) % 6) + 4;
-						char_y[text_number] = 8'd54 + 5;
-					end else if ((text_number >= 10) && (text_number < 17)) begin
-						char_x[text_number] = 8'd18 * ((text_number - 10) % 7) + 4;
-						char_y[text_number] = 8'd54 * 2 + 5;
-					end
-					char_color[text_number] =  COLOR_BLUE;
-					char_scale[text_number] = 4'd2;
-				end
-				char_ascii[0] = "C";
-				char_ascii[1] = "P";
-				char_ascii[2] = "L";
-				char_ascii[3] = "D";
-				char_ascii[4] = "I";
-				char_ascii[5] = "D";
-				
-				char_ascii[6] = "M";
-				char_ascii[7] = "O";
-				char_ascii[8] = "D";
-				char_ascii[9] = "E";
-				
-				char_ascii[10] = "t";
-				char_ascii[11] = "r";
-				char_ascii[12] = "i";
-				char_ascii[13] = "e";
-				char_ascii[14] = "s";
-				char_ascii[15] = "o";
-				char_ascii[16] = ":";
-			end
-			
-			display_TEXT_R: begin
-				for (text_number = 0; text_number < MAX_CHARS; text_number = text_number + 1) begin
-					char_ascii[text_number] = "";
-				end
-				for (text_number = 0; text_number < 17; text_number = text_number + 1) begin
-					if (text_number < 6) begin
-						char_x[text_number] = 8'd21 * (text_number % 6) + 4;
-						char_y[text_number] = 8'd54 * 0 + 5;
-					end else if ((text_number >= 6) && (text_number < 10)) begin
-						char_x[text_number] = 8'd21 * ((text_number - 6) % 6) + 4;
-						char_y[text_number] = 8'd54 + 5;
-					end else if ((text_number >= 10) && (text_number < 17)) begin
-						char_x[text_number] = 8'd18 * ((text_number - 10) % 7) + 4;
-						char_y[text_number] = 8'd54 * 2 + 5;
-					end
-					char_color[text_number] = COLOR_RED;
-					char_scale[text_number] = 4'd2;
-				end
-				char_ascii[0] = "C";
-				char_ascii[1] = "P";
-				char_ascii[2] = "L";
-				char_ascii[3] = "D";
-				char_ascii[4] = "I";
-				char_ascii[5] = "D";
-				
-				char_ascii[6] = "M";
-				char_ascii[7] = "O";
-				char_ascii[8] = "D";
-				char_ascii[9] = "E";
-				
-				char_ascii[10] = "t";
-				char_ascii[11] = "r";
-				char_ascii[12] = "i";
-				char_ascii[13] = "e";
-				char_ascii[14] = "s";
-				char_ascii[15] = "o";
-				char_ascii[16] = ":";
-			end
-			
-			
-			display_INFO_LINKAGE: begin
-				for (text_number = 0; text_number < MAX_CHARS; text_number = text_number + 1) begin
-					char_ascii[text_number] = "";
-				end
-				for (text_number = 0; text_number < MAX_CHARS; text_number = text_number + 1) begin
-					char_x[text_number] = 8'd18 * (text_number % 7) + 4;
-					char_y[text_number] = 8'd54 * (text_number / 7) + 5;
-					char_color[text_number] = COLOR_RED;
-					char_scale[text_number] = 4'd2;
-				end
-				char_ascii[0] = "M";
-				char_ascii[1] = "O";
-				char_ascii[2] = "D";
-				char_ascii[3] = "E";
-				char_ascii[4] = ":";
-				char_ascii[5] = (switch_8bit[3]) ? "X" : " ";
-				char_ascii[6] = (switch_8bit[3]) ? "X" : " ";
-				
-				char_ascii[7] = "C";
-				char_ascii[8] = " ";
-				char_ascii[9] = " ";
-				char_ascii[10] = ":";
-				char_ascii[11] = (switch_8bit[3]) ? ((INFO_data_counter / 100) + 8'd48) : "0";
-				char_ascii[12] = (switch_8bit[3]) ? (((INFO_data_counter % 100) / 10) + 8'd48) : "0";
-				char_ascii[13] = (switch_8bit[3]) ? ((INFO_data_counter % 10) + 8'd48) : "0";
-				
-				char_ascii[14] = "L";
-				char_ascii[15] = " ";
-				char_ascii[16] = " ";
-				char_ascii[17] = ":";
-				char_ascii[18] = " ";
-				char_ascii[19] = (switch_8bit[3]) ? ((((INFO_data_counter / 30) % 100) / 10) + 8'd48) : "0";
-				char_ascii[20] = (switch_8bit[3]) ? (((INFO_data_counter / 30) % 10) + 8'd48) : "0";
-			end
-			
-			display_DONE: begin
-				
-			end
-
+			default:;
 		endcase
 	end
 end
+
+always @(*) begin
+	case(system_state)
+		SYS_LCD_WiFi: begin
+			for (i = 0; i < 9; i = i + 1) begin
+				char_x[i] <= 14 + (i % 3) * char_w;
+				char_y[i] <= (i / 3) * char_h;
+			end
+		end
+	endcase
+end
+
+
 
 
 
@@ -363,10 +140,13 @@ always @(*) begin
 		char_w       = FONT_W * char_scale[scan_i];
 		char_h       = FONT_H * char_scale[scan_i];
 
-		if (x_cnt >= char_x[scan_i] && x_cnt < (char_x[scan_i] + char_w) && y_cnt >= char_y[scan_i] && y_cnt < (char_y[scan_i] + char_h)) begin
+		if (x_cnt >= char_x[scan_i] && x_cnt < (char_x[scan_i] + char_w) &&
+		y_cnt >= char_y[scan_i] && y_cnt < (char_y[scan_i] + char_h)) begin
+		
 			hit_text     = 1'b1;
 			active_ascii = char_ascii[scan_i];
 			active_color = char_color[scan_i];
+			
 			active_lx    = (x_cnt - char_x[scan_i]) / char_scale[scan_i];
 			active_ly    = (y_cnt - char_y[scan_i]) / char_scale[scan_i];
 		end
@@ -377,13 +157,13 @@ end
 wire [7:0] char_idx = (active_ascii >= " " && active_ascii <= "~") ? (active_ascii - " ") : 8'd0;
 wire [15:0] addr    = (char_idx << 4) + active_ly;
 wire [7:0]  bits    = font_rom[addr];
-reg [15:0] pixel_color;
 
+reg [15:0] pixel_color;
 always @(*) begin
 	if (hit_text && bits[4'd7 - active_lx]) begin
-		pixel_color = active_color;
+		pixel_color = active_color; 
 	end else begin
-		pixel_color = (current_display_state == display_CLEAR) ? COLOR_BLACK : COLOR_WHITE;
+		pixel_color = COLOR_BLACK;     
 	end
 end
 
@@ -471,11 +251,11 @@ always @(posedge clk or negedge rst_n) begin
 					spi_data <= p_idx ? pixel_color[7:0] : pixel_color[15:8];
 					DC <= 1; bit_cnt <= 8;
 					if (p_idx) begin
-						if (x_cnt < (ARG_X_END - ARG_X_OFFSET)) begin
+						if (x_cnt < ARG_X_END - ARG_X_OFFSET) begin
 							x_cnt <= x_cnt + 1;
 						end else begin
 							x_cnt <= 0;
-							if (y_cnt < (ARG_Y_END - ARG_Y_OFFSET)) y_cnt <= y_cnt + 1;
+							if (y_cnt < ARG_Y_END - ARG_Y_OFFSET) y_cnt <= y_cnt + 1;
 							else begin
 								state <= STATE_SET_AXIS;
 								cmd_idx <= 17; 
@@ -509,8 +289,8 @@ parameter ARG_X_END        = 8'd127 + ARG_X_OFFSET;
 parameter ARG_Y_START      = 8'd0 + ARG_Y_OFFSET;
 parameter ARG_Y_END        = 8'd159 + ARG_Y_OFFSET;
 
-parameter ARG_X_OFFSET     = 8'd2;   // X 軸偏移
-parameter ARG_Y_OFFSET     = 8'd1;   // Y 軸偏移
+parameter ARG_X_OFFSET     = 8'd0;   // X 軸偏移
+parameter ARG_Y_OFFSET     = 8'd0;   // Y 軸偏移
 
 reg [7:0] font_rom [0:1519];
 initial begin
