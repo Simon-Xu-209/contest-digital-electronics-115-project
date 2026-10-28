@@ -46,13 +46,13 @@ parameter CLK_FREQ      = 50_000_000; // 50MHz
 parameter BAUD          = 115200;     // UART 鮑率
 parameter MAX_TX_LEN    = 64;         // UART 最大可接收的 AT 指令/資料位元數
 parameter MAX_RX_LEN    = 32;         // UART 最大可接收的資料位元數
-parameter LCD_MAX_CHARS = 9;          // LCD 最多可顯示的 ASCII 碼數量
+parameter LCD_MAX_CHARS = 16;          // LCD 最多可顯示的 ASCII 碼數量
 
 assign USB2UART_WiFi_tx = WiFi_tx;
 assign USB2UART_WiFi_rx = WiFi_rx;
 
 // 內部控制線路連線
-wire [2:0] current_system_state;
+wire [3:0] previous_system_state, current_system_state, next_system_state;
 
 wire       joystick_z_pulse;
 wire       joystick_up_pulse;
@@ -66,28 +66,30 @@ Main_Controller #(
 	.MAX_RX_LEN(MAX_RX_LEN),
 	.MAX_CHARS(LCD_MAX_CHARS)
 ) Main_Controller_u1 (
-	.clk                 (clk),
-	.rst_n               (rst_n),
-	.switch_8bit         (switch_8bit),
-	.KEY_2x2             (KEY_2x2),
-	.KEY_Pressed_2x2     (KEY_Pressed_2x2),
+	.clk                  (clk),
+	.rst_n                (rst_n),
+	.switch_8bit          (switch_8bit),
+	.KEY_2x2              (KEY_2x2),
+	.KEY_Pressed_2x2      (KEY_Pressed_2x2),
 	
-	.joy_x               (joystick_x),
-	.joy_y               (joystick_y),
-	.joy_z               (joystick_z),
+	.joy_x                (joystick_x),
+	.joy_y                (joystick_y),
+	.joy_z                (joystick_z),
 	
-	.seven_segment_chars (seven_segment_chars),
+	.seven_segment_chars  (seven_segment_chars),
 	
-	.current_system_state(current_system_state),
+	.previous_system_state(previous_system_state),
+	.current_system_state (current_system_state),
+	.next_system_state    (next_system_state),
 	
-	.send_en             (send_en),
-	.send_target_id      (rx_link_id),
-	.send_data_reg       (send_data_reg),
-	.tx_busy             (tx_busy),
-	.rx_link_id          (rx_link_id),
-	.rx_data_len         (rx_data_len),
-	.rx_data_reg         (rx_data_reg),
-	.rx_done             (rx_done)
+	.send_en              (send_en),
+	.send_target_id       (rx_link_id),
+	.send_data_reg        (send_data_reg),
+	.tx_busy              (tx_busy),
+	.rx_link_id           (rx_link_id),
+	.rx_data_len          (rx_data_len),
+	.rx_data_reg          (rx_data_reg),
+	.rx_done              (rx_done)
 );
 
 // 鍵盤掃描模組
@@ -205,19 +207,21 @@ WS2812B #(
 TFT_LCD #(
 	.MAX_CHARS(LCD_MAX_CHARS)
 ) TFT_LCD_u1 (
-	.clk             (clk),
-	.rst_n           (rst_n),
-	.KEY_2x2         (KEY_2x2),
-	.KEY_Pressed_2x2 (KEY_Pressed_2x2),
-	.KEY_3x3         (KEY_3x3),
-	.KEY_Pressed_3x3 (KEY_Pressed_3x3),
-	.system_state    (current_system_state),
-	.SCL             (ST7735S_SCL),
-	.SDA             (ST7735S_SDA),
-	.RES             (ST7735S_RES),
-	.DC              (ST7735S_DC),
-	.CS              (ST7735S_CS),
-	.BLK             (ST7735S_BLK)
+	.clk                  (clk),
+	.rst_n                (rst_n),
+	.KEY_2x2              (KEY_2x2),
+	.KEY_Pressed_2x2      (KEY_Pressed_2x2),
+	.KEY_3x3              (KEY_3x3),
+	.KEY_Pressed_3x3      (KEY_Pressed_3x3),
+	.previous_system_state(previous_system_state),
+	.current_system_state (current_system_state),
+	.next_system_state    (next_system_state),
+	.SCL                  (ST7735S_SCL),
+	.SDA                  (ST7735S_SDA),
+	.RES                  (ST7735S_RES),
+	.DC                   (ST7735S_DC),
+	.CS                   (ST7735S_CS),
+	.BLK                  (ST7735S_BLK)
 );
 
 endmodule

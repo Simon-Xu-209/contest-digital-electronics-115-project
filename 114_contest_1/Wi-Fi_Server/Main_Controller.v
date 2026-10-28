@@ -18,8 +18,9 @@ module Main_Controller #(
 
 	output reg [63:0] seven_segment_chars,
 
-	// WS2812B 控制介面
-	output reg  [2:0] current_system_state,
+	output reg  [3:0] previous_system_state,
+	output reg  [3:0] current_system_state,
+	output reg  [3:0] next_system_state,
 
 	output wire                    send_en,
 	output wire [3:0]              send_target_id,
@@ -36,13 +37,12 @@ parameter CLK_FREQ = 50_000_000; // 50MHz 時脈
 // --------------------------------------------------------------------
 // 系統狀態機定義
 // --------------------------------------------------------------------
-reg [2:0] previous_system_state, next_system_state;
-parameter SYS_IDLE        = 3'd0,
-          SYS_INITIAL     = 3'd1,
-          SYS_LCD_WiFi    = 3'd2,
-          SYS_SEG         = 3'd3,
-          SYS_DATA_TEST   = 3'd4,
-          SYS_INTEGRATION = 3'd5;
+parameter SYS_IDLE        = 4'd0,
+          SYS_INITIAL     = 4'd1,
+          SYS_LCD_WiFi    = 4'd2,
+          SYS_SEG         = 4'd3,
+          SYS_DATA_TEST   = 4'd4,
+          SYS_INTEGRATION = 4'd5;
 
 
 
@@ -59,7 +59,9 @@ end
 always @(*) begin
 	next_system_state = current_system_state;
 	
-	if (switch_8bit[1:0] == 2'b00) begin
+	if (!rst_n) begin
+		next_system_state = SYS_IDLE;
+	end else if (switch_8bit[1:0] == 2'b00) begin
 		next_system_state = SYS_LCD_WiFi;
 	end else if (switch_8bit[1:0] == 2'b01) begin
 		next_system_state = SYS_SEG;

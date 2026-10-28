@@ -10,7 +10,9 @@ module TFT_LCD #(
 	input wire        KEY_Pressed_2x2,  // 2x2
 	input wire [3:0]  KEY_3x3,
 	input wire        KEY_Pressed_3x3,
-	input wire [2:0]  system_state,
+	input wire [3:0]  previous_system_state,
+	input wire [3:0]  current_system_state,
+	input wire [3:0]  next_system_state,
 	input wire [15:0] WiFi_signal,
 	output reg  SCL, SDA, RES, DC, CS, BLK
 );
@@ -58,14 +60,8 @@ reg [7:0]  char_y     [0:MAX_CHARS-1];
 reg [15:0] char_color [0:MAX_CHARS-1]; 
 reg [3:0]  char_scale [0:MAX_CHARS-1]; 
 
-// --- 狀態控制暫存器 ---
-reg [2:0] char_group_cnt; // 0~6 組 (A~D, E~H, ..., YZ)
-reg [3:0] coord_row;      // 0~8
-reg [3:0] coord_col;      // 1~8
 
 
-
-reg [1:0] current_system_state, next_system_state;
 parameter SYS_IDLE        = 3'd0,
 			SYS_INITIAL     = 3'd1,
 			SYS_LCD_WiFi    = 3'd2,
@@ -75,43 +71,76 @@ parameter SYS_IDLE        = 3'd0,
 
 
 
-// --- 每秒觸發：動態更新字母與座標 ---
+reg [8:0] text_musk;
+
+// TFT LCD 主狀態機控制
 integer i;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		char_group_cnt <= 0;
-		coord_row      <= 0;
-		coord_col      <= 1;
+		
+		text_musk <= 9'b0;
 
 		// 預設縮放倍率
 		for (i = 0; i < MAX_CHARS; i = i + 1) begin
-			char_scale[i] <= 4'd4;
+			char_x[i] <= 8'd127;
+			char_y[i] <= 8'd127;
+			char_scale[i] <= 4'd0;
 			char_color[i] <= COLOR_WHITE;
 		end
 
 	end else begin
-		case(system_state)
-			SYS_IDLE: begin end
-			SYS_LCD_WiFi: begin
-				for (i = 0; i < 9; i = i + 1) begin
-					char_ascii[i] <= "1" + i;
-				end
-				char_ascii[0] <= "1";
-			end
-			default:;
-		endcase
-	end
-end
-
-always @(*) begin
-	case(system_state)
-		SYS_LCD_WiFi: begin
-			for (i = 0; i < 9; i = i + 1) begin
-				char_x[i] <= 14 + (i % 3) * char_w;
-				char_y[i] <= (i / 3) * char_h;
+	
+		for (i = 0; i < 9; i = i + 1) begin
+			if (KEY_Pressed_3x3 && (KEY_3x3 == i)) begin
+				text_musk[i] <= 1'b1;
 			end
 		end
-	endcase
+		
+		case(current_system_state)
+		
+			SYS_IDLE: begin end
+			
+			SYS_LCD_WiFi: begin
+				if (previous_system_state != SYS_LCD_WiFi) begin
+					text_musk <= 9'b0;
+					for (i = 0; i < 9; i = i + 1) begin
+						char_scale[i] <= 4'd3;
+						char_x[i] <= 14 + (i % 3) * (FONT_W * 4'd3 + 14);
+						char_y[i] <= 4 + (i / 3) * (FONT_H * 4'd3 + 4);
+						char_color[i] <= COLOR_BLUE;
+						char_ascii[i] <= "1" + i;
+					end
+				end else begin
+					for (i = 0; i < 9; i = i + 1) begin
+						if (text_musk[i]) begin
+							char_scale[i] <= 4'd0;
+							char_ascii[i] <= "";
+						end
+					end
+				end
+			end
+			
+			SYS_DATA_TEST: begin
+				for (i = 0; i < 9; i = i + 1) begin
+					char_scale[i] <= 4'd2;
+					char_x[i] <= 14 + (i % 7) * (FONT_W * 4'd3 + 14);
+					char_y[i] <= 4 + (i / 7) * (FONT_H * 4'd3 + 4);
+					char_color[i] <= COLOR_BLUE;
+				end
+				char_ascii[0] <= "M"; char_ascii[1] <= "O"; char_ascii[2] <= "D"; char_ascii[3] <= "E"; char_ascii[4] <= ":";
+			end
+			
+			default: begin
+				for (i = 0; i < MAX_CHARS; i = i + 1) begin
+					char_x[i] <= 8'd127;
+					char_y[i] <= 8'd127;
+					char_scale[i] <= 4'd0;
+					char_color[i] <= COLOR_WHITE;
+				end
+			end
+			
+		endcase
+	end
 end
 
 
