@@ -141,7 +141,7 @@ Public Class Form1
     '=========================================
     ' [送出] 按鈕邏輯 (多連線模式需指定 Client ID，預設傳給 ID 0)
     '=========================================
-    Private Sub search_Click(ByVal sender As Object, ByVal e As EventArgs) Handles send.Click
+    Private Sub send_Click(ByVal sender As Object, ByVal e As EventArgs) Handles send.Click
         Try
             If Not SerialPort1.IsOpen Then
                 MessageBox.Show("請先執行連線！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)

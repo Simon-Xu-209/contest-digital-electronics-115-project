@@ -1,4 +1,4 @@
-module Keyboard_4x4 (
+module keyboard_4x4 (
 	input  wire clk,          // 50MHz
 	input  wire rst_n,        // Reset
 	input  wire [3:0] column, // 4x4 無段式開關 行(Column)
@@ -96,8 +96,8 @@ reg [4:0] debounce_cnt;
 reg [5:0] release_cnt;
 reg [4:0] latched_key;
 
-// 判斷當前是否處於 111 的沉降階段
-wire is_blanking_time = (row == 3'b111);
+// 判斷當前是否處於 1111 的沉降階段
+wire is_blanking_time = (row == 4'b1111);
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin

@@ -1,21 +1,21 @@
-module Keyboard_3x3 (
-	input  wire clk,          // 50MHz
-	input  wire rst_n,        // Reset
-	input  wire [2:0] column, // 3x3 無段式開關 行(Column)
-	output reg  [2:0] row,    // 3x3 無段式開關 行(Column)
-	output reg  Pressed,      // 按鍵按下
-	output reg  [3:0] KEY     // 按鍵數值
+module keyboard_3x3(
+	input  wire clk,         // 50MHz
+	input  wire rst_n,
+	input  wire [2:0] row,   // Row 轉為 input (帶 10k 上拉電阻)
+	output reg  [2:0] column,// Column 轉為 output (主動掃描)
+	output reg  Pressed,     // 邏輯去顫後的穩定 Pressed
+	output reg  [3:0] KEY
 );
 
-// 輸入同步化
-reg [2:0] column_sync1, column_sync2;
+// 輸入同步化 (針對 row 進行同步)
+reg [2:0] row_sync1, row_sync2;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		column_sync1 <= 3'b111;
-		column_sync2 <= 3'b111;
+		row_sync1 <= 3'b111;
+		row_sync2 <= 3'b111;
 	end else begin
-		column_sync1 <= column;
-		column_sync2 <= column_sync1;
+		row_sync1 <= row;
+		row_sync2 <= row_sync1;
 	end
 end
 
@@ -29,14 +29,14 @@ always @(posedge clk or negedge rst_n) begin
 	else scan_cnt <= scan_cnt + 1'b1;
 end
 
-// Continuous Row Scanning (帶 111 沉降狀態的輪詢)
+// Continuous Column Scanning (帶 111 沉降狀態的對 column 輪詢)
 // 順序：110 -> 111 -> 101 -> 111 -> 011 -> 111
 reg [2:0] scan_state;
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		scan_state <= 3'd0;
-		row        <= 3'b111;
+		column     <= 3'b111;
 	end else if (scan_tick) begin
 		if (scan_state == 3'd5)
 			scan_state <= 3'd0;
@@ -44,36 +44,36 @@ always @(posedge clk or negedge rst_n) begin
 			scan_state <= scan_state + 1'b1;
 
 		case (scan_state)
-			3'd0: row <= 3'b110;
-			3'd1: row <= 3'b111; // 沉降期 1
-			3'd2: row <= 3'b101;
-			3'd3: row <= 3'b111; // 沉降期 2
-			3'd4: row <= 3'b011;
-			3'd5: row <= 3'b111; // 沉降期 3
-			default: row <= 3'b111;
+			3'd0: column <= 3'b110; // Col 0 Active
+			3'd1: column <= 3'b111; // 沉降期 1
+			3'd2: column <= 3'b101; // Col 1 Active
+			3'd3: column <= 3'b111; // 沉降期 2
+			3'd4: column <= 3'b011; // Col 2 Active
+			3'd5: column <= 3'b111; // 沉降期 3
+			default: column <= 3'b111;
 		endcase
 	end
 end
 
-// 掃描即時解碼
+// 掃描即時解碼 (比對 {column, row_sync2})
 reg [3:0] raw_key;
 reg raw_hit;
 
 always @(*) begin
 	raw_hit = 1'b1;
-	case ({row, column_sync2})
-		// Row 0
-		6'b011_011: raw_key = 4'd0;
-		6'b011_101: raw_key = 4'd1;
-		6'b011_110: raw_key = 4'd2;
-		// Row 1
-		6'b101_011: raw_key = 4'd3;
-		6'b101_101: raw_key = 4'd4;
-		6'b101_110: raw_key = 4'd5;
-		// Row 2
-		6'b110_011: raw_key = 4'd6;
-		6'b110_101: raw_key = 4'd7;
-		6'b110_110: raw_key = 4'd8;
+	case ({column, row_sync2})
+		// Col 0
+		6'b011_011: raw_key = 4'd0; // KEY0 (Row0, Col0)
+		6'b011_101: raw_key = 4'd3; // KEY3 (Row1, Col0)
+		6'b011_110: raw_key = 4'd6; // KEY6 (Row2, Col0)
+		// Col 1
+		6'b101_011: raw_key = 4'd1; // KEY1 (Row0, Col1)
+		6'b101_101: raw_key = 4'd4; // KEY4 (Row1, Col1)
+		6'b101_110: raw_key = 4'd7; // KEY7 (Row2, Col1)
+		// Col 2
+		6'b110_011: raw_key = 4'd2; // KEY2 (Row0, Col2)
+		6'b110_101: raw_key = 4'd5; // KEY5 (Row1, Col2)
+		6'b110_110: raw_key = 4'd8; // KEY8 (Row2, Col2)
 		default: begin
 			raw_key = 4'd15;
 			raw_hit = 1'b0;
@@ -86,8 +86,7 @@ reg [4:0] debounce_cnt;
 reg [5:0] release_cnt;
 reg [3:0] latched_key;
 
-// 判斷當前是否處於 111 的沉降階段
-wire is_blanking_time = (row == 3'b111);
+wire is_blanking_time = (column == 3'b111);
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
@@ -110,7 +109,7 @@ always @(posedge clk or negedge rst_n) begin
 					KEY     <= latched_key;
 				end
 			end else if (!is_blanking_time) begin
-				// 關鍵：只有在「非沉降期 (row != 111)」且真的沒命中時，才扣減放開倒數
+				// 只有在「非沉降期 (row != 111)」且真的沒命中時，才扣減放開倒數
 				if (release_cnt > 6'd0) begin
 					release_cnt <= release_cnt - 1'b1;
 				end else begin
@@ -119,7 +118,6 @@ always @(posedge clk or negedge rst_n) begin
 					KEY          <= 4'd15;
 				end
 			end
-			// 如果處於 is_blanking_time (row == 111)，保持當前計數與狀態不變，避免誤扣放開計數
 		end
 	end
 end

@@ -4,10 +4,10 @@ module top (
 	
 	input  wire [7:0] switch_8bit, // 8Bit 指撥開關 (SW1 ~ SW8)
 	
-	input  wire [1:0] Keyboard_column_2x2, // 2x2 無段式開關 行(Column)
-	output wire [1:0] Keyboard_row_2x2,    // 2x2 無段式開關 列(Row)
-	input  wire [2:0] Keyboard_column_3x3, // 3x3 無段式開關 行(Column)
-	output wire [2:0] Keyboard_row_3x3,    // 3x3 無段式開關 列(Row)
+	output wire [1:0] Keyboard_column_2x2, // 2x2 無段式開關 行(Column)
+	input  wire [1:0] Keyboard_row_2x2,    // 2x2 無段式開關 列(Row)
+	output wire [2:0] Keyboard_column_3x3, // 3x3 無段式開關 行(Column)
+	input  wire [2:0] Keyboard_row_3x3,    // 3x3 無段式開關 列(Row)
 	input  wire [3:0] Keyboard_column_4x4, // 4x4 無段式開關 行(Column)
 	output wire [3:0] Keyboard_row_4x4,    // 4x4 無段式開關 列(Row)
 	
@@ -73,6 +73,10 @@ Main_Controller #(
 	.switch_8bit          (switch_8bit),
 	.KEY_2x2              (KEY_2x2),
 	.KEY_Pressed_2x2      (KEY_Pressed_2x2),
+	.KEY_3x3              (KEY_3x3),
+	.KEY_Pressed_3x3      (KEY_Pressed_3x3),
+	.KEY_4x4              (KEY_4x4),
+	.KEY_Pressed_4x4      (KEY_Pressed_4x4),
 	
 	.joy_x                (joystick_x),
 	.joy_y                (joystick_y),
@@ -97,7 +101,7 @@ Main_Controller #(
 );
 
 // 鍵盤掃描模組
-Keyboard_2x2 Keyboard_2x2_u1 (
+keyboard_2x2 keyboard_2x2 (
 	.clk     (clk),
 	.rst_n   (rst_n),
 	.column  (Keyboard_column_2x2),
@@ -106,7 +110,7 @@ Keyboard_2x2 Keyboard_2x2_u1 (
 	.KEY     (KEY_2x2)
 );
 
-Keyboard_3x3 Keyboard_3x3_u1 (
+keyboard_3x3 keyboard_3x3_u1 (
 	.clk     (clk),
 	.rst_n   (rst_n),
 	.column  (Keyboard_column_3x3),
@@ -115,7 +119,7 @@ Keyboard_3x3 Keyboard_3x3_u1 (
 	.KEY     (KEY_3x3)
 );
 
-Keyboard_4x4 Keyboard_4x4_u1 (
+keyboard_4x4 keyboard_4x4_u1 (
 	.clk     (clk),
 	.rst_n   (rst_n),
 	.column  (Keyboard_column_4x4),

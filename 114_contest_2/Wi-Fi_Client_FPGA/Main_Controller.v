@@ -10,6 +10,10 @@ module Main_Controller #(
 
 	input  wire [2:0] KEY_2x2,
 	input  wire       KEY_Pressed_2x2,
+	input  wire [3:0] KEY_3x3,
+	input  wire       KEY_Pressed_3x3,
+	input  wire [4:0] KEY_4x4,
+	input  wire       KEY_Pressed_4x4,
 
 	// 搖桿輸入訊號
 	input  wire [15:0] joy_x,      // 16-bit ADC X 軸
@@ -41,7 +45,7 @@ parameter CLK_FREQ = 50_000_000; // 50MHz 時脈
 parameter SYS_RESET       = 4'd0,
           SYS_INITIAL     = 4'd1,
 			 SYS_IDLE        = 4'd2,
-          SYS_LCD_WiFi    = 4'd3,
+          SYS_RX_DATA     = 4'd3,
           SYS_SEG         = 4'd4,
           SYS_DATA_TEST   = 4'd5,
           SYS_INTEGRATION = 4'd6;
@@ -67,15 +71,17 @@ always @(*) begin
 		next_system_state = SYS_RESET;
 	end else if ((current_system_state == SYS_RESET) && (system_timer >= (CLK_FREQ / 5))) begin
 		next_system_state = SYS_INITIAL;
-	end else if (switch_8bit == 8'b0000_0001) begin
-		
+	end else if ((switch_8bit == 8'b0000_0000) && (current_system_state == SYS_INITIAL) && (system_timer >= CLK_FREQ)) begin
+		next_system_state = SYS_IDLE;
+	end else if ((switch_8bit == 8'b0000_0001) && (KEY_4x4 == 11)) begin
+		next_system_state = SYS_RX_DATA;
 	end
 end
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		system_timer <= 32'b0;
-		seven_segment_chars <= {8{8'h80 | "8"}};
+		seven_segment_chars <= "";
 	end else begin
 		
 		if (previous_system_state != current_system_state) begin
@@ -90,22 +96,22 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			
 			SYS_INITIAL: begin
-				if (WiFi_init_done) begin
+				if (WiFi_init_done && (system_timer < CLK_FREQ)) begin
+					system_timer <= system_timer + 32'b1;
 					seven_segment_chars <= {8'h80, "READY", 8'h80, " "};
+				end else begin
+					seven_segment_chars <= "";
 				end
 			end
 			
-			SYS_SEG: begin
-				if (switch_8bit == 8'b0_0_000_1_01) begin
-					seven_segment_chars <= "";
-				end else if (switch_8bit == 8'b0_0_001_1_01) begin
-					seven_segment_chars <= {"MODE", "1", 8'h80, "XX"};
-				end else if (switch_8bit == 8'b0_0_010_1_01) begin
-					seven_segment_chars <= {"MODE", "1", 8'h80, "YY"};
-				end if (switch_8bit == 8'b0_0_100_1_01) begin
-					seven_segment_chars <= {"MODE", "1", 8'h80, "ZZ"};
-				end
+			SYS_IDLE: begin
+				seven_segment_chars <= {"CLTx", 8'h80, "000"};
 			end
+			
+			SYS_RX_DATA: begin
+				
+			end
+			
 			default: ;
 		endcase
 	end
