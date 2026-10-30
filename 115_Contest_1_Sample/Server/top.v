@@ -4,10 +4,10 @@ module top (
 	
 	input  wire [7:0] switch_8bit, // 8Bit 指撥開關 (SW1 ~ SW8)
 	
-	input  wire [1:0] Keyboard_column_2x2, // 2x2 無段式開關 行(Column)
-	output wire [1:0] Keyboard_row_2x2,    // 2x2 無段式開關 列(Row)
-	input  wire [2:0] Keyboard_column_3x3, // 3x3 無段式開關 行(Column)
-	output wire [2:0] Keyboard_row_3x3,    // 3x3 無段式開關 列(Row)
+	output wire [1:0] Keyboard_column_2x2, // 2x2 無段式開關 行(Column)
+	input  wire [1:0] Keyboard_row_2x2,    // 2x2 無段式開關 列(Row)
+	output wire [2:0] Keyboard_column_3x3, // 3x3 無段式開關 行(Column)
+	input  wire [2:0] Keyboard_row_3x3,    // 3x3 無段式開關 列(Row)
 	input  wire [3:0] Keyboard_column_4x4, // 4x4 無段式開關 行(Column)
 	output wire [3:0] Keyboard_row_4x4,    // 4x4 無段式開關 列(Row)
 	
@@ -52,13 +52,16 @@ assign USB2UART_WiFi_tx = WiFi_tx;
 assign USB2UART_WiFi_rx = WiFi_rx;
 
 // 內部控制線路連線
-wire [2:0] sys_state;
+wire [3:0] previous_system_state, current_system_state, next_system_state;
 
-wire       joystick_z_pulse;
-wire       joystick_up_pulse;
-wire       joystick_down_pulse;
-wire       joystick_left_pulse;
-wire       joystick_right_pulse;
+wire joystick_z_pulse;
+wire joystick_up_pulse;
+wire joystick_down_pulse;
+wire joystick_left_pulse;
+wire joystick_right_pulse;
+
+wire [2:0] coordinate_x, coordinate_y;
+wire [1:0] coordinate_state;
 
 // 專案主控制電路
 Main_Controller #(
@@ -66,32 +69,40 @@ Main_Controller #(
 	.MAX_RX_LEN(MAX_RX_LEN),
 	.MAX_CHARS(LCD_MAX_CHARS)
 ) Main_Controller_u1 (
-	.clk                 (clk),
-	.rst_n               (rst_n),
-	.switch_8bit         (switch_8bit),
-	.KEY_2x2             (KEY_2x2),
-	.KEY_Pressed_2x2     (KEY_Pressed_2x2),
+	.clk                  (clk),
+	.rst_n                (rst_n),
+	.switch_8bit          (switch_8bit),
+	.KEY_2x2              (KEY_2x2),
+	.KEY_Pressed_2x2      (KEY_Pressed_2x2),
 	
-	.joy_x               (joystick_x),
-	.joy_y               (joystick_y),
-	.joy_z               (joystick_z),
+	.joystick_z_pulse     (joystick_z_pulse),
+	.joystick_up_pulse    (joystick_up_pulse),
+	.joystick_down_pulse  (joystick_down_pulse),
+	.joystick_right_pulse (joystick_right_pulse),
+	.joystick_left_pulse  (joystick_left_pulse),
 	
-	.seven_segment_chars (seven_segment_chars),
+	.seven_segment_chars  (seven_segment_chars),
 	
-	.sys_state           (sys_state),
+	.previous_system_state(previous_system_state),
+	.current_system_state (current_system_state),
+	.next_system_state    (next_system_state),
 	
-	.send_en             (send_en),
-	.send_target_id      (rx_link_id),
-	.send_data_reg       (send_data_reg),
-	.tx_busy             (tx_busy),
-	.rx_link_id          (rx_link_id),
-	.rx_data_len         (rx_data_len),
-	.rx_data_reg         (rx_data_reg),
-	.rx_done             (rx_done)
+	.coordinate_x         (coordinate_x),
+	.coordinate_y         (coordinate_y),
+	.coordinate_state     (coordinate_state),
+	
+	.send_en              (send_en),
+	.send_target_id       (rx_link_id),
+	.send_data_reg        (send_data_reg),
+	.tx_busy              (tx_busy),
+	.rx_link_id           (rx_link_id),
+	.rx_data_len          (rx_data_len),
+	.rx_data_reg          (rx_data_reg),
+	.rx_done              (rx_done)
 );
 
 // 鍵盤掃描模組
-Keyboard_2x2 Keyboard_2x2_u1 (
+keyboard_2x2 Keyboard_2x2_u1 (
 	.clk     (clk),
 	.rst_n   (rst_n),
 	.column  (Keyboard_column_2x2),
@@ -100,7 +111,7 @@ Keyboard_2x2 Keyboard_2x2_u1 (
 	.KEY     (KEY_2x2)
 );
 
-Keyboard_3x3 Keyboard_3x3_u1 (
+keyboard_3x3 Keyboard_3x3_u1 (
 	.clk     (clk),
 	.rst_n   (rst_n),
 	.column  (Keyboard_column_3x3),
@@ -122,9 +133,9 @@ Joystick Joystick_u1 (
 	.ADS1115_ALRT   (ADS1115_ALRT),
 	.Joystick_SW    (Joystick_SW),
 	
-	.joy_x          (joystick_x),
-	.joy_y          (joystick_y),
-	.joy_z          (joystick_z),
+	.joystick_x     (joystick_x),
+	.joystick_y     (joystick_y),
+	.joystick_z     (joystick_z),
 	
 	.joystick_up    (joystick_up),
 	.joystick_down  (joystick_down),
@@ -135,7 +146,7 @@ Joystick Joystick_u1 (
 	.joystick_up_pulse   (joystick_up_pulse),
 	.joystick_down_pulse (joystick_down_pulse),
 	.joystick_right_pulse(joystick_right_pulse),
-	.joystick_left_pulse  (joystick_left_pulse)
+	.joystick_left_pulse (joystick_left_pulse)
 );
 
 // ESP8266 Wi-Fi 模組
@@ -190,12 +201,10 @@ WS2812B #(
 ) WS2812B_u1 (
 	.clk                 (clk),
 	.rst_n               (rst_n),
-	.sys_state           (sys_state),
-	.joystick_z_pulse    (joystick_z_pulse),
-	.joystick_up_pulse   (joystick_up_pulse),
-	.joystick_down_pulse (joystick_down_pulse),
-	.joystick_left_pulse (joystick_left_pulse),
-	.joystick_right_pulse(joystick_right_pulse),
+	.current_system_state(current_system_state),
+	.coordinate_x        (coordinate_x),
+	.coordinate_y        (coordinate_y),
+	.coordinate_state    (coordinate_state),
 	.WS2812B_8x8_DIN     (WS2812B_8x8_DIN),
 	.WS2812B_8x8_DOUT    (WS2812B_8x8_DOUT)
 );
@@ -204,14 +213,22 @@ WS2812B #(
 TFT_LCD #(
 	.MAX_CHARS(LCD_MAX_CHARS)
 ) TFT_LCD_u1 (
-	.clk(clk),
-	.rst_n(rst_n),
-	.SCL(ST7735S_SCL),
-	.SDA(ST7735S_SDA),
-	.RES(ST7735S_RES),
-	.DC (ST7735S_DC),
-	.CS (ST7735S_CS),
-	.BLK(ST7735S_BLK)
+	.clk                  (clk),
+	.rst_n                (rst_n),
+	.KEY_2x2              (KEY_2x2),
+	.KEY_Pressed_2x2      (KEY_Pressed_2x2),
+	.previous_system_state(previous_system_state),
+	.current_system_state (current_system_state),
+	.next_system_state    (next_system_state),
+	.coordinate_x         (coordinate_x),
+	.coordinate_y         (coordinate_y),
+	.coordinate_state     (coordinate_state),
+	.SCL                  (ST7735S_SCL),
+	.SDA                  (ST7735S_SDA),
+	.RES                  (ST7735S_RES),
+	.DC                   (ST7735S_DC),
+	.CS                   (ST7735S_CS),
+	.BLK                  (ST7735S_BLK)
 );
 
 endmodule

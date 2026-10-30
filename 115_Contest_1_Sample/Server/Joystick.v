@@ -7,9 +7,9 @@ module Joystick (
 	input  wire ADS1115_ALRT, // ADS1115 ADC ALERT (可不接)
 	input  wire Joystick_SW,  // 搖桿按鈕 (z 軸，按下為 Low)
 
-	output wire [15:0] joy_x,  // X 軸類比數值暫存器
-	output wire [15:0] joy_y,  // Y 軸類比數值暫存器
-	output reg         joy_z,  // Z 軸按鈕狀態 (去彈跳後，1: 放開, 0: 按下)
+	output wire [15:0] joystick_x, // X 軸類比數值暫存器
+	output wire [15:0] joystick_y, // Y 軸類比數值暫存器
+	output reg         joystick_z, // Z 軸按鈕狀態 (去彈跳後，1: 放開, 0: 按下)
 	
 	output wire joystick_up,
 	output wire joystick_down,
@@ -30,17 +30,17 @@ wire [15:0] raw_x;
 wire [15:0] raw_y;
 
 ADS1115_Driver ads_driver_u1 (
-	.clk         (clk),
-	.rst_n       (rst_n),
-	.scl         (ADS1115_SCL),
-	.sda         (ADS1115_SDA),
-	.joy_x_raw   (raw_x),
-	.joy_y_raw   (raw_y),
-	.update_valid()
+	.clk           (clk),
+	.rst_n         (rst_n),
+	.scl           (ADS1115_SCL),
+	.sda           (ADS1115_SDA),
+	.joystick_x_raw(raw_x),
+	.joystick_y_raw(raw_y),
+	.update_valid  ()
 );
 
-assign joy_x = raw_x;
-assign joy_y = raw_y;
+assign joystick_x = raw_x;
+assign joystick_y = raw_y;
 
 // -------------------------------------------------------------
 // Joystick Z 軸按鍵去彈跳邏輯 (Debounce Circuit)
@@ -65,14 +65,14 @@ end
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		db_cnt <= 19'd0;
-		joy_z  <= 1'b1; // 預設高電位 (未按下)
+		joystick_z  <= 1'b1; // 預設高電位 (未按下)
 	end else begin
-		if (sw_sync_1 != joy_z) begin
+		if (sw_sync_1 != joystick_z) begin
 			if (db_cnt < DEBOUNCE_CYCLES - 1) begin
 				db_cnt <= db_cnt + 1'b1;
 			end else begin
 				db_cnt <= 19'd0;
-				joy_z  <= sw_sync_1; // 連續 10ms 穩定後更新狀態
+				joystick_z  <= sw_sync_1; // 連續 10ms 穩定後更新狀態
 			end
 		end else begin
 			db_cnt <= 19'd0;
@@ -85,17 +85,17 @@ end
 // --------------------------------------------------------------------
 // 搖桿邊緣脈衝偵測器
 // --------------------------------------------------------------------
-reg    joy_z_d1;
-assign joystick_up    = (joy_y < 6000);
-assign joystick_down  = (joy_y > 10000);
-assign joystick_right = (joy_x > 10000);
-assign joystick_left  = (joy_x < 6000);
+reg    joystick_z_d1;
+assign joystick_up    = (joystick_y < 6000);
+assign joystick_down  = (joystick_y > 10000);
+assign joystick_right = (joystick_x > 10000);
+assign joystick_left  = (joystick_x < 6000);
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		joy_z_d1 <= 1'b0;
+		joystick_z_d1 <= 1'b0;
 	end else begin
-		joy_z_d1 <= joy_z;
+		joystick_z_d1 <= joystick_z;
 	end
 end
 
@@ -114,7 +114,7 @@ always @(posedge clk or negedge rst_n) begin
 	end
 end
 
-assign joystick_z_pulse     = joy_z          && !joy_z_d1;
+assign joystick_z_pulse     = joystick_z     && !joystick_z_d1;
 assign joystick_up_pulse    = joystick_up    && !joystick_up_d1;
 assign joystick_down_pulse  = joystick_down  && !joystick_down_d1;
 assign joystick_left_pulse  = joystick_left  && !joystick_left_d1;

@@ -4,10 +4,10 @@ module top (
 	
 	input  wire [7:0] switch_8bit, // 8Bit 指撥開關 (SW1 ~ SW8)
 	
-	input  wire [1:0] Keyboard_column_2x2, // 2x2 無段式開關 行(Column)
-	output wire [1:0] Keyboard_row_2x2,    // 2x2 無段式開關 列(Row)
-	input  wire [2:0] Keyboard_column_3x3, // 3x3 無段式開關 行(Column)
-	output wire [2:0] Keyboard_row_3x3,    // 3x3 無段式開關 列(Row)
+	output wire [1:0] Keyboard_column_2x2, // 2x2 無段式開關 行(Column)
+	input  wire [1:0] Keyboard_row_2x2,    // 2x2 無段式開關 列(Row)
+	output wire [2:0] Keyboard_column_3x3, // 3x3 無段式開關 行(Column)
+	input  wire [2:0] Keyboard_row_3x3,    // 3x3 無段式開關 列(Row)
 	input  wire [3:0] Keyboard_column_4x4, // 4x4 無段式開關 行(Column)
 	output wire [3:0] Keyboard_row_4x4,    // 4x4 無段式開關 列(Row)
 	

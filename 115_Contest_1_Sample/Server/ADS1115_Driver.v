@@ -3,8 +3,8 @@ module ADS1115_Driver (
 	input  wire         rst_n,
 	output wire         scl,
 	inout  wire         sda,
-	output reg  [15:0]  joy_x_raw,
-	output reg  [15:0]  joy_y_raw,
+	output reg  [15:0]  joystick_x_raw,
+	output reg  [15:0]  joystick_y_raw,
 	output reg          update_valid
 );
 
@@ -65,8 +65,8 @@ always @(posedge clk or negedge rst_n) begin
 		current_state  <= STATE_IDLE;
 		delay_cnt      <= 0;
 		sub_step       <= 0;
-		joy_x_raw      <= 16'h7FF0;
-		joy_y_raw      <= 16'h7FF0;
+		joystick_x_raw      <= 16'h7FF0;
+		joystick_y_raw      <= 16'h7FF0;
 		update_valid   <= 1'b0;
 		data_high      <= 8'h00;
 		i2c_start      <= 0;
@@ -110,10 +110,10 @@ always @(posedge clk or negedge rst_n) begin
 						data_high <= i2c_data_out; // 鎖存高位 Byte (MSB)
 					end else if (sub_step == 4'd6) begin
 						if (current_state == STATE_READ_CH0) begin
-							joy_x_raw    <= {data_high, i2c_data_out}; // 組合 16-bit X 軸數值
+							joystick_x_raw    <= {data_high, i2c_data_out}; // 組合 16-bit X 軸數值
 							update_valid <= 1'b1;
 						end else begin
-							joy_y_raw    <= {data_high, i2c_data_out}; // 組合 16-bit Y 軸數值
+							joystick_y_raw    <= {data_high, i2c_data_out}; // 組合 16-bit Y 軸數值
 							update_valid <= 1'b1;
 						end
 					end

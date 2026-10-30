@@ -106,7 +106,7 @@ set_location_assignment PIN_55 -to Keyboard_row_2x2[0]
 set_location_assignment PIN_84 -to WS2812B_8x8_DIN
 set_location_assignment PIN_88 -to WS2812B_8x8_DOUT
 set_global_assignment -name TIMEQUEST_MULTICORNER_ANALYSIS ON
-set_global_assignment -name SMART_RECOMPILE ON
+set_global_assignment -name SMART_RECOMPILE OFF
 set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
 set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
 set_global_assignment -name VERILOG_FILE top.v

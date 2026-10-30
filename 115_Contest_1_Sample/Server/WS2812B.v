@@ -5,14 +5,10 @@ module WS2812B #(
 	input  wire        rst_n,
 	
 	// 控制介面 (直接接收狀態與座標)
-	input  wire [2:0]  sys_state,            // 系統狀態
-	input  wire [3:0]  coord_x,              // X 軸座標
-	input  wire [3:0]  coord_y,              // Y 軸座標
-	input  wire        joystick_z_pulse,     // 搖桿按鈕脈衝
-	input  wire        joystick_up_pulse,    // 搖桿上脈衝
-	input  wire        joystick_down_pulse,  // 搖桿下脈衝
-	input  wire        joystick_left_pulse,  // 搖桿左脈衝
-	input  wire        joystick_right_pulse, // 搖桿右脈衝
+	input  wire [3:0] current_system_state, // 系統狀態
+	
+	input  wire [2:0] coordinate_x, coordinate_y,
+	input  wire [1:0] coordinate_state,
 	
 	// 硬體腳位
 	output reg         WS2812B_8x8_DIN,    // DIN 資料輸出腳位
@@ -27,11 +23,17 @@ localparam T1H_CYCLES = 35;   // 0.70us
 localparam BIT_CYCLES = 62;   // 1.24us
 localparam RST_CYCLES = 3000; // 60us Reset (Frame 刷新間隔)
 
-localparam SYS_TFT_LCD      = 3'd2,
-           SYS_WiFi_CONNECT = 3'd3,
-           SYS_JOYSTICK     = 3'd4,
-           SYS_INTEGRATION  = 3'd5;
+parameter SYS_RESET        = 4'd0,
+			 SYS_INITIAL      = 4'd1,
+			 SYS_IDLE         = 4'd2,
+			 SYS_TFT_LCD      = 4'd3,
+			 SYS_WiFi_CONNECT = 4'd4,
+			 SYS_JOYSTICK     = 4'd5,
+			 SYS_INTEGRATION  = 4'd6;
 
+
+
+// WS2812B 顏色定義
 localparam COLOR_OFF      = 24'h00_00_00;
 localparam COLOR_WS_RED   = 24'h00_1F_00;
 localparam COLOR_WS_GREEN = 24'h1F_00_00;
@@ -43,63 +45,36 @@ localparam COLOR_WS_BLUE  = 24'h00_00_1F;
 reg [5:0]  anim_head_idx;
 reg [23:0] anim_timer;
 reg        animation_done;
-parameter  ANIM_SPEED = (CLK_FREQ / 10 * 3); // 約 100ms 移動一格
+parameter  ANIM_SPEED = (CLK_FREQ / 10 * 3); // 約 300ms 移動一格
 
-reg [3:0] cur_x, cur_y;
-reg       integration_active;
-
-// 走馬燈動畫與 2x2 方塊互動邏輯
+// RGB 動畫與 2x2 紅色方塊互動邏輯
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		anim_head_idx      <= 6'd0;
-		anim_timer         <= 24'd0;
-		animation_done     <= 1'b0;
-		integration_active <= 1'b0;
-		cur_x              <= 4'd4;
-		cur_y              <= 4'd4;
+		anim_head_idx  <= 6'd2;
+		anim_timer     <= 24'd0;
+		animation_done <= 1'b0;
 	end else begin
-		if (sys_state == SYS_JOYSTICK) begin
+		if (current_system_state == SYS_JOYSTICK) begin
 			if (!animation_done) begin
-				if (anim_timer >= ANIM_SPEED - 1) begin
+				if (anim_timer < ANIM_SPEED) begin
+					anim_timer <=  anim_timer + 24'd1;
+				end else begin
 					anim_timer <= 24'd0;
 					if (anim_head_idx >= 6'd63) begin
 						animation_done <= 1'b1;
 					end else begin
-						anim_head_idx <= anim_head_idx + 6'd1;
+						if ((anim_head_idx % 8) < 3'd7) begin
+							anim_head_idx <= anim_head_idx + 6'd1;
+						end else begin
+							anim_head_idx <= anim_head_idx + 6'd3;
+						end
 					end
-				end else begin
-					anim_timer <= anim_timer + 24'd1;
 				end
-			end else begin
-				if (joystick_z_pulse) begin
-					integration_active <= ~integration_active;
-					cur_x <= 4'd4;
-					cur_y <= 4'd4;
-				end else if (integration_active) begin
-					if (joystick_up_pulse    && (cur_y < 4'd7)) cur_y <= cur_y + 4'd1;
-					if (joystick_down_pulse  && (cur_y > 4'd1)) cur_y <= cur_y - 4'd1;
-					if (joystick_right_pulse && (cur_x > 4'd1)) cur_x <= cur_x - 4'd1;
-					if (joystick_left_pulse  && (cur_x < 4'd7)) cur_x <= cur_x + 4'd1;
-				end
-			end
-		end else if (sys_state == SYS_INTEGRATION) begin
-			animation_done <= 1'b0;
-			anim_head_idx  <= 6'd0;
-			if (joystick_z_pulse) begin
-				integration_active <= ~integration_active;
-				cur_x <= 4'd1;
-				cur_y <= 4'd1;
-			end else if (integration_active) begin
-				if (joystick_up_pulse    && (cur_y < 4'd7)) cur_y <= cur_y + 4'd1;
-				if (joystick_down_pulse  && (cur_y > 4'd1)) cur_y <= cur_y - 4'd1;
-				if (joystick_right_pulse && (cur_x > 4'd1)) cur_x <= cur_x - 4'd1;
-				if (joystick_left_pulse  && (cur_x < 4'd7)) cur_x <= cur_x + 4'd1;
 			end
 		end else begin
-			animation_done     <= 1'b0;
-			anim_head_idx      <= 6'd0;
-			anim_timer         <= 24'd0;
-			integration_active <= 1'b0;
+			animation_done <= 1'b0;
+			anim_head_idx  <= 6'd2;
+			anim_timer     <= 24'd0;
 		end
 	end
 end
@@ -125,7 +100,7 @@ wire [2:0] pixel_y = led_cnt[5:3];
 always @(*) begin
 	current_grb = COLOR_OFF;
 	
-	if (sys_state == SYS_JOYSTICK) begin
+	if (current_system_state == SYS_JOYSTICK) begin
 		if (!animation_done) begin
 			if (led_cnt == anim_head_idx)
 				current_grb = COLOR_WS_RED;
@@ -134,18 +109,36 @@ always @(*) begin
 			else if (anim_head_idx >= 2 && led_cnt == (anim_head_idx - 2))
 				current_grb = COLOR_WS_BLUE;
 		end else begin
-			if ((pixel_x >= cur_x - 1) && (pixel_x <= cur_x) &&
-			    (pixel_y >= cur_y - 1) && (pixel_y <= cur_y)) begin
+			if (coordinate_state == 2'd0) begin
+				if ((pixel_x <= 4) && (pixel_x >= 3) &&
+				(pixel_y <= 4) && (pixel_y >= 3)) begin
+					current_grb = COLOR_WS_RED;
+				end
+			end else begin
+				if ((pixel_x <= coordinate_x + 1) && (pixel_x >= coordinate_x) &&
+				(pixel_y <= coordinate_y + 1) && (pixel_y >= coordinate_y)) begin
+					current_grb = COLOR_WS_RED;
+				end
+			end
+		end
+	end else if (current_system_state == SYS_INTEGRATION) begin
+		if (coordinate_state == 2'd0) begin
+			if ((pixel_x <= 1) && (pixel_x >= 0) &&
+			(pixel_y <= 1) && (pixel_y >= 0)) begin
+				current_grb = COLOR_WS_RED;
+			end
+		end else begin
+			if ((pixel_x <= coordinate_x + 1) && (pixel_x >= coordinate_x) &&
+			(pixel_y <= coordinate_y + 1) && (pixel_y >= coordinate_y)) begin
 				current_grb = COLOR_WS_RED;
 			end
 		end
-	end else if (sys_state == SYS_INTEGRATION) begin
-		if ((pixel_x >= cur_x - 1) && (pixel_x <= cur_x) &&
-		    (pixel_y >= cur_y - 1) && (pixel_y <= cur_y)) begin
-			current_grb = COLOR_WS_RED;
-		end
 	end
 end
+
+
+
+
 
 // 發送波形控制
 always @(posedge clk or negedge rst_n) begin
@@ -192,7 +185,7 @@ always @(posedge clk or negedge rst_n) begin
 
 			ST_RESET: begin
 				WS2812B_8x8_DIN <= 1'b0;
-				if (clk_cnt < RST_CYCLES - 1) begin
+				if (clk_cnt < 2*RST_CYCLES - 1) begin
 					clk_cnt <= clk_cnt + 1'b1;
 				end else begin
 					state <= ST_IDLE; // 自動循環刷新

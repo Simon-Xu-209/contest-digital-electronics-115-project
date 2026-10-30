@@ -12,14 +12,18 @@ module Main_Controller #(
 	input  wire       KEY_Pressed_2x2,
 
 	// 搖桿輸入訊號
-	input  wire [15:0] joy_x,      // 16-bit ADC X 軸
-	input  wire [15:0] joy_y,      // 16-bit ADC Y 軸
-	input  wire        joy_z,      // 搖桿按鈕 (1 表示按下)
+	input  wire joystick_z_pulse,     // 搖桿按下脈衝
+	input  wire joystick_up_pulse,    // 搖桿上脈衝
+	input  wire joystick_down_pulse,  // 搖桿下脈衝
+	input  wire joystick_left_pulse,  // 搖桿左脈衝
+	input  wire joystick_right_pulse, // 搖桿右脈衝
 
 	output reg [63:0] seven_segment_chars,
 
-	// WS2812B 控制介面
-	output wire [2:0] sys_state,
+	output reg  [3:0] previous_system_state, current_system_state, next_system_state,
+	
+	output reg  [2:0] coordinate_x, coordinate_y,
+	output reg  [1:0] coordinate_state,
 
 	output wire                    send_en,
 	output wire [3:0]              send_target_id,
@@ -36,38 +40,124 @@ parameter CLK_FREQ = 50_000_000; // 50MHz 時脈
 // --------------------------------------------------------------------
 // 系統狀態機定義
 // --------------------------------------------------------------------
-reg [2:0] current_system_state;
-reg [2:0] next_system_state;
-parameter SYS_IDLE         = 3'd0,
-          SYS_INITIAL      = 3'd1,
-          SYS_TFT_LCD      = 3'd2,
-          SYS_WiFi_CONNECT = 3'd3,
-          SYS_JOYSTICK     = 3'd4,
-          SYS_INTEGRATION  = 3'd5;
+parameter SYS_RESET        = 4'd0,
+			 SYS_INITIAL      = 4'd1,
+			 SYS_IDLE         = 4'd2,
+			 SYS_TFT_LCD      = 4'd3,
+			 SYS_WiFi_CONNECT = 4'd4,
+			 SYS_JOYSTICK     = 4'd5,
+			 SYS_INTEGRATION  = 4'd6;
 
-assign sys_state = current_system_state;
+
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		current_system_state <= SYS_IDLE;
+		previous_system_state <= SYS_RESET;
+		current_system_state  <= SYS_RESET;
 	end else begin
-		current_system_state <= next_system_state;
+		previous_system_state <= current_system_state;
+		current_system_state  <= next_system_state;
 	end
 end
 
 always @(*) begin
 	next_system_state = current_system_state;
 	
-	if (switch_8bit[1:0] == 2'b00) begin
-		next_system_state = SYS_TFT_LCD;
-	end else if (switch_8bit[1:0] == 2'b01) begin
-		next_system_state = SYS_WiFi_CONNECT;
-	end else if (switch_8bit[1:0] == 2'b10) begin
-		next_system_state = SYS_JOYSTICK;
-	end else if (switch_8bit[1:0] == 2'b11) begin
-		next_system_state = SYS_INTEGRATION;
+	if ((KEY_2x2 == 3'd0) && KEY_Pressed_2x2) begin
+		if (switch_8bit[1:0] == 2'b00) begin
+			next_system_state = SYS_TFT_LCD;
+		end else if (switch_8bit[1:0] == 2'b01) begin
+			next_system_state = SYS_WiFi_CONNECT;
+		end else if (switch_8bit[1:0] == 2'b10) begin
+			next_system_state = SYS_JOYSTICK;
+		end else if (switch_8bit[1:0] == 2'b11) begin
+			next_system_state = SYS_INTEGRATION;
+		end
+	end
+end
+
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		seven_segment_chars <= "";
+		coordinate_x        <= 3'd0;
+		coordinate_y        <= 3'd0;
+		coordinate_state    <= 2'd0;
 	end else begin
-		next_system_state = current_system_state;
+		if (next_system_state != current_system_state) begin
+			if (next_system_state == SYS_JOYSTICK) begin
+				coordinate_x     <= 3'd3;
+				coordinate_y     <= 3'd3;
+				coordinate_state <= 2'd0;
+			end else if (next_system_state == SYS_INTEGRATION) begin
+				coordinate_x     <= 3'd0;
+				coordinate_y     <= 3'd0;
+				coordinate_state <= 2'd0;
+			end
+		end
+		
+		case (current_system_state)
+			SYS_JOYSTICK: begin
+				if (previous_system_state != SYS_JOYSTICK) begin
+					
+				end else begin
+					if (joystick_z_pulse) begin
+						if (coordinate_state == 2'd0) begin
+							coordinate_state <= 2'd1;
+						end else if	(coordinate_state == 2'd1) begin
+							coordinate_state <= 2'd2;
+						end
+					end else begin
+						if (coordinate_state == 2'd1) begin
+							if (joystick_up_pulse && (coordinate_y < 6)) begin
+								coordinate_y <= coordinate_y + 3'd1;
+							end else if (joystick_down_pulse && (coordinate_y > 0)) begin
+								coordinate_y <= coordinate_y - 3'd1;
+							end
+							if (joystick_left_pulse && (coordinate_x < 6)) begin
+								coordinate_x <= coordinate_x + 3'd1;
+							end else if (joystick_right_pulse && (coordinate_x > 0)) begin
+								coordinate_x <= coordinate_x - 3'd1;
+							end
+						end
+					end
+				end
+			end
+			
+			SYS_INTEGRATION: begin
+				if (previous_system_state != SYS_INTEGRATION) begin
+					
+				end else begin
+					if (joystick_z_pulse) begin
+						coordinate_state <= 2'd1;
+						if (coordinate_state == 2'd0) begin
+							coordinate_state <= 2'd1;
+						end else if	(coordinate_state == 2'd1) begin
+							coordinate_state <= 2'd2;
+						end
+					end else begin
+						if (coordinate_state == 2'd1) begin
+							if (joystick_up_pulse && (coordinate_y < 6)) begin
+								coordinate_y <= coordinate_y + 3'd1;
+							end else if (joystick_down_pulse && (coordinate_y > 0)) begin
+								coordinate_y <= coordinate_y - 3'd1;
+							end
+							if (joystick_left_pulse && (coordinate_x < 6)) begin
+								coordinate_x <= coordinate_x + 3'd1;
+							end else if (joystick_right_pulse && (coordinate_x > 0)) begin
+								coordinate_x <= coordinate_x - 3'd1;
+							end
+						end
+					end
+				end
+			end
+			
+			default: ;
+		endcase
+		
+		if      (detected_num == "0") seven_segment_chars <= {"INF", 8'h80, "  00"};
+		else if (detected_num == "1") seven_segment_chars <= {"INF", 8'h80, "  01"};
+		else if (detected_num == "2") seven_segment_chars <= {"INF", 8'h80, "  02"};
+		else if (detected_num == "3") seven_segment_chars <= {"INF", 8'h80, "  03"};
 	end
 end
 
@@ -106,22 +196,6 @@ always @(*) begin
 			num_found    = 1'b1;
 			detected_num = bytes[k];
 		end
-	end
-end
-
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		seven_segment_chars <= {8{8'h80 | "8"}};
-	end else begin
-		case (current_system_state)
-			SYS_WiFi_CONNECT: begin
-				if (detected_num == "0")      seven_segment_chars <= {"INF", 8'h80, "  00"};
-				else if (detected_num == "1") seven_segment_chars <= {"INF", 8'h80, "  01"};
-				else if (detected_num == "2") seven_segment_chars <= {"INF", 8'h80, "  02"};
-				else if (detected_num == "3") seven_segment_chars <= {"INF", 8'h80, "  03"};
-			end
-			default: ;
-		endcase
 	end
 end
 

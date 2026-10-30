@@ -5,11 +5,18 @@ module TFT_LCD #(
 )(
 	input wire clk,
 	input wire rst_n,
-	input wire [7:0] switch_8bit,
-	input wire [2:0] PB,  // 2x2
-	input wire PB_Pressed,
-	input wire [3:0] KEY, // 3x3
-	input wire KEY_Pressed,
+	input wire [7:0]  switch_8bit,
+	input wire [2:0]  KEY_2x2,
+	input wire        KEY_Pressed_2x2,  // 2x2
+	input wire [3:0]  KEY_3x3,
+	input wire        KEY_Pressed_3x3,
+	input wire [4:0]  KEY_4x4,
+	input wire        KEY_Pressed_4x4,
+	input wire [3:0]  previous_system_state,
+	input wire [3:0]  current_system_state,
+	input wire [3:0]  next_system_state,
+	input wire [2:0]  coordinate_x, coordinate_y,
+	input wire [1:0]  coordinate_state,
 	input wire [15:0] WiFi_signal,
 	output reg  SCL, SDA, RES, DC, CS, BLK
 );
@@ -40,8 +47,14 @@ end
 // 基本參數配置
 // =========================================================================
 parameter COLOR_RED   = 16'hF800; // 紅色 (RGB565)
+parameter COLOR_GREEN = 16'h07E0; // 綠色 (RGB565)
 parameter COLOR_BLUE  = 16'h001F; // 藍色 (RGB565)
-parameter COLOR_BLACK = 16'h0000; // 背景色 (黑色)
+parameter COLOR_WHITE = 16'hFFFF; // 白色 (RGB565)
+parameter COLOR_BLACK = 16'h0000; // 黑色 (RGB565)
+
+reg [15:0] LCD_BACKGROUND;
+
+
 
 // =========================================================================
 // 動態文字物件屬性記憶體 (Text OAM)
@@ -54,86 +67,66 @@ reg [7:0]  char_y     [0:MAX_CHARS-1];
 reg [15:0] char_color [0:MAX_CHARS-1]; 
 reg [3:0]  char_scale [0:MAX_CHARS-1]; 
 
-// --- 狀態控制暫存器 ---
+
+
+parameter SYS_RESET        = 4'd0,
+			 SYS_INITIAL      = 4'd1,
+			 SYS_IDLE         = 4'd2,
+			 SYS_TFT_LCD      = 4'd3,
+			 SYS_WiFi_CONNECT = 4'd4,
+			 SYS_JOYSTICK     = 4'd5,
+			 SYS_INTEGRATION  = 4'd6;
+
+
+
+// --- 字串狀態控制暫存器 ---
 reg [2:0] char_group_cnt; // 0~6 組 (A~D, E~H, ..., YZ)
 reg [3:0] coord_row;      // 0~8
 reg [3:0] coord_col;      // 1~8
 
-
-
-reg [1:0] current_sys_mode;
-reg [1:0] next_sys_mode;
-localparam SYS_IDLE       = 2'd0,
-			  SYS_INITIAL    = 2'd1,
-			  SYS_ANIMATION  = 2'd2,
-			  SYS_COORDINATE = 2'd3;
-
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		current_sys_mode <= SYS_IDLE;
-	end else begin
-		current_sys_mode <= next_sys_mode;
-	end
-end
-
-always @(*) begin
-	next_sys_mode = current_sys_mode;
-	case(current_sys_mode)
-		SYS_IDLE: begin end
-		
-		SYS_INITIAL: begin
-			next_sys_mode = SYS_ANIMATION;
-		end
-		
-		SYS_ANIMATION: begin end
-		
-		SYS_COORDINATE: begin end
-		
-		default:;
-	endcase
-	
-	if ((switch_8bit[1:0] == 2'b00)/* && (key2x2_pulse == 0)*/) begin
-		next_sys_mode = SYS_ANIMATION;
-	end else if ((switch_8bit[1:0] == 2'b11)/* && (key2x2_pulse == 0)*/) begin
-		next_sys_mode = SYS_COORDINATE;
-	end
-end
-
-// --- 每秒觸發：動態更新字母與座標 ---
 integer i;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		char_group_cnt <= 0;
 		coord_row      <= 0;
 		coord_col      <= 1;
-
-		// 預設縮放倍率，可自由調整
+		
 		for (i = 0; i < MAX_CHARS; i = i + 1) begin
-			char_scale[i] <= 4'd3;
+			char_x[i]     <= 8'd127;
+			char_y[i]     <= 8'd159;
+			char_scale[i] <= 4'd0;
+			char_ascii[i] <= "";
 		end
-
-		// 上方 4 個紅色英文字母位置
-		char_color[0] <= COLOR_RED; char_x[0] <= 8'd16; char_y[0] <= 8'd10;
-		char_color[1] <= COLOR_RED; char_x[1] <= 8'd40; char_y[1] <= 8'd10;
-		char_color[2] <= COLOR_RED; char_x[2] <= 8'd64; char_y[2] <= 8'd10;
-		char_color[3] <= COLOR_RED; char_x[3] <= 8'd88; char_y[3] <= 8'd10;
 		
 	end else begin
-		case(current_sys_mode)
-			SYS_IDLE: begin end
-			
-			SYS_INITIAL: begin end
-			
-			SYS_ANIMATION: begin
-				 if (one_sec_pulse) begin
-					char_ascii[4] <= "["; char_ascii[6] <= ","; char_ascii[8] <= "]";
-					// 下方 5 個藍色座標文字位置
-					char_scale[4] <= 4'd3; char_color[4] <= COLOR_BLUE; char_x[4] <= 8'd5;   char_y[4] <= 8'd65;
-					char_scale[5] <= 4'd3; char_color[5] <= COLOR_BLUE; char_x[5] <= 8'd29;  char_y[5] <= 8'd65; // Row
-					char_scale[6] <= 4'd3; char_color[6] <= COLOR_BLUE; char_x[6] <= 8'd53;  char_y[6] <= 8'd65;
-					char_scale[7] <= 4'd3; char_color[7] <= COLOR_BLUE; char_x[7] <= 8'd77;  char_y[7] <= 8'd65; // Col
-					char_scale[8] <= 4'd3; char_color[8] <= COLOR_BLUE; char_x[8] <= 8'd101; char_y[8] <= 8'd65;
+		if (next_system_state != current_system_state) begin
+			if (next_system_state == SYS_TFT_LCD) begin
+				char_group_cnt <= 0;
+				coord_row      <= 0;
+				coord_col      <= 1;
+			end
+		end
+		
+		case(current_system_state)
+		
+			SYS_TFT_LCD: begin
+				for (i = 0; i < 9; i = i + 1) begin
+					char_scale[i] <= 4'd3;
+					if (i < 4) begin
+						char_x[i]     <= 8'd16 + (i % 4) * (FONT_W * 4'd3);
+						char_y[i]     <= 8'd5;
+						char_color[i] <= COLOR_RED;
+					end else if ((i >= 4) && (i < 9)) begin
+						char_x[i]     <= 8'd5 + ((i - 4) % 5) * (FONT_W * 4'd3);
+						char_y[i]     <= 8'd65;
+						char_scale[i] <= 4'd3;
+						char_color[i] <= COLOR_BLUE;
+					end
+				end
 				
+				if (one_sec_pulse) begin
+					char_ascii[4] <= "["; char_ascii[6] <= ","; char_ascii[8] <= "]";
+					
 					if (char_group_cnt < 6)
 						char_group_cnt <= char_group_cnt + 1;
 					else
@@ -159,23 +152,31 @@ always @(posedge clk or negedge rst_n) begin
 							coord_row <= 0;
 						end
 					end
-
-					// 將數字轉為 ASCII 碼 (加上 8'd48)
-					char_ascii[5] <= 8'd48 + coord_row;
-					char_ascii[7] <= 8'd48 + coord_col;
+					
+					// 將數字轉為 ASCII 碼 (加上 8'd48/"0")
+					char_ascii[5] <= "0" + coord_row;
+					char_ascii[7] <= "0" + coord_col;
 				end
 			end
 			
-			SYS_COORDINATE: begin
-				char_scale[0] <= 4'd3; char_ascii[0] <= "A";
-				char_scale[1] <= 4'd3; char_ascii[1] <= "B";
-				char_scale[2] <= 4'd3; char_ascii[2] <= "C";
-				char_scale[3] <= 4'd3; char_ascii[3] <= "D";
-				char_scale[4] <= 4'd3; char_ascii[4] <= "["; char_x[4] <= 8'd24; char_y[4] <= 8'd65;
-				char_scale[5] <= 4'd3; char_ascii[5] <= 8'd48; char_x[5] <= 8'd40; char_y[5] <= 8'd65; //
-				char_scale[6] <= 4'd3; char_ascii[6] <= ","; char_x[6] <= 8'd56; char_y[6] <= 8'd65;
-				char_scale[7] <= 4'd3; char_ascii[7] <= 8'd48; char_x[7] <= 8'd72; char_y[7] <= 8'd65; //
-				char_scale[8] <= 4'd3; char_ascii[8] <= "]"; char_x[8] <= 8'd88; char_y[8] <= 8'd65;
+			SYS_INTEGRATION: begin
+				for (i = 0; i < 9; i = i + 1) begin
+					char_scale[i] <= 4'd3;
+					if (i < 4) begin
+						char_x[i]     <= 8'd16 + (i % 4) * (FONT_W * 4'd3);
+						char_y[i]     <= 8'd5;
+						char_color[i] <= COLOR_RED;
+					end else if ((i >= 4) && (i < 9)) begin
+						char_x[i]     <= 8'd24 + ((i - 4) % 5) * (FONT_W * 4'd2);
+						char_y[i]     <= 8'd65;
+						char_scale[i] <= 4'd2;
+						char_color[i] <= COLOR_BLUE;
+					end
+				end
+				char_ascii[0] <= "A"; char_ascii[1] <= "B"; char_ascii[2] <= "C"; char_ascii[3] <= "D";
+				char_ascii[4] <= "["; char_ascii[6] <= ","; char_ascii[8] <= "]";
+				char_ascii[5] <= (coordinate_state == 2'd0) ? "0" : "1" + coordinate_x;
+				char_ascii[7] <= (coordinate_state == 2'd0) ? "0" : "1" + coordinate_y;
 			end
 			
 			default:;
@@ -206,8 +207,8 @@ always @(*) begin
 	hit_text     = 1'b0;
 
 	for (scan_i = 0; scan_i < MAX_CHARS; scan_i = scan_i + 1) begin
-		char_w       = FONT_W * char_scale[scan_i];
-		char_h       = FONT_H * char_scale[scan_i];
+		char_w = FONT_W * char_scale[scan_i];
+		char_h = FONT_H * char_scale[scan_i];
 
 		if (x_cnt >= char_x[scan_i] && x_cnt < (char_x[scan_i] + char_w) &&
 		y_cnt >= char_y[scan_i] && y_cnt < (char_y[scan_i] + char_h)) begin
