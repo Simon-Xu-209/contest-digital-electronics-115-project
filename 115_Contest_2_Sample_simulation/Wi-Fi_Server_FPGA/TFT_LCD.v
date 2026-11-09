@@ -72,12 +72,12 @@ reg [3:0]  char_scale [0:MAX_CHARS-1];
 
 
 
-parameter SYS_RESET        = 4'd0,
-			 SYS_INITIAL      = 4'd1,
-			 SYS_INIT_DONE    = 4'd2,
-			 SYS_WiFi_CONNECT = 4'd3,
-			 SYS_EDIT_ORDER_1 = 4'd4,
-			 SYS_EDIT_ORDER_2 = 4'd5;
+parameter SYS_RESET         = 4'd0,
+			 SYS_INITIAL       = 4'd1,
+			 SYS_INIT_DONE     = 4'd2,
+			 SYS_WiFi_CONNECT  = 4'd3,
+			 SYS_EDIT_ORDER_03 = 4'd4,
+			 SYS_EDIT_ORDER_02 = 4'd5;
 
 
 

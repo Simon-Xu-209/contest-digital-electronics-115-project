@@ -25,20 +25,16 @@ Public Class Form1
         SerialPort1.Encoding = Encoding.ASCII
         SerialPort1.NewLine = vbCrLf
 
-        SerialPort1.Open() '
+        SerialPort1.Open()
 
         quotasAndTotalPaymentAmounts.Text = "0000"
 
-        StepTimer.Interval = 200 ' 200ms 檢查一次
+        StepTimer.Interval = 200 ' 200ms/0.2s 檢查一次 (VB 最小等待時間單位)
         AddHandler StepTimer.Tick, AddressOf StepTimer_Tick
     End Sub
 
     Private Sub connect_Click(ByVal sender As Object, ByVal e As EventArgs) Handles connect.Click
         Try
-            ' If Not SerialPort1.IsOpen Then
-            'SerialPort1.Open()
-            ' End If
-
             connect.Enabled = False
             SerialPort1.DiscardInBuffer()
             responseBuffer = ""
@@ -47,7 +43,7 @@ Public Class Form1
             StepTimer.Start()
 
         Catch ex As Exception
-            MessageBox.Show("開啟串口失敗：" & ex.Message, "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            AppendLog(vbCrLf & "[錯誤] 開啟串口失敗：" & ex.Message & vbCrLf)
             connect.Enabled = True
         End Try
     End Sub
@@ -56,101 +52,113 @@ Public Class Form1
     ' Client 狀態機 (自動連線與設定)
     '=========================================
     Private Sub StepTimer_Tick(ByVal sender As Object, ByVal e As EventArgs)
-        Select Case stepIndex
-            Case 1
-                responseBuffer = ""
-                SerialPort1.WriteLine("AT+RST")
-                stepIndex = 101
+        Try
+            Select Case stepIndex
+                Case 1
+                    responseBuffer = ""
+                    SerialPort1.WriteLine("AT+RST")
+                    stepIndex = 101
 
-            Case 101
-                waitCounter += 1
-                If waitCounter > 5 Then
+                Case 101
+                    waitCounter += 1
+                    If waitCounter > 5 Then
+                        waitCounter = 0
+                        stepIndex = 2
+                    End If
+
+                Case 2
+                    responseBuffer = ""
+                    SerialPort1.WriteLine("AT+CWMODE=1")
+                    stepIndex = 102
+
+                Case 102
+                    If responseBuffer.Contains("OK") Then
+                        waitCounter = 0
+                        stepIndex = 3
+                    ElseIf responseBuffer.Contains("ERROR") Then
+                        FailAndStop("AT+CWMODE=1 失敗")
+                    Else
+                        waitCounter += 1
+                        If waitCounter > 15 Then FailAndStop("AT+CWMODE回應超時 (硬體可能未連接)")
+                    End If
+
+                Case 3
+                    responseBuffer = ""
                     waitCounter = 0
-                    stepIndex = 2
-                End If
+                    SerialPort1.WriteLine("AT+CWJAP=""" & TargetSSID & """,""" & TargetPWD & """")
+                    stepIndex = 103
 
-            Case 2
-                responseBuffer = ""
-                SerialPort1.WriteLine("AT+CWMODE=1")
-                stepIndex = 102
+                Case 103
+                    If responseBuffer.Contains("OK") OrElse responseBuffer.Contains("WIFI GOT IP") Then
+                        waitCounter = 0
+                        stepIndex = 4
+                    ElseIf responseBuffer.Contains("FAIL") OrElse responseBuffer.Contains("ERROR") Then
+                        FailAndStop("Wi-Fi 連線失敗 (請檢查 SSID/密碼)")
+                    Else
+                        waitCounter += 1
+                        If waitCounter > 50 Then FailAndStop("Wi-Fi 連線超時 (約10秒)")
+                    End If
 
-            Case 102
-                If responseBuffer.Contains("OK") Then
-                    stepIndex = 3
-                ElseIf responseBuffer.Contains("ERROR") Then
-                    FailAndStop("AT+CWMODE=1 失敗")
-                End If
+                Case 4
+                    responseBuffer = ""
+                    waitCounter = 0
+                    SerialPort1.WriteLine("AT+CIPSTART=""TCP"",""" & ServerIP & """," & ServerPort)
+                    stepIndex = 104
 
-            Case 3
-                responseBuffer = ""
-                waitCounter = 0
-                SerialPort1.WriteLine("AT+CWJAP=""" & TargetSSID & """,""" & TargetPWD & """")
-                stepIndex = 103
+                Case 104
+                    If responseBuffer.Contains("OK") OrElse responseBuffer.Contains("CONNECT") Then
+                        connect.Enabled = True
+                        waitCounter = 0
+                        stepIndex = 5
+                    ElseIf responseBuffer.Contains("ERROR") OrElse responseBuffer.Contains("CLOSED") Then
+                        FailAndStop("無法連線至目標 TCP Server")
+                        orderID.Text = ""
+                        quantityAndPrice.Text = ""
+                        quotasAndTotalPaymentAmounts.Text = "9595"
+                    Else
+                        waitCounter += 1
+                        If waitCounter > 25 Then FailAndStop("TCP 連線超時")
+                    End If
 
-            Case 103
-                If responseBuffer.Contains("OK") OrElse responseBuffer.Contains("WIFI GOT IP") Then
-                    stepIndex = 4
-                ElseIf responseBuffer.Contains("FAIL") OrElse responseBuffer.Contains("ERROR") Then
-                    FailAndStop("Wi-Fi 連線失敗 (請檢查 SSID/密碼)")
-                Else
-                    waitCounter += 1
-                    If waitCounter > 200 Then FailAndStop("Wi-Fi 連線超時")
-                End If
+                Case 5
+                    responseBuffer = ""
+                    waitCounter = 0
+                    SerialPort1.WriteLine("AT+CIPSEND=6")
+                    stepIndex = 105
 
-            Case 4
-                responseBuffer = ""
-                waitCounter = 0
-                SerialPort1.WriteLine("AT+CIPSTART=""TCP"",""" & ServerIP & """," & ServerPort)
-                stepIndex = 104
+                Case 105
+                    If responseBuffer.Contains(">") Then
+                        waitCounter = 0
+                        stepIndex = 6
+                    ElseIf responseBuffer.Contains("FAIL") OrElse responseBuffer.Contains("ERROR") Then
+                        FailAndStop("Wi-Fi 連線失敗")
+                    Else
+                        waitCounter += 1
+                        If waitCounter > 25 Then FailAndStop("CIPSEND 等待超時")
+                    End If
 
-            Case 104
-                If responseBuffer.Contains("OK") OrElse responseBuffer.Contains("CONNECT") Then
-                    connect.Enabled = True
-                    stepIndex = 5
-                ElseIf responseBuffer.Contains("ERROR") OrElse responseBuffer.Contains("CLOSED") Then
-                    FailAndStop("無法連線至目標 TCP Server")
-                    orderID.Text = ""
-                    quantityAndPrice.Text = ""
-                    quotasAndTotalPaymentAmounts.Text = "9595"
-                Else
-                    waitCounter += 1
-                    If waitCounter > 25 Then FailAndStop("TCP 連線超時")
-                End If
+                Case 6
+                    responseBuffer = ""
+                    waitCounter = 0
+                    SerialPort1.WriteLine("Done")
+                    stepIndex = 106
 
-            Case 5
-                responseBuffer = ""
-                waitCounter = 0
-                SerialPort1.WriteLine("AT+CIPSEND=6")
-                stepIndex = 105
+                Case 106
+                    If responseBuffer.Contains("SEND OK") OrElse responseBuffer.Contains(" ") Then
+                        StepTimer.Stop()
+                        AppendLog(vbCrLf & "[系統提示] TCP Client 連線成功！" & vbCrLf)
+                    ElseIf responseBuffer.Contains("FAIL") OrElse responseBuffer.Contains("ERROR") Then
+                        FailAndStop("傳送 Done 失敗")
+                    Else
+                        waitCounter += 1
+                        If waitCounter > 25 Then FailAndStop("SEND OK 等待超時")
+                    End If
 
-            Case 105
-                If responseBuffer.Contains(">") Then
-                    stepIndex = 6
-                ElseIf responseBuffer.Contains("FAIL") OrElse responseBuffer.Contains("ERROR") Then
-                    FailAndStop("Wi-Fi 連線失敗 (請檢查 SSID/密碼)")
-                Else
-                    waitCounter += 1
-                    If waitCounter > 200 Then FailAndStop("Wi-Fi 連線超時")
-                End If
-
-            Case 6
-                responseBuffer = ""
-                waitCounter = 0
-                SerialPort1.WriteLine("Done")
-                stepIndex = 106
-
-            Case 106
-                If responseBuffer.Contains("SEND OK") OrElse responseBuffer.Contains(" ") Then
-                    StepTimer.Stop()
-                    MessageBox.Show("TCP Client 連線成功！", "系統提示", MessageBoxButtons.OK, MessageBoxIcon.Information)
-                ElseIf responseBuffer.Contains("FAIL") OrElse responseBuffer.Contains("ERROR") Then
-                    FailAndStop("Wi-Fi 連線失敗 (請檢查 SSID/密碼)")
-                Else
-                    waitCounter += 1
-                    If waitCounter > 200 Then FailAndStop("Wi-Fi 連線超時")
-                End If
-
-        End Select
+            End Select
+        Catch ex As Exception
+            ' 當硬體被拔掉導致 SerialPort 寫入失敗時，安全攔截並恢復按鈕功能
+            FailAndStop("硬體通訊異常或已斷線：" & ex.Message)
+        End Try
     End Sub
 
     '=========================================
@@ -159,32 +167,30 @@ Public Class Form1
     Private Sub search_Click(ByVal sender As Object, ByVal e As EventArgs) Handles search.Click
         Try
             If Not SerialPort1.IsOpen Then
-                MessageBox.Show("請先執行連線！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                AppendLog(vbCrLf & "[提示] 請先執行連線！" & vbCrLf)
                 Return
             End If
 
             Dim rawID As String = orderID.Text.Trim()
             If rawID = "" Then
-                MessageBox.Show("請輸入訂單 ID！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                AppendLog(vbCrLf & "[提示] 請輸入訂單 ID！" & vbCrLf)
                 Return
             End If
-
-            Dim idVal As Integer = 0
-            Integer.TryParse(rawID, idVal)
-            Dim formattedID As String = idVal.ToString("D4")
 
             quantityAndPrice.Clear()
             quotasAndTotalPaymentAmounts.Clear()
 
-            Dim sendData As String = "ID:" & formattedID & vbCrLf
+            Dim sendData As String = "ID:" & rawID & vbCrLf
             Dim cmd As String = "AT+CIPSEND=" & sendData.Length.ToString()
 
             responseBuffer = ""
             SerialPort1.WriteLine(cmd)
 
             Dim ready As Boolean = False
-            For i As Integer = 1 To 20
-                Thread.Sleep(100)
+            ' 使用較短且安全的迴圈防呆，避免硬體拔除時計畫面完全凍結
+            For i As Integer = 1 To 10
+                Thread.Sleep(50)
+                Application.DoEvents() ' 保持介面順暢，不卡死
                 If responseBuffer.Contains(">") Then
                     ready = True
                     Exit For
@@ -194,17 +200,16 @@ Public Class Form1
             If ready Then
                 SerialPort1.Write(sendData)
             Else
-                MessageBox.Show("ESP8266 未就緒 (未收到 '>' 提示符號)", "傳送失敗", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                AppendLog(vbCrLf & "[傳送失敗] ESP8266 未就緒或未連接 (未收到 '>' 提示符號)" & vbCrLf)
             End If
 
         Catch ex As Exception
-            MessageBox.Show("傳送失敗：" & ex.Message, "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            AppendLog(vbCrLf & "[傳送失敗錯誤] " & ex.Message & vbCrLf)
         End Try
     End Sub
 
     '=========================================
     ' 背景監聽：接收串口資料
-    ' 只保留 UART2USB RX 資料於 Log 中
     '=========================================
     Private Sub SerialPort1_DataReceived(ByVal sender As Object, ByVal e As SerialDataReceivedEventArgs) Handles SerialPort1.DataReceived
         Try
@@ -213,65 +218,59 @@ Public Class Form1
             responseBuffer &= raw
 
             Me.Invoke(Sub()
-                          ' 僅保留原始 RX 資料輸出，不額外添加除錯字串
                           AppendLog(raw)
-
-                          If raw.Contains("+IPD") Then
-                              Dim parsed As String = ParseIPD(raw)
-                              If parsed <> "" Then
-                                  ProcessClientData(parsed)
-                              End If
-                          End If
+                          ProcessAllPackets() ' 呼叫運算解析區塊
                       End Sub)
         Catch ex As Exception
         End Try
     End Sub
 
-    Private Function ParseIPD(ByVal raw As String) As String
-        Try
-            Dim idx As Integer = raw.IndexOf("+IPD,")
-            If idx = -1 Then Return ""
+    ' =========================================================================
+    ' 【重要】資料判別與運算解析區塊 (ProcessAllPackets)
+    ' 說明：利用規則表達式 (Regex) 解析接收緩衝區內的黏包資料，並進行邏輯派發
+    ' =========================================================================
+    Private Sub ProcessAllPackets()
+        ' ---------------------------------------------------------------------
+        ' 1. 定義規則表達式 (Regex) 樣式：
+        '    "(ID:|QA:|QT:)([0-9a-zA-Z]+)"
+        '    - "(ID:|QA:|QT:)" 為第 1 個捕捉群組 (Group 1)：比對資料的標頭類型。
+        '    - "([0-9a-zA-Z]+)" 為第 2 個捕捉群組 (Group 2)：比對該標頭後方的實際數值內容。
+        ' ---------------------------------------------------------------------
+        Dim pattern As String = "(ID:|QA:|QT:)([0-9a-zA-Z]+)"
 
-            Dim colon As Integer = raw.IndexOf(":", idx)
-            If colon = -1 Then Return ""
+        ' 2. 執行運算：在 responseBuffer 中找出所有符合 pattern 的配對集合
+        Dim matches As System.Text.RegularExpressions.MatchCollection = System.Text.RegularExpressions.Regex.Matches(responseBuffer, pattern)
 
-            Dim result As String = raw.Substring(colon + 1)
-            Return result.Replace(vbCr, "").Replace(vbLf, "").Trim()
-        Catch
-            Return ""
-        End Try
-    End Function
+        ' 3. 判斷運算結果：若找到一個以上的有效封包
+        If matches.Count > 0 Then
+            ' 迴圈遍歷所有被抓出來的獨立資料片段
+            For Each m As System.Text.RegularExpressions.Match In matches
+                ' 取得前綴標頭 (例如 "ID:", "QA:", "QT:")
+                Dim prefix As String = m.Groups(1).Value
 
-    Private Sub ProcessClientData(ByVal payload As String)
-        payload = payload.Trim()
+                ' 取得對應的實際數值字串 (例如 "0302", "00550030", "0000")
+                Dim val As String = m.Groups(2).Value
 
-        ' 1. 當接收到 ID (例如 "ID:0102")
-        If payload.StartsWith("ID:") Then
-            Dim idValue As String = payload.Substring(3).Trim()
-            orderID.Text = idValue
+                ' 【欄位顯示區塊】依照前綴標頭的運算結果，派發並更新至對應的 UI 文字框
+                Select Case prefix
+                    Case "ID:"
+                        orderID.Text = val                  ' 更新「訂單 ID」欄位
+                    Case "QA:"
+                        quantityAndPrice.Text = val         ' 更新「數量與價格」欄位
+                    Case "QT:"
+                        quotasAndTotalPaymentAmounts.Text = val ' 更新「配額與總額」欄位
+                End Select
+            Next
 
-            ' 2. 當接收到 數量 (例如 "QA:00650040")
-        ElseIf payload.StartsWith("QA:") Then
-            Dim qaValue As String = payload.Substring(3).Trim()
-            quantityAndPrice.Text = qaValue
-
-            ' 3. 當接收到 配額與總額 (例如 "QT:#XX$XXXX" 或 "QT:0000")
-        ElseIf payload.StartsWith("QT:") Then
-            Dim qtValue As String = payload.Substring(3).Trim()
-            quotasAndTotalPaymentAmounts.Text = qtValue
-
-            ' 保留相容性解析 (QP / PA)
-        ElseIf payload.StartsWith("QP:") Then
-            quantityAndPrice.Text = payload.Substring(3).Trim()
-        ElseIf payload.StartsWith("PA:") Then
-            quotasAndTotalPaymentAmounts.Text = payload.Substring(3).Trim()
+            ' 4. 運算完成後清理：清空暫存緩衝區，避免重複運算或處理舊資料
+            responseBuffer = ""
         End If
     End Sub
 
     Private Sub FailAndStop(ByVal reason As String)
         StepTimer.Stop()
-        MessageBox.Show("設定失敗：" & reason, "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error)
-        connect.Enabled = True
+        AppendLog(vbCrLf & "[設定失敗] " & reason & vbCrLf)
+        connect.Enabled = True ' 確保連線按鈕重新解鎖
     End Sub
 
     Private Sub AppendLog(ByVal text As String)
@@ -290,19 +289,26 @@ Public Class Form1
         quotasAndTotalPaymentAmounts.Clear()
     End Sub
 
+    ' =========================================================================
+    ' 【重要】按鍵判斷與輸入區塊 (NumButton_Click)
+    ' 說明：處理虛擬數字按鍵 (0~9) 的點擊事件，並依據目前焦點欄位進行智慧填入
+    ' =========================================================================
     Private Sub NumButton_Click(ByVal sender As Object, ByVal e As EventArgs) Handles _
         Button0.Click, Button1.Click, Button2.Click, Button3.Click, Button4.Click,
         Button5.Click, Button6.Click, Button7.Click, Button8.Click, Button9.Click
 
+        ' 1. 取得目前被點擊的按鈕物件
         Dim btn As Button = CType(sender, Button)
-        Dim numStr As String = btn.Text
+        ' 2. 讀取按鈕上的文字 (即對應的數字字串 '0' ~ '9')
+        Dim numStr As String = btn.Text ' 變數對應
 
+        ' 3. 【欄位焦點判斷運算】：檢查使用者目前游標在哪個輸入框上
         If orderID.Focused Then
-            orderID.AppendText(numStr)
+            orderID.AppendText(numStr)         ' 若焦點在訂單 ID 框，將數字附加在後面
         ElseIf quantityAndPrice.Focused Then
-            quantityAndPrice.AppendText(numStr)
+            quantityAndPrice.AppendText(numStr)  ' 若焦點在數量與價格框，將數字附加在後面
         Else
-            orderID.AppendText(numStr)
+            orderID.AppendText(numStr)         ' 預設防呆：若沒有明確焦點，預設寫入訂單 ID 框
         End If
     End Sub
 

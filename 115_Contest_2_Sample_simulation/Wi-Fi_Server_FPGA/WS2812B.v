@@ -12,6 +12,11 @@ module WS2812B #(
 	input  wire [2:0]  coordinate_x, coordinate_y,
 	input  wire [1:0]  coordinate_state,
 	
+	input [23:0] orderQuantity, // 訂購數量
+	input [23:0] bidAmount,     // 出價金額
+	input [23:0] productQuota,  // 商品配額
+	input [47:0] grandTotal,    // 付款總額
+	
 	// 硬體腳位
 	output reg         WS2812B_8x8_DIN,    // DIN 資料輸出腳位
 	input  wire        WS2812B_8x8_DOUT    // 溢位資料腳位
@@ -25,12 +30,12 @@ localparam T1H_CYCLES = 35;   // 0.70us
 localparam BIT_CYCLES = 62;   // 1.24us
 localparam RST_CYCLES = 3000; // 60us Reset (Frame 刷新間隔)
 
-parameter SYS_RESET        = 4'd0,
-			 SYS_INITIAL      = 4'd1,
-			 SYS_INIT_DONE    = 4'd2,
-			 SYS_WiFi_CONNECT = 4'd3,
-			 SYS_EDIT_ORDER_1 = 4'd4,
-			 SYS_EDIT_ORDER_2 = 4'd5;
+parameter SYS_RESET         = 4'd0,
+			 SYS_INITIAL       = 4'd1,
+			 SYS_INIT_DONE     = 4'd2,
+			 SYS_WiFi_CONNECT  = 4'd3,
+			 SYS_EDIT_ORDER_03 = 4'd4,
+			 SYS_EDIT_ORDER_02 = 4'd5;
 
 
 
@@ -169,38 +174,123 @@ always @(*) begin
 		end else begin
 			current_color = COLOR_OFF;
 		end
-	end else if (current_system_state == SYS_EDIT_ORDER_1) begin
-		if (!animation_done) begin
-			if (led_cnt == anim_frame)
+	end else if (current_system_state == SYS_EDIT_ORDER_03) begin
+		// --- 第七列: 顯示 訂單03 的 訂購數量 ---
+		if ((pixel_y == 3'd7) && (anim_timer < CLK_FREQ/2)) begin
+			if (pixel_x > (7 - (orderQuantity[23:16] / 10))) begin
 				current_color = COLOR_RED;
-			else if (anim_frame >= 1 && led_cnt == (anim_frame - 1))
+			end
+			if ((pixel_x == (7 - (orderQuantity[23:16] / 10))) && ((orderQuantity[23:16] % 10) > 0)) begin
 				current_color = COLOR_GREEN;
-			else if (anim_frame >= 2 && led_cnt == (anim_frame - 2))
-				current_color = COLOR_BLUE;
-		end else begin
-			if (coordinate_state == 2'd0) begin
-				if ((pixel_x <= 4) && (pixel_x >= 3) &&
-				(pixel_y <= 4) && (pixel_y >= 3)) begin
-					current_color = COLOR_RED;
-				end
-			end else begin
-				if ((pixel_x <= coordinate_x + 1) && (pixel_x >= coordinate_x) &&
-				(pixel_y <= coordinate_y + 1) && (pixel_y >= coordinate_y)) begin
-					current_color = COLOR_RED;
-				end
 			end
 		end
-	end else if (current_system_state == SYS_EDIT_ORDER_1) begin
-		if (coordinate_state == 2'd0) begin
-			if ((pixel_x <= 1) && (pixel_x >= 0) &&
-			(pixel_y <= 1) && (pixel_y >= 0)) begin
+		// --- 第六列: 顯示 訂單03 的 配額數量 ---
+		else if (pixel_y == 3'd6) begin
+			if (pixel_x > (7 - (productQuota[23:16] / 10))) begin
 				current_color = COLOR_RED;
 			end
-		end else begin
-			if ((pixel_x <= coordinate_x + 1) && (pixel_x >= coordinate_x) &&
-			(pixel_y <= coordinate_y + 1) && (pixel_y >= coordinate_y)) begin
+			if ((pixel_x == (7 - (productQuota[23:16] / 10))) && ((productQuota[23:16] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 第四列: 顯示 訂單02 的 訂購數量 ---
+		else if (pixel_y == 3'd4) begin
+			if (pixel_x > (7 - (orderQuantity[15:8] / 10))) begin
 				current_color = COLOR_RED;
 			end
+			if ((pixel_x == (7 - orderQuantity[15:8] / 10)) && ((orderQuantity[15:8] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 第三列: 顯示 訂單xx 的 配額數量 ---
+		else if (pixel_y == 3'd3) begin
+			if ((pixel_x > (7 - (productQuota[15:8] / 10)))) begin
+				current_color = COLOR_RED;
+			end
+			if ((pixel_x == (7 - (productQuota[15:8] / 10))) && ((productQuota[15:8] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 第一列: 顯示 訂單xx 的 配額數量 ---
+		else if (pixel_y == 3'd1) begin
+			if ((pixel_x > (7 - (productQuota[7:0] / 10)))) begin
+				current_color = COLOR_RED;
+			end
+			if (pixel_x == (productQuota[7:0] / 10) && ((productQuota[7:0] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 第零列: 顯示 訂單xx 的 配額數量 ---
+		else if (pixel_y == 3'd0) begin
+			if ((pixel_x > (7 - (productQuota[7:0] / 10)))) begin
+				current_color = COLOR_RED;
+			end
+			if ((pixel_x == (7 - (productQuota[7:0] / 10))) && ((productQuota[7:0] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 其餘點陣關閉 ---
+		else begin
+			current_color = COLOR_OFF;
+		end
+	end else if (current_system_state == SYS_EDIT_ORDER_02) begin
+		// --- 第七列: 顯示 訂單03 的 訂購數量 ---
+		if ((pixel_y == 3'd7) && (anim_timer < CLK_FREQ/2)) begin
+			if (pixel_x > (7 - (orderQuantity[23:16] / 10))) begin
+				current_color = COLOR_RED;
+			end
+			if ((pixel_x == (7 - (orderQuantity[23:16] / 10))) && ((orderQuantity[23:16] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 第六列: 顯示 訂單03 的 配額數量 ---
+		else if (pixel_y == 3'd6) begin
+			if (pixel_x > (7 - (productQuota[23:16] / 10))) begin
+				current_color = COLOR_RED;
+			end
+			if ((pixel_x == (7 - (productQuota[23:16] / 10))) && ((productQuota[23:16] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 第四列: 顯示 訂單02 的 訂購數量 ---
+		else if (pixel_y == 3'd4) begin
+			if (pixel_x > (7 - (orderQuantity[15:8] / 10))) begin
+				current_color = COLOR_RED;
+			end
+			if ((pixel_x == (7 - orderQuantity[15:8] / 10)) && ((orderQuantity[15:8] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 第三列: 顯示 訂單xx 的 配額數量 ---
+		else if (pixel_y == 3'd3) begin
+			if ((pixel_x > (7 - (productQuota[15:8] / 10)))) begin
+				current_color = COLOR_RED;
+			end
+			if ((pixel_x == (7 - (productQuota[15:8] / 10))) && ((productQuota[15:8] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 第一列: 顯示 訂單xx 的 配額數量 ---
+		else if (pixel_y == 3'd1) begin
+			if ((pixel_x > (7 - (productQuota[7:0] / 10)))) begin
+				current_color = COLOR_RED;
+			end
+			if (pixel_x == (productQuota[7:0] / 10) && ((productQuota[7:0] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 第零列: 顯示 訂單xx 的 配額數量 ---
+		else if (pixel_y == 3'd0) begin
+			if ((pixel_x > (7 - (productQuota[7:0] / 10)))) begin
+				current_color = COLOR_RED;
+			end
+			if ((pixel_x == (7 - (productQuota[7:0] / 10))) && ((productQuota[7:0] % 10) > 0)) begin
+				current_color = COLOR_GREEN;
+			end
+		end
+		// --- 其餘點陣關閉 ---
+		else begin
+			current_color = COLOR_OFF;
 		end
 	end
 end

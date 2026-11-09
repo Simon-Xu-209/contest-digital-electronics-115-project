@@ -64,6 +64,11 @@ wire joystick_right_pulse;
 wire [2:0] coordinate_x, coordinate_y;
 wire [1:0] coordinate_state;
 
+wire [23:0] orderQuantity; // 訂購數量
+wire [23:0] bidAmount;     // 出價金額
+wire [23:0] productQuota;  // 商品配額
+wire [47:0] grandTotal;    // 付款總額
+
 // 專案主控制電路
 Main_Controller #(
 	.MAX_TX_LEN(MAX_TX_LEN),
@@ -90,6 +95,11 @@ Main_Controller #(
 	.current_system_state (current_system_state),
 	.next_system_state    (next_system_state),
 	.system_timer         (system_timer),
+	
+	.orderQuantity        (orderQuantity),
+	.bidAmount            (bidAmount),
+	.productQuota         (productQuota),
+	.grandTotal           (grandTotal),
 	
 	.coordinate_x         (coordinate_x),
 	.coordinate_y         (coordinate_y),
@@ -218,6 +228,10 @@ WS2812B #(
 	.coordinate_x         (coordinate_x),
 	.coordinate_y         (coordinate_y),
 	.coordinate_state     (coordinate_state),
+	.orderQuantity        (orderQuantity),
+	.bidAmount            (bidAmount),
+	.productQuota         (productQuota),
+	.grandTotal           (grandTotal),
 	.WS2812B_8x8_DIN      (WS2812B_8x8_DIN),
 	.WS2812B_8x8_DOUT     (WS2812B_8x8_DOUT)
 );

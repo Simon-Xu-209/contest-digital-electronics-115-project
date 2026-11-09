@@ -227,7 +227,6 @@ always @(posedge clk or negedge rst_n) begin
 					
 					// 同步在當下計算該筆資料的精確長度（自動掃描有效位元）
 					data_len_bytes     <= 8'd0;
-					len_count_done     <= 1'b1;
 					
 					// 區塊內直接計算長度，不透過外部非同步組合邏輯
 					/* 註解：計算有效字元數 */
@@ -294,7 +293,6 @@ reg [2:0] tx_fsm_state;
 // 內部鎖存資料與計算後的長度
 reg [8*MAX_TX_LEN-1:0] internal_send_data;
 reg [7:0]              data_len_bytes;
-reg                    len_count_done;
 
 // 將 8-bit 長度轉換為十進位 ASCII 數字
 wire [7:0] len_hundreds = (data_len_bytes / 100) + "0";
