@@ -68,6 +68,7 @@ wire [23:0] orderQuantity; // 訂購數量
 wire [23:0] bidAmount;     // 出價金額
 wire [23:0] productQuota;  // 商品配額
 wire [47:0] grandTotal;    // 付款總額
+wire [31:0] new_orderID_confirm;
 
 // 專案主控制電路
 Main_Controller #(
@@ -100,6 +101,7 @@ Main_Controller #(
 	.bidAmount            (bidAmount),
 	.productQuota         (productQuota),
 	.grandTotal           (grandTotal),
+	.new_orderID_confirm  (new_orderID_confirm),
 	
 	.coordinate_x         (coordinate_x),
 	.coordinate_y         (coordinate_y),
@@ -248,6 +250,11 @@ TFT_LCD #(
 	.current_system_state (current_system_state),
 	.next_system_state    (next_system_state),
 	.system_timer         (system_timer),
+	.orderQuantity        (orderQuantity),
+	.bidAmount            (bidAmount),
+	.productQuota         (productQuota),
+	.grandTotal           (grandTotal),
+	.new_orderID_confirm  (new_orderID_confirm),
 	.coordinate_x         (coordinate_x),
 	.coordinate_y         (coordinate_y),
 	.coordinate_state     (coordinate_state),

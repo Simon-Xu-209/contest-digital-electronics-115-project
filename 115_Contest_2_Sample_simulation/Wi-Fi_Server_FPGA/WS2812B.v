@@ -30,12 +30,14 @@ localparam T1H_CYCLES = 35;   // 0.70us
 localparam BIT_CYCLES = 62;   // 1.24us
 localparam RST_CYCLES = 3000; // 60us Reset (Frame 刷新間隔)
 
-parameter SYS_RESET         = 4'd0,
-			 SYS_INITIAL       = 4'd1,
-			 SYS_INIT_DONE     = 4'd2,
-			 SYS_WiFi_CONNECT  = 4'd3,
-			 SYS_EDIT_ORDER_03 = 4'd4,
-			 SYS_EDIT_ORDER_02 = 4'd5;
+parameter SYS_RESET           = 4'd0,
+			 SYS_INITIAL         = 4'd1,
+			 SYS_INIT_DONE       = 4'd2,
+			 SYS_WiFi_CONNECT    = 4'd3,
+			 SYS_EDIT_ORDER_03   = 4'd4,
+			 SYS_EDIT_ORDER_02   = 4'd5,
+			 SYS_EDIT_ORDER_xx   = 4'd6,
+			 SYS_EDIT_ORDER_DONE = 4'd7;
 
 
 
@@ -91,6 +93,8 @@ reg [4:0]  bit_cnt;     // 當前發送第幾個 bit (0~23)
 reg [12:0] clk_cnt;     // pulse timing counter
 reg [23:0] current_color; // 當前正在發送的 LED 顏色
 reg [1:0]  state;
+
+
 
 localparam ST_IDLE  = 2'd0,
            ST_SEND  = 2'd1,
@@ -174,17 +178,28 @@ always @(*) begin
 		end else begin
 			current_color = COLOR_OFF;
 		end
-	end else if (current_system_state == SYS_EDIT_ORDER_03) begin
-		// --- 第七列: 顯示 訂單03 的 訂購數量 ---
-		if ((pixel_y == 3'd7) && (anim_timer < CLK_FREQ/2)) begin
-			if (pixel_x > (7 - (orderQuantity[23:16] / 10))) begin
-				current_color = COLOR_RED;
-			end
-			if ((pixel_x == (7 - (orderQuantity[23:16] / 10))) && ((orderQuantity[23:16] % 10) > 0)) begin
-				current_color = COLOR_GREEN;
+	end else if ((current_system_state == SYS_EDIT_ORDER_03) || (current_system_state == SYS_EDIT_ORDER_02) || (current_system_state == SYS_EDIT_ORDER_xx)) begin
+		// --- 第七列: 顯示 訂單03 的訂購數量 ---
+		if (pixel_y == 3'd7) begin
+			if (current_system_state == SYS_EDIT_ORDER_03) begin
+				if (system_timer < CLK_FREQ) begin
+					if (pixel_x > (7 - (orderQuantity[23:16] / 10))) begin
+						current_color = COLOR_RED;
+					end
+					if ((pixel_x == (7 - (orderQuantity[23:16] / 10))) && ((orderQuantity[23:16] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end
+			end else begin
+				if (pixel_x > (7 - (orderQuantity[23:16] / 10))) begin
+					current_color = COLOR_RED;
+				end
+				if ((pixel_x == (7 - (orderQuantity[23:16] / 10))) && ((orderQuantity[23:16] % 10) > 0)) begin
+					current_color = COLOR_GREEN;
+				end
 			end
 		end
-		// --- 第六列: 顯示 訂單03 的 配額數量 ---
+		// --- 第六列: 顯示 訂單03 的配額數量 ---
 		else if (pixel_y == 3'd6) begin
 			if (pixel_x > (7 - (productQuota[23:16] / 10))) begin
 				current_color = COLOR_RED;
@@ -193,34 +208,56 @@ always @(*) begin
 				current_color = COLOR_GREEN;
 			end
 		end
-		// --- 第四列: 顯示 訂單02 的 訂購數量 ---
+		// --- 第四列: 顯示 訂單02 的訂購數量 ---
 		else if (pixel_y == 3'd4) begin
-			if (pixel_x > (7 - (orderQuantity[15:8] / 10))) begin
-				current_color = COLOR_RED;
-			end
-			if ((pixel_x == (7 - orderQuantity[15:8] / 10)) && ((orderQuantity[15:8] % 10) > 0)) begin
-				current_color = COLOR_GREEN;
+			if (current_system_state == SYS_EDIT_ORDER_02) begin
+				if (system_timer < CLK_FREQ) begin
+					if (pixel_x > (7 - (orderQuantity[15:8] / 10))) begin
+						current_color = COLOR_RED;
+					end
+					if ((pixel_x == (7 - orderQuantity[15:8] / 10)) && ((orderQuantity[15:8] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end
+			end else begin
+				if (pixel_x > (7 - (orderQuantity[15:8] / 10))) begin
+					current_color = COLOR_RED;
+				end
+				if ((pixel_x == (7 - orderQuantity[15:8] / 10)) && ((orderQuantity[15:8] % 10) > 0)) begin
+					current_color = COLOR_GREEN;
+				end
 			end
 		end
-		// --- 第三列: 顯示 訂單xx 的 配額數量 ---
+		// --- 第三列: 顯示 訂單02 的配額數量 ---
 		else if (pixel_y == 3'd3) begin
-			if ((pixel_x > (7 - (productQuota[15:8] / 10)))) begin
+			if (pixel_x > (7 - (productQuota[15:8] / 10))) begin
 				current_color = COLOR_RED;
 			end
-			if ((pixel_x == (7 - (productQuota[15:8] / 10))) && ((productQuota[15:8] % 10) > 0)) begin
+			if ((pixel_x == (7 - productQuota[15:8] / 10)) && ((productQuota[15:8] % 10) > 0)) begin
 				current_color = COLOR_GREEN;
 			end
 		end
-		// --- 第一列: 顯示 訂單xx 的 配額數量 ---
+		// --- 第一列: 顯示 訂單xx 的訂購數量 ---
 		else if (pixel_y == 3'd1) begin
-			if ((pixel_x > (7 - (productQuota[7:0] / 10)))) begin
-				current_color = COLOR_RED;
-			end
-			if (pixel_x == (productQuota[7:0] / 10) && ((productQuota[7:0] % 10) > 0)) begin
-				current_color = COLOR_GREEN;
+			if (current_system_state == SYS_EDIT_ORDER_xx) begin
+				if (system_timer < CLK_FREQ) begin
+					if ((pixel_x > (7 - (orderQuantity[7:0] / 10)))) begin
+						current_color = COLOR_RED;
+					end
+					if (pixel_x == ((7 - orderQuantity[7:0] / 10)) && ((orderQuantity[7:0] % 10) > 0)) begin
+						current_color = COLOR_GREEN;
+					end
+				end
+			end else begin
+				if (pixel_x > (7 - (orderQuantity[7:0] / 10))) begin
+					current_color = COLOR_RED;
+				end
+				if ((pixel_x == (7 - orderQuantity[7:0] / 10)) && ((orderQuantity[7:0] % 10) > 0)) begin
+					current_color = COLOR_GREEN;
+				end
 			end
 		end
-		// --- 第零列: 顯示 訂單xx 的 配額數量 ---
+		// --- 第零列: 顯示 訂單xx 的配額數量 ---
 		else if (pixel_y == 3'd0) begin
 			if ((pixel_x > (7 - (productQuota[7:0] / 10)))) begin
 				current_color = COLOR_RED;
@@ -233,9 +270,9 @@ always @(*) begin
 		else begin
 			current_color = COLOR_OFF;
 		end
-	end else if (current_system_state == SYS_EDIT_ORDER_02) begin
-		// --- 第七列: 顯示 訂單03 的 訂購數量 ---
-		if ((pixel_y == 3'd7) && (anim_timer < CLK_FREQ/2)) begin
+	end else if (current_system_state == SYS_EDIT_ORDER_DONE) begin
+		// --- 第七列: 顯示 訂單03 的訂購數量 ---
+		if (pixel_y == 3'd7) begin
 			if (pixel_x > (7 - (orderQuantity[23:16] / 10))) begin
 				current_color = COLOR_RED;
 			end
@@ -243,7 +280,7 @@ always @(*) begin
 				current_color = COLOR_GREEN;
 			end
 		end
-		// --- 第六列: 顯示 訂單03 的 配額數量 ---
+		// --- 第六列: 顯示 訂單03 的配額數量 ---
 		else if (pixel_y == 3'd6) begin
 			if (pixel_x > (7 - (productQuota[23:16] / 10))) begin
 				current_color = COLOR_RED;
@@ -252,7 +289,7 @@ always @(*) begin
 				current_color = COLOR_GREEN;
 			end
 		end
-		// --- 第四列: 顯示 訂單02 的 訂購數量 ---
+		// --- 第四列: 顯示 訂單02 的訂購數量 ---
 		else if (pixel_y == 3'd4) begin
 			if (pixel_x > (7 - (orderQuantity[15:8] / 10))) begin
 				current_color = COLOR_RED;
@@ -261,25 +298,25 @@ always @(*) begin
 				current_color = COLOR_GREEN;
 			end
 		end
-		// --- 第三列: 顯示 訂單xx 的 配額數量 ---
+		// --- 第三列: 顯示 訂單02 的配額數量 ---
 		else if (pixel_y == 3'd3) begin
-			if ((pixel_x > (7 - (productQuota[15:8] / 10)))) begin
+			if (pixel_x > (7 - (productQuota[15:8] / 10))) begin
 				current_color = COLOR_RED;
 			end
-			if ((pixel_x == (7 - (productQuota[15:8] / 10))) && ((productQuota[15:8] % 10) > 0)) begin
+			if ((pixel_x == (7 - productQuota[15:8] / 10)) && ((productQuota[15:8] % 10) > 0)) begin
 				current_color = COLOR_GREEN;
 			end
 		end
-		// --- 第一列: 顯示 訂單xx 的 配額數量 ---
+		// --- 第一列: 顯示 訂單xx 的訂購數量 ---
 		else if (pixel_y == 3'd1) begin
-			if ((pixel_x > (7 - (productQuota[7:0] / 10)))) begin
+			if ((pixel_x > (7 - (orderQuantity[7:0] / 10)))) begin
 				current_color = COLOR_RED;
 			end
-			if (pixel_x == (productQuota[7:0] / 10) && ((productQuota[7:0] % 10) > 0)) begin
+			if (pixel_x == ((7 - orderQuantity[7:0] / 10)) && ((orderQuantity[7:0] % 10) > 0)) begin
 				current_color = COLOR_GREEN;
 			end
 		end
-		// --- 第零列: 顯示 訂單xx 的 配額數量 ---
+		// --- 第零列: 顯示 訂單xx 的配額數量 ---
 		else if (pixel_y == 3'd0) begin
 			if ((pixel_x > (7 - (productQuota[7:0] / 10)))) begin
 				current_color = COLOR_RED;

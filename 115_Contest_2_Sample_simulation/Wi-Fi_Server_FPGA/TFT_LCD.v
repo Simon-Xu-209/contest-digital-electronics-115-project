@@ -17,6 +17,13 @@ module TFT_LCD #(
 	input wire [3:0]  current_system_state,
 	input wire [3:0]  next_system_state,
 	input wire [31:0] system_timer,
+	
+	input [23:0] orderQuantity, // 訂購數量
+	input [23:0] bidAmount,     // 出價金額
+	input [23:0] productQuota,  // 商品配額
+	input [47:0] grandTotal,    // 付款總額
+	input [31:0] new_orderID_confirm,
+	
 	input wire [2:0]  coordinate_x, coordinate_y,
 	input wire [1:0]  coordinate_state,
 	
@@ -72,12 +79,14 @@ reg [3:0]  char_scale [0:MAX_CHARS-1];
 
 
 
-parameter SYS_RESET         = 4'd0,
-			 SYS_INITIAL       = 4'd1,
-			 SYS_INIT_DONE     = 4'd2,
-			 SYS_WiFi_CONNECT  = 4'd3,
-			 SYS_EDIT_ORDER_03 = 4'd4,
-			 SYS_EDIT_ORDER_02 = 4'd5;
+parameter SYS_RESET           = 4'd0,
+			 SYS_INITIAL         = 4'd1,
+			 SYS_INIT_DONE       = 4'd2,
+			 SYS_WiFi_CONNECT    = 4'd3,
+			 SYS_EDIT_ORDER_03   = 4'd4,
+			 SYS_EDIT_ORDER_02   = 4'd5,
+			 SYS_EDIT_ORDER_xx   = 4'd6,
+			 SYS_EDIT_ORDER_DONE = 4'd7;
 
 
 
@@ -116,6 +125,69 @@ always @(posedge clk or negedge rst_n) begin
 					char_x[i]     <= 8'd6 + (i % 4) * (FONT_W * 4'd3 + 8'd6);
 					char_y[i]     <= 8'd3 + (i / 4) * (FONT_H * 4'd3 + 8'd3);
 					char_scale[i] <= 4'd3;
+					char_color[i] <= COLOR_BLACK;
+				end
+				char_ascii[0] <= "I"; char_ascii[1] <= "D"; char_ascii[2]  <= "0"; char_ascii[3]  <= "0";
+				char_ascii[4] <= "O"; char_ascii[5] <= "Q"; char_ascii[6]  <= "0"; char_ascii[7]  <= "0";
+				char_ascii[8] <= "S"; char_ascii[9] <= "Q"; char_ascii[10] <= "0"; char_ascii[11] <= "0";
+			end
+			
+			SYS_EDIT_ORDER_03: begin
+				for (i = 0; i < 12; i = i + 1) begin
+					char_x[i]     <= 8'd6 + (i % 4) * (FONT_W * 4'd3 + 8'd6);
+					char_y[i]     <= 8'd3 + (i / 4) * (FONT_H * 4'd3 + 8'd3);
+					char_scale[i] <= 4'd3;
+					char_color[i] <= COLOR_BLACK;
+				end
+				char_ascii[0]  <= "I"; char_ascii[1] <= "D"; char_ascii[2]  <= "0"; char_ascii[3]  <= "2";
+				char_ascii[4]  <= "O"; char_ascii[5] <= "Q";
+				char_ascii[6]  <= "0" + (orderQuantity[23:16] / 10);
+				char_ascii[7]  <= "0" + (orderQuantity[23:16] % 10);
+				char_ascii[8]  <= "S"; char_ascii[9] <= "Q";
+				char_ascii[10] <= (system_timer < CLK_FREQ) ? "0" + (productQuota[23:16] / 10) : ""; char_color[10] <= COLOR_RED;
+				char_ascii[11] <= (system_timer < CLK_FREQ) ? "0" + (productQuota[23:16] % 10) : ""; char_color[11] <= COLOR_RED;
+			end
+			
+			SYS_EDIT_ORDER_02: begin
+				for (i = 0; i < 12; i = i + 1) begin
+					char_x[i]     <= 8'd6 + (i % 4) * (FONT_W * 4'd3 + 8'd6);
+					char_y[i]     <= 8'd3 + (i / 4) * (FONT_H * 4'd3 + 8'd3);
+					char_scale[i] <= 4'd3;
+					char_color[i] <= COLOR_BLACK;
+				end
+				char_ascii[0]  <= "I"; char_ascii[1] <= "D"; char_ascii[2]  <= "0"; char_ascii[3]  <= "2";
+				char_ascii[4]  <= "O"; char_ascii[5] <= "Q";
+				char_ascii[6]  <= "0" + (orderQuantity[15:8] / 10);
+				char_ascii[7]  <= "0" + (orderQuantity[15:8] % 10);
+				char_ascii[8]  <= "S"; char_ascii[9] <= "Q";
+				char_ascii[10] <= (system_timer < CLK_FREQ) ? "0" + (productQuota[15:8] / 10) : ""; char_color[10] <= COLOR_RED;
+				char_ascii[11] <= (system_timer < CLK_FREQ) ? "0" + (productQuota[15:8] % 10) : ""; char_color[11] <= COLOR_RED;
+			end
+			
+			SYS_EDIT_ORDER_xx: begin
+				for (i = 0; i < 12; i = i + 1) begin
+					char_x[i]     <= 8'd6 + (i % 4) * (FONT_W * 4'd3 + 8'd6);
+					char_y[i]     <= 8'd3 + (i / 4) * (FONT_H * 4'd3 + 8'd3);
+					char_scale[i] <= 4'd3;
+					char_color[i] <= COLOR_BLACK;
+				end
+				char_ascii[0]  <= "I"; char_ascii[1] <= "D";
+				char_ascii[2]  <= new_orderID_confirm[15:8];
+				char_ascii[3]  <= new_orderID_confirm[7:0];
+				char_ascii[4]  <= "O"; char_ascii[5] <= "Q";
+				char_ascii[6]  <= "0" + (orderQuantity[7:0] / 10);
+				char_ascii[7]  <= "0" + (orderQuantity[7:0] % 10);
+				char_ascii[8]  <= "S"; char_ascii[9] <= "Q";
+				char_ascii[10] <= (system_timer < CLK_FREQ) ? "0" + (productQuota[7:0] / 10) : ""; char_color[10] <= COLOR_RED;
+				char_ascii[11] <= (system_timer < CLK_FREQ) ? "0" + (productQuota[7:0] % 10) : ""; char_color[11] <= COLOR_RED;
+			end
+			
+			SYS_EDIT_ORDER_DONE: begin
+				for (i = 0; i < 12; i = i + 1) begin
+					char_x[i]     <= 8'd6 + (i % 4) * (FONT_W * 4'd3 + 8'd6);
+					char_y[i]     <= 8'd3 + (i / 4) * (FONT_H * 4'd3 + 8'd3);
+					char_scale[i] <= 4'd3;
+					char_color[i] <= COLOR_BLACK;
 				end
 				char_ascii[0] <= "I"; char_ascii[1] <= "D"; char_ascii[2]  <= "0"; char_ascii[3]  <= "0";
 				char_ascii[4] <= "O"; char_ascii[5] <= "Q"; char_ascii[6]  <= "0"; char_ascii[7]  <= "0";

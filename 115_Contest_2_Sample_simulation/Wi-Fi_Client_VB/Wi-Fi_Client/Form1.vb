@@ -77,9 +77,18 @@ Public Class Form1
                         stepIndex = 3
                     ElseIf responseBuffer.Contains("ERROR") Then
                         FailAndStop("AT+CWMODE=1 失敗")
+                        orderID.Text = ""
+                        quantityAndPrice.Text = ""
+                        quotasAndTotalPaymentAmounts.Text = "9595"
                     Else
                         waitCounter += 1
-                        If waitCounter > 15 Then FailAndStop("AT+CWMODE回應超時 (硬體可能未連接)")
+                        If waitCounter > 15 Then
+                            FailAndStop("AT+CWMODE回應超時 (硬體可能未連接)")
+                            orderID.Text = ""
+                            quantityAndPrice.Text = ""
+                            quotasAndTotalPaymentAmounts.Text = "9595"
+                        End If
+
                     End If
 
                 Case 3
@@ -96,7 +105,13 @@ Public Class Form1
                         FailAndStop("Wi-Fi 連線失敗 (請檢查 SSID/密碼)")
                     Else
                         waitCounter += 1
-                        If waitCounter > 50 Then FailAndStop("Wi-Fi 連線超時 (約10秒)")
+                        If waitCounter > 50 Then
+                            FailAndStop("Wi-Fi 連線超時 (約10秒)")
+                            orderID.Text = ""
+                            quantityAndPrice.Text = ""
+                            quotasAndTotalPaymentAmounts.Text = "9595"
+                        End If
+
                     End If
 
                 Case 4
@@ -144,7 +159,7 @@ Public Class Form1
                     stepIndex = 106
 
                 Case 106
-                    If responseBuffer.Contains("SEND OK") OrElse responseBuffer.Contains(" ") Then
+                    If responseBuffer.Contains("SEND OK") OrElse responseBuffer.Contains("Recv") Then
                         StepTimer.Stop()
                         AppendLog(vbCrLf & "[系統提示] TCP Client 連線成功！" & vbCrLf)
                     ElseIf responseBuffer.Contains("FAIL") OrElse responseBuffer.Contains("ERROR") Then
@@ -208,6 +223,98 @@ Public Class Form1
         End Try
     End Sub
 
+    ' =========================================================================
+    ' 【重要】訂單按鈕邏輯 (order_Click)
+    ' 說明：當點擊「訂單」按鈕時，依序連續傳送三筆資料至 FPGA：
+    '       1. 訂單 ID (ID:)
+    '       2. 訂購數量與出價金額 (QA:)
+    '       3. (可依需求擴充第三筆或組合格式)
+    ' =========================================================================
+    Private Sub order_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles order.Click
+        Try
+            ' 1. 【安全防呆判斷】：檢查序列埠是否已經開啟
+            If Not SerialPort1.IsOpen Then
+                AppendLog(vbCrLf & "[提示] 請先執行連線！" & vbCrLf)
+                Return
+            End If
+
+            ' 2. 【欄位資料讀取】：分別取得三個主要欄位的原始文字
+            Dim rawID As String = orderID.Text.Trim()
+            Dim rawQA As String = quantityAndPrice.Text.Trim()
+            Dim rawQT As String = quotasAndTotalPaymentAmounts.Text.Trim()
+
+            ' 3. 【防呆檢核】：檢查最基本的訂單 ID 是否為空
+            If rawID = "" Then
+                AppendLog(vbCrLf & "[提示] 請輸入訂單 ID！" & vbCrLf)
+                Return
+            End If
+
+            ' 4. 【組合連續三筆要傳送的資料封包字串】
+            '    根據您的需求，將三個欄位分別打包成帶有前綴標頭的格式：
+            Dim packet1 As String = "NewID:" & rawID & vbCrLf              ' 第一筆：訂單 ID
+            Dim packet2 As String = "NewQA:" & (If(rawQA = "", "00000000", rawQA)) & vbCrLf ' 第二筆：數量與價格
+            'Dim packet3 As String = "NewQT:" & (If(rawQT = "", "0000", rawQT)) & vbCrLf     ' 第三筆：配額與總額
+
+            ' ---------------------------------------------------------------------
+            ' 5. 【依序連續發送流程 (迴圈或依序呼叫子發送程序)】
+            '    由於 ESP8266 每次傳送都需要經過「送 CIPSEND 指令 -> 等待 > -> 送實際資料」
+            '    這裡我們撰寫一個共用的內部發送小函式來依序發送這三筆資料。
+            ' ---------------------------------------------------------------------
+
+            If Not SendSinglePacket(packet1) Then Return
+            Thread.Sleep(100) ' 稍微間隔避免資料塞車
+
+            If Not SendSinglePacket(packet2) Then Return
+            Thread.Sleep(100)
+
+            'If Not SendSinglePacket(packet3) Then Return
+
+            AppendLog(vbCrLf & "[系統提示] 訂單資料已全部傳送完成！" & vbCrLf)
+
+        Catch ex As Exception
+            AppendLog(vbCrLf & "[傳送失敗錯誤] " & ex.Message & vbCrLf)
+        End Try
+    End Sub
+
+    ' =========================================================================
+    ' 【輔助運算函式】單一封包發送子程序 (SendSinglePacket)
+    ' 說明：封裝 ESP8266 的 CIPSEND 標準交握流程（發送長度 -> 等待 > -> 寫入資料）
+    ' =========================================================================
+    Private Function SendSinglePacket(ByVal dataStr As String) As Boolean
+        Try
+            ' 1. 計算該筆資料的長度並組合 AT 指令
+            Dim cmd As String = "AT+CIPSEND=" & dataStr.Length.ToString()
+
+            responseBuffer = ""
+            SerialPort1.WriteLine(cmd)
+
+            ' 2. 等待 ESP8266 回覆 '>' 提示符號（加入防呆超時機制與 DoEvents 避免畫面卡死）
+            Dim ready As Boolean = False
+            For i As Integer = 1 To 10
+                Thread.Sleep(50)
+                Application.DoEvents()
+                If responseBuffer.Contains(">") Then
+                    ready = True
+                    Exit For
+                End If
+            Next
+
+            ' 3. 如果收到準備就緒訊號，則正式將資料寫入序列埠
+            If ready Then
+                responseBuffer = ""
+                SerialPort1.Write(dataStr)
+                Return True
+            Else
+                AppendLog(vbCrLf & "[傳送失敗] ESP8266 未就緒 (未收到 '>' 提示符號)" & vbCrLf)
+                Return False
+            End If
+
+        Catch ex As Exception
+            AppendLog(vbCrLf & "[單一封包傳送異常] " & ex.Message & vbCrLf)
+            Return False
+        End Try
+    End Function
+
     '=========================================
     ' 背景監聽：接收串口資料
     '=========================================
@@ -232,11 +339,13 @@ Public Class Form1
     Private Sub ProcessAllPackets()
         ' ---------------------------------------------------------------------
         ' 1. 定義規則表達式 (Regex) 樣式：
-        '    "(ID:|QA:|QT:)([0-9a-zA-Z]+)"
+        '    "(ID:|QA:|QT:)([0-9a-zA-Z#\$]+)"
         '    - "(ID:|QA:|QT:)" 為第 1 個捕捉群組 (Group 1)：比對資料的標頭類型。
-        '    - "([0-9a-zA-Z]+)" 為第 2 個捕捉群組 (Group 2)：比對該標頭後方的實際數值內容。
+        '    - "([0-9a-zA-Z#\$]+)" 為第 2 個捕捉群組 (Group 2)：比對該標頭後方的實際數值內容，
+        '      這裡擴充加入了 `#` 與 `\$`（因為 $ 在 regex 中有特殊意義，需加上反斜線跳脫），
+        '      以確保包含特殊符號的 QT 資料能夠被完整抓取。
         ' ---------------------------------------------------------------------
-        Dim pattern As String = "(ID:|QA:|QT:)([0-9a-zA-Z]+)"
+        Dim pattern As String = "(ID:|QA:|QT:)([0-9a-zA-Z#\$]+)"
 
         ' 2. 執行運算：在 responseBuffer 中找出所有符合 pattern 的配對集合
         Dim matches As System.Text.RegularExpressions.MatchCollection = System.Text.RegularExpressions.Regex.Matches(responseBuffer, pattern)
