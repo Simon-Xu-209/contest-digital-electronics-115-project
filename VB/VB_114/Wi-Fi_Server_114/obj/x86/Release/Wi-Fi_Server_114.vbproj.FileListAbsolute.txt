@@ -1,0 +1,9 @@
+C:\Users\student\Desktop\115 Project\VB\VB_2026_11_11\Wi-Fi_Server_114\bin\Release\Wi-Fi_Client.exe
+C:\Users\student\Desktop\115 Project\VB\VB_2026_11_11\Wi-Fi_Server_114\bin\Release\Wi-Fi_Client.pdb
+C:\Users\student\Desktop\115 Project\VB\VB_2026_11_11\Wi-Fi_Server_114\bin\Release\Wi-Fi_Client.xml
+C:\Users\student\Desktop\115 Project\VB\VB_2026_11_11\Wi-Fi_Server_114\obj\x86\Release\WindowsApplication1.Form1.resources
+C:\Users\student\Desktop\115 Project\VB\VB_2026_11_11\Wi-Fi_Server_114\obj\x86\Release\WindowsApplication1.Resources.resources
+C:\Users\student\Desktop\115 Project\VB\VB_2026_11_11\Wi-Fi_Server_114\obj\x86\Release\Wi-Fi_Server_114.vbproj.GenerateResource.Cache
+C:\Users\student\Desktop\115 Project\VB\VB_2026_11_11\Wi-Fi_Server_114\obj\x86\Release\Wi-Fi_Client.exe
+C:\Users\student\Desktop\115 Project\VB\VB_2026_11_11\Wi-Fi_Server_114\obj\x86\Release\Wi-Fi_Client.xml
+C:\Users\student\Desktop\115 Project\VB\VB_2026_11_11\Wi-Fi_Server_114\obj\x86\Release\Wi-Fi_Client.pdb

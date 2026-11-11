@@ -29,3 +29,6 @@ C:\Users\adminuser\Desktop\115 project\115_contest_2\Wi-Fi_Client_VB\Wi-Fi_Clien
 C:\Users\adminuser\Desktop\115 project\115_contest_2\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.exe
 C:\Users\adminuser\Desktop\115 project\115_contest_2\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.xml
 C:\Users\adminuser\Desktop\115 project\115_contest_2\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.pdb
+C:\Users\student\Desktop\115 Project\115_contest_2 old\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.exe
+C:\Users\student\Desktop\115 Project\115_contest_2 old\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.xml
+C:\Users\student\Desktop\115 Project\115_contest_2 old\Wi-Fi_Client_VB\Wi-Fi_Client\obj\x86\Debug\Wi-Fi_Client.pdb

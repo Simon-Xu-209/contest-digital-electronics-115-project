@@ -138,8 +138,6 @@ always @(posedge clk or negedge rst_n) begin
 		bidAmount     <= {8'd80, 8'd50, 8'd0};    // 出價金額
 		productQuota  <= {8'd0,  8'd0,  8'd0};    // 商品配額
 		
-		new_orderID_confirm <= 32'd0;
-		
 		coordinate_x        <= 3'd0;
 		coordinate_y        <= 3'd0;
 		coordinate_state    <= 2'd0;
@@ -270,17 +268,12 @@ always @(posedge clk or negedge rst_n) begin
 		end
 		
 		
-		if (new_orderID_confirm == 32'd0) begin
-			new_orderID_confirm <= detected_new_order_ID;
-		end
-		
+		// 儲存新訂單的數量與金額（取後兩位數）
 		if (rx_done && new_quantity_amount_found) begin
-			// 訂購數量後兩位數運算 (十位數 * 10 + 個位數)
 			orderQuantity[7:0] <= (detected_new_quantity_amount[47:40] - "0") * 4'd10 + 
 										(detected_new_quantity_amount[39:32] - "0");
 			
-			// 出價金額後兩位數運算 (十位數 * 10 + 個位數)
-			bidAmount[7:0]     <= (detected_new_quantity_amount[15:8]  - "0") * 4'd10 + 
+			bidAmount[7:0] <= (detected_new_quantity_amount[15:8]  - "0") * 4'd10 + 
 									(detected_new_quantity_amount[7:0]   - "0");
 		end
 	end
@@ -327,10 +320,8 @@ always @(posedge clk or negedge rst_n) begin
 					send_data_reg <= detected_order_ID;
 				end else if (detected_order_ID[31:16] == "99") begin
 					send_data_reg <= detected_order_ID;
-				end else if (detected_new_order_ID == new_orderID_confirm) begin
-					send_data_reg <= detected_new_order_ID;
-				end else if (detected_new_order_ID != new_orderID_confirm) begin
-					send_data_reg <= detected_new_order_ID;
+				end else if (detected_new_order_ID != 32'd0) begin
+					send_data_reg <= new_orderID_confirm;
 				end else begin
 					send_data_reg <= "ID:0302\r\n";
 				end
@@ -345,9 +336,7 @@ always @(posedge clk or negedge rst_n) begin
 					send_data_reg <= {"QA:00", quantity_02_tens, quantity_02_ones, "00", amount_02_tens, amount_02_ones, "\r\n"};
 				end else if (detected_order_ID[31:16] == "99") begin
 					send_data_reg <= {"QA: \r\n"};
-				end else if (detected_new_order_ID == new_orderID_confirm) begin
-					send_data_reg <= {"QT: \r\n"};
-				end else if (detected_new_order_ID != new_orderID_confirm) begin
+				end else if (detected_new_order_ID != 32'd0) begin
 					send_data_reg <= {"QT: \r\n"};
 				end else begin
 					send_data_reg <= {"QA:00", quantity_03_tens, quantity_03_ones, "00", quantity_02_tens, quantity_02_ones, "\r\n"};
@@ -363,10 +352,20 @@ always @(posedge clk or negedge rst_n) begin
 					send_data_reg <= {"QT:#", quota_02_tens, quota_02_ones, "$", total_02_thousands, total_02_hundreds, total_02_tens, total_02_ones, "\r\n"};
 				end else if (detected_order_ID[31:16] == "99") begin
 					send_data_reg <= {"QT:NO\r\n"};
-				end else if (detected_new_order_ID == new_orderID_confirm) begin
-					send_data_reg <= {"QT:NO\r\n"};
-				end else if (detected_new_order_ID != new_orderID_confirm) begin
-					send_data_reg <= {"QT:YES\r\n"};
+				end else if (detected_new_order_ID != 32'd0) begin
+					if (!order_registered_flag) begin
+						// 情況 1：目前完全沒有訂單，這是第一筆 -> 視為不重複，回傳 YES 並儲存
+						send_data_reg         <= {"QT:YES\r\n"};
+						new_orderID_confirm   <= detected_new_order_ID;
+						order_registered_flag <= 1'b1;
+					end else if (detected_new_order_ID == new_orderID_confirm) begin
+						// 情況 2：ID 已經存在 -> 回傳 NO
+						send_data_reg <= {"QT:NO\r\n"};
+					end else begin
+						// 情況 3：ID 不存在（不同於現有 ID） -> 回傳 YES 並更新記錄
+						send_data_reg         <= {"QT:YES\r\n"};
+						new_orderID_confirm   <= detected_new_order_ID;
+					end
 				end else begin
 					send_data_reg <= "QT:0000\r\n";
 				end
@@ -381,6 +380,14 @@ always @(posedge clk or negedge rst_n) begin
 				end
 			end
 		endcase
+		
+		// 當收到新訂單 ID 且尚未註冊過時，進行第一次登記
+		if (rx_done && new_order_ID_found) begin
+			if (!order_registered_flag) begin
+				new_orderID_confirm   <= detected_new_order_ID;
+				order_registered_flag <= 1'b1; // 標記已有訂單
+			end
+		end
 	end
 end
 
@@ -410,6 +417,7 @@ reg  new_order_ID_found;
 reg  new_quantity_amount_found;
 
 //reg  [31:0] new_orderID_confirm;
+reg        order_registered_flag; // 用來記錄目前是否有有效訂單 ID
 
 generate
 	for (g = 0; g < MAX_RX_LEN-3; g = g + 1) begin : MATCH_DONE
@@ -425,7 +433,6 @@ generate
 									(WiFi_data_bytes[g+3] == "9") && 
 									(WiFi_data_bytes[g+2] == "9");
 	end
-	
 	for (g = 0; g < MAX_RX_LEN-9; g = g + 1) begin : MATCH_NEW_ID
 		assign new_order_ID[g] = (WiFi_data_bytes[g+9] == "N") && 
 										 (WiFi_data_bytes[g+8] == "e") && 
@@ -464,7 +471,7 @@ always @(*) begin
 			detected_order_ID[7:0]   = WiFi_data_bytes[k];
 		end
 	end
-	for (k = 0; k < MAX_RX_LEN - 3; k = k + 1) begin
+	for (k = 0; k < MAX_RX_LEN - 9; k = k + 1) begin
 		if (new_order_ID[k] && !new_order_ID_found) begin
 			new_order_ID_found           = 1'b1;
 			detected_new_order_ID[31:24] = WiFi_data_bytes[k+3];
