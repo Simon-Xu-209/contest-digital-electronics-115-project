@@ -20,10 +20,10 @@ module WiFi_Controller #(
 	output reg                      send_done,
 	
 	// 上層接收暫存器介面
-	output wire [3:0]               rx_link_id,
-	output wire [15:0]              rx_data_len,
-	output wire [8*MAX_RX_LEN-1:0]  rx_data_reg,
-	output wire                     rx_done,
+	output wire [3:0]               rx_link_id,  // 連線 ID 暫存器
+	output wire [15:0]              rx_data_len, // 資料位元組長度暫存器
+	output wire [8*MAX_RX_LEN-1:0]  rx_data_reg, // 資料暫存器
+	output wire                     rx_done,     // 接收完成脈衝
 	
 	input  wire                     WiFi_restart,
 	

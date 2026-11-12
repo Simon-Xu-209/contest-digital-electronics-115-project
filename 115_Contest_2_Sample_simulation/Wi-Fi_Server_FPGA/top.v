@@ -33,6 +33,8 @@ module top (
 	input  wire WiFi_rx,      // ESP8266 Wi-Fi 的 tx
 	output wire WiFi_RST,     // ESP8266 Wi-Fi 的 RST
 	
+	output reg  RX_TEST,
+	
 	output wire [2:0] KEY_2x2,   // 2x2 無段式開關 按鍵數值
 	output wire KEY_Pressed_2x2, // 2x2 無段式開關 偵測按下
 	output wire [3:0] KEY_3x3,   // 3x3 無段式開關 按鍵數值
@@ -41,6 +43,11 @@ module top (
 	output wire USB2UART_WiFi_tx, // USB to TTL 的 rx
 	output wire USB2UART_WiFi_rx  // USB to TTL 的 rx
 );
+
+
+always @(posedge rx_done) begin
+	RX_TEST <= !RX_TEST;
+end
 
 parameter CLK_FREQ      = 50_000_000; // 50MHz
 parameter BAUD          = 115200;     // UART 鮑率

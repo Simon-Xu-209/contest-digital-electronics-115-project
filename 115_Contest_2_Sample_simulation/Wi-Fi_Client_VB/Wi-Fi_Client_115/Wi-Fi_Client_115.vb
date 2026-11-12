@@ -10,6 +10,9 @@ Public Class Form1
     Private StepTimer As New System.Windows.Forms.Timer()
     Private waitCounter As Integer = 0 ' 增加等待計數器
 
+    ' 在 Form1 類別開頭宣告一個變數記錄最後點選的文字框
+    Private lastSelectedBox As TextBox = Nothing
+
     ' Wi-Fi 與 Server 設定
     Private TargetSSID As String = "WiFi_FPGA"
     Private TargetPWD As String = "048778414"
@@ -406,19 +409,25 @@ Public Class Form1
         Button0.Click, Button1.Click, Button2.Click, Button3.Click, Button4.Click,
         Button5.Click, Button6.Click, Button7.Click, Button8.Click, Button9.Click
 
-        ' 1. 取得目前被點擊的按鈕物件
+        ' 取得目前被點擊的按鈕物件
         Dim btn As Button = CType(sender, Button)
-        ' 2. 讀取按鈕上的文字 (即對應的數字字串 '0' ~ '9')
+        ' 讀取按鈕上的文字 (即對應的數字字串 '0' ~ '9')
         Dim numStr As String = btn.Text ' 變數對應
 
-        ' 3. 【欄位焦點判斷運算】：檢查使用者目前游標在哪個輸入框上
-        If orderID.Focused Then
-            orderID.AppendText(numStr)         ' 若焦點在訂單 ID 框，將數字附加在後面
-        ElseIf quantityAndPrice.Focused Then
-            quantityAndPrice.AppendText(numStr)  ' 若焦點在數量與價格框，將數字附加在後面
+        ' 根據最後點選的文字框來決定寫入哪裡
+        If lastSelectedBox IsNot Nothing Then
+            lastSelectedBox.AppendText(numStr)
         Else
-            orderID.AppendText(numStr)         ' 預設防呆：若沒有明確焦點，預設寫入訂單 ID 框
+            orderID.AppendText(numStr) ' 預設防呆
         End If
+    End Sub
+
+    Private Sub orderID_Enter(ByVal sender As Object, ByVal e As EventArgs) Handles orderID.Enter
+        lastSelectedBox = orderID
+    End Sub
+
+    Private Sub quantityAndPrice_Enter(ByVal sender As Object, ByVal e As EventArgs) Handles quantityAndPrice.Enter
+        lastSelectedBox = quantityAndPrice
     End Sub
 
 End Class

@@ -139,7 +139,7 @@ always @(posedge clk or negedge rst_n) begin
 					char_scale[i] <= 4'd3;
 					char_color[i] <= COLOR_BLACK;
 				end
-				char_ascii[0]  <= "I"; char_ascii[1] <= "D"; char_ascii[2]  <= "0"; char_ascii[3]  <= "2";
+				char_ascii[0]  <= "I"; char_ascii[1] <= "D"; char_ascii[2]  <= "0"; char_ascii[3]  <= "3";
 				char_ascii[4]  <= "O"; char_ascii[5] <= "Q";
 				char_ascii[6]  <= "0" + (orderQuantity[23:16] / 10);
 				char_ascii[7]  <= "0" + (orderQuantity[23:16] % 10);

@@ -110,7 +110,7 @@ seven_segment_Seg[7]         : 39        : output : 2.5 V             :         
 VCCINT                       : 40        : power  :                   : 1.2V    :           :                
 seven_segment_Com[0]         : 41        : output : 2.5 V             :         : 2         : Y              
 GND                          : 42        : gnd    :                   :         :           :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 43        :        :                   :         : 2         :                
+KEY_2x2[1]                   : 43        : output : 2.5 V             :         : 2         : N              
 RESERVED_INPUT_WITH_WEAK_PULLUP : 44        :        :                   :         : 2         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 45        :        :                   :         : 2         :                
 Keyboard_row_3x3[2]          : 46        : input  : 2.5 V             :         : 2         : Y              
@@ -154,23 +154,23 @@ switch_8bit[3]               : 83        : input  : 2.5 V             :         
 WS2812B_8x8_DIN              : 84        : output : 2.5 V             :         : 3         : Y              
 VCCINT                       : 85        : power  :                   : 1.2V    :           :                
 GND                          : 86        : gnd    :                   :         :           :                
-KEY_2x2[1]                   : 87        : output : 2.5 V             :         : 3         : N              
+RESERVED_INPUT_WITH_WEAK_PULLUP : 87        :        :                   :         : 3         :                
 WS2812B_8x8_DOUT             : 88        : input  : 2.5 V             :         : 3         : Y              
 GND+                         : 89        :        :                   :         : 3         :                
 GND+                         : 90        :        :                   :         : 3         :                
 GND+                         : 91        :        :                   :         : 4         :                
 GND+                         : 92        :        :                   :         : 4         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 93        :        :                   :         : 4         :                
-KEY_3x3[0]                   : 94        : output : 2.5 V             :         : 4         : N              
-KEY_3x3[3]                   : 95        : output : 2.5 V             :         : 4         : N              
+RESERVED_INPUT_WITH_WEAK_PULLUP : 94        :        :                   :         : 4         :                
+RESERVED_INPUT_WITH_WEAK_PULLUP : 95        :        :                   :         : 4         :                
 VCCIO4                       : 96        : power  :                   : 2.5V    : 4         :                
 GND                          : 97        : gnd    :                   :         :           :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 98        :        :                   :         : 4         :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 99        :        :                   :         : 4         :                
+Keyboard_row_4x4[1]          : 99        : output : 2.5 V             :         : 4         : N              
 RESERVED_INPUT_WITH_WEAK_PULLUP : 100       :        :                   :         : 4         :                
 VCCINT                       : 101       : power  :                   : 1.2V    :           :                
 GND                          : 102       : gnd    :                   :         :           :                
-KEY_3x3[2]                   : 103       : output : 2.5 V             :         : 4         : N              
+RESERVED_INPUT_WITH_WEAK_PULLUP : 103       :        :                   :         : 4         :                
 VCCIO4                       : 104       : power  :                   : 2.5V    : 4         :                
 GND                          : 105       : gnd    :                   :         :           :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 106       :        :                   :         : 4         :                
@@ -195,7 +195,7 @@ VCCIO5                       : 124       : power  :                   : 2.5V    
 GND                          : 125       : gnd    :                   :         :           :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 126       :        :                   :         : 5         :                
 ADS1115_SCL                  : 127       : output : 2.5 V             :         : 5         : Y              
-Keyboard_column_4x4[3]       : 128       : input  : 2.5 V             :         : 5         : N              
+RESERVED_INPUT_WITH_WEAK_PULLUP : 128       :        :                   :         : 5         :                
 VCCINT                       : 129       : power  :                   : 1.2V    :           :                
 GND                          : 130       : gnd    :                   :         :           :                
 ST7735S_BLK                  : 131       : output : 2.5 V             :         : 5         : Y              
@@ -210,7 +210,7 @@ RESERVED_INPUT_WITH_WEAK_PULLUP : 139       :        :                   :      
 VCCINT                       : 140       : power  :                   : 1.2V    :           :                
 GND                          : 141       : gnd    :                   :         :           :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 142       :        :                   :         : 5         :                
-Keyboard_row_4x4[2]          : 143       : output : 2.5 V             :         : 5         : N              
+RESERVED_INPUT_WITH_WEAK_PULLUP : 143       :        :                   :         : 5         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 144       :        :                   :         : 5         :                
 rst_n                        : 145       : input  : 2.5 V             :         : 5         : Y              
 RESERVED_INPUT_WITH_WEAK_PULLUP : 146       :        :                   :         : 5         :                
@@ -238,7 +238,7 @@ VCCINT                       : 167       : power  :                   : 1.2V    
 GND                          : 168       : gnd    :                   :         :           :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 169       :        :                   :         : 6         :                
 VCCIO6                       : 170       : power  :                   : 2.5V    : 6         :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 171       :        :                   :         : 6         :                
+Keyboard_row_4x4[0]          : 171       : output : 2.5 V             :         : 6         : N              
 GND                          : 172       : gnd    :                   :         :           :                
 Keyboard_column_4x4[2]       : 173       : input  : 2.5 V             :         : 6         : N              
 VCCINT                       : 174       : power  :                   : 1.2V    :           :                
@@ -253,28 +253,28 @@ GND                          : 182       : gnd    :                   :         
 RESERVED_INPUT_WITH_WEAK_PULLUP : 183       :        :                   :         : 7         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 184       :        :                   :         : 7         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 185       :        :                   :         : 7         :                
-Keyboard_row_4x4[1]          : 186       : output : 2.5 V             :         : 7         : N              
+RESERVED_INPUT_WITH_WEAK_PULLUP : 186       :        :                   :         : 7         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 187       :        :                   :         : 7         :                
-Keyboard_row_4x4[0]          : 188       : output : 2.5 V             :         : 7         : N              
-RESERVED_INPUT_WITH_WEAK_PULLUP : 189       :        :                   :         : 7         :                
+RESERVED_INPUT_WITH_WEAK_PULLUP : 188       :        :                   :         : 7         :                
+Keyboard_column_4x4[3]       : 189       : input  : 2.5 V             :         : 7         : N              
 VCCINT                       : 190       : power  :                   : 1.2V    :           :                
 GND                          : 191       : gnd    :                   :         :           :                
 VCCIO7                       : 192       : power  :                   : 2.5V    : 7         :                
 GND                          : 193       : gnd    :                   :         :           :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 194       :        :                   :         : 7         :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 195       :        :                   :         : 7         :                
+Keyboard_row_4x4[2]          : 194       : output : 2.5 V             :         : 7         : N              
+KEY_3x3[1]                   : 195       : output : 2.5 V             :         : 7         : N              
 RESERVED_INPUT_WITH_WEAK_PULLUP : 196       :        :                   :         : 7         :                
-Keyboard_row_4x4[3]          : 197       : output : 2.5 V             :         : 7         : N              
+RESERVED_INPUT_WITH_WEAK_PULLUP : 197       :        :                   :         : 7         :                
 VCCINT                       : 198       : power  :                   : 1.2V    :           :                
 GND                          : 199       : gnd    :                   :         :           :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 200       :        :                   :         : 7         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 201       :        :                   :         : 7         :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 202       :        :                   :         : 7         :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 203       :        :                   :         : 7         :                
+Keyboard_row_4x4[3]          : 203       : output : 2.5 V             :         : 7         : N              
 VCCINT                       : 204       : power  :                   : 1.2V    :           :                
 GND                          : 205       : gnd    :                   :         :           :                
 VCCIO7                       : 206       : power  :                   : 2.5V    : 7         :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 207       :        :                   :         : 7         :                
+KEY_3x3[3]                   : 207       : output : 2.5 V             :         : 7         : N              
 GND                          : 208       : gnd    :                   :         :           :                
 GND+                         : 209       :        :                   :         : 7         :                
 GND+                         : 210       :        :                   :         : 7         :                
@@ -284,20 +284,20 @@ VCCIO8                       : 213       : power  :                   : 2.5V    
 RESERVED_INPUT_WITH_WEAK_PULLUP : 214       :        :                   :         : 8         :                
 GND                          : 215       : gnd    :                   :         :           :                
 RESERVED_INPUT_WITH_WEAK_PULLUP : 216       :        :                   :         : 8         :                
-KEY_Pressed_3x3              : 217       : output : 2.5 V             :         : 8         : N              
+KEY_3x3[0]                   : 217       : output : 2.5 V             :         : 8         : N              
 RESERVED_INPUT_WITH_WEAK_PULLUP : 218       :        :                   :         : 8         :                
-KEY_3x3[1]                   : 219       : output : 2.5 V             :         : 8         : N              
+KEY_Pressed_3x3              : 219       : output : 2.5 V             :         : 8         : N              
 VCCINT                       : 220       : power  :                   : 1.2V    :           :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 221       :        :                   :         : 8         :                
+KEY_3x3[2]                   : 221       : output : 2.5 V             :         : 8         : N              
 GND                          : 222       : gnd    :                   :         :           :                
-KEY_Pressed_2x2              : 223       : output : 2.5 V             :         : 8         : N              
-KEY_2x2[2]                   : 224       : output : 2.5 V             :         : 8         : N              
+KEY_2x2[0]                   : 223       : output : 2.5 V             :         : 8         : N              
+KEY_Pressed_2x2              : 224       : output : 2.5 V             :         : 8         : N              
 VCCIO8                       : 225       : power  :                   : 2.5V    : 8         :                
-KEY_2x2[0]                   : 226       : output : 2.5 V             :         : 8         : N              
+RX_TEST                      : 226       : output : 2.5 V             :         : 8         : Y              
 GND                          : 227       : gnd    :                   :         :           :                
 VCCINT                       : 228       : power  :                   : 1.2V    :           :                
 GND                          : 229       : gnd    :                   :         :           :                
-RESERVED_INPUT_WITH_WEAK_PULLUP : 230       :        :                   :         : 8         :                
+KEY_2x2[2]                   : 230       : output : 2.5 V             :         : 8         : N              
 seven_segment_Seg[0]         : 231       : output : 2.5 V             :         : 8         : Y              
 seven_segment_Com[7]         : 232       : output : 2.5 V             :         : 8         : Y              
 VCCINT                       : 233       : power  :                   : 1.2V    :           :                
