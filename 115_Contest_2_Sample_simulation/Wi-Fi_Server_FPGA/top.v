@@ -45,8 +45,14 @@ module top (
 );
 
 
-always @(posedge rx_done) begin
-	RX_TEST <= !RX_TEST;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		RX_TEST <= 1'b0;
+	end else begin
+		if (rx_done) begin
+			RX_TEST <= !RX_TEST; // 當接收完成脈衝到來時安全反相
+		end
+	end
 end
 
 parameter CLK_FREQ      = 50_000_000; // 50MHz
@@ -115,6 +121,7 @@ Main_Controller #(
 	.coordinate_state     (coordinate_state),
 	
 	.send_en              (send_en),
+	.send_en_ack          (send_en_ack),
 	.send_target_id       (rx_link_id),
 	.send_data_reg        (send_data_reg),
 	.tx_busy              (tx_busy),
@@ -123,7 +130,8 @@ Main_Controller #(
 	.rx_data_len          (rx_data_len),
 	.rx_data_reg          (rx_data_reg),
 	.WiFi_restart         (WiFi_restart),
-	.rx_done              (rx_done)
+	.rx_done              (rx_done),
+	.rx_data_done_ack     (rx_data_done_ack)
 );
 
 // 鍵盤掃描模組
@@ -176,6 +184,7 @@ Joystick Joystick_u1 (
 
 // ESP8266 Wi-Fi 模組
 wire            send_en;
+wire            send_en_ack;
 wire [3:0]      tx_link_id;
 wire [8*64-1:0] send_data_reg;
 wire            tx_busy;
@@ -184,6 +193,7 @@ wire [3:0]      rx_link_id;
 wire [15:0]     rx_data_len;
 wire [8*32-1:0] rx_data_reg;
 wire            rx_done;
+wire            rx_data_done_ack;
 wire            WiFi_restart;
 wire            WiFi_init_done;
 
@@ -193,22 +203,24 @@ WiFi_Controller #(
 	.CLK_FREQ(50_000_000),
 	.BAUD_RATE(115200)
 ) WiFi_Controller_u1 (
-	.clk           (clk),
-	.rst_n         (rst_n),
-	.WiFi_rx       (WiFi_rx),
-	.WiFi_tx       (WiFi_tx),
-	.WiFi_rst_n    (WiFi_RST),
-	.send_en       (send_en),
-	.send_target_id(tx_link_id),
-	.send_data_reg (send_data_reg),
-	.tx_busy       (tx_busy),
-	.send_done     (send_done),
-	.rx_link_id    (rx_link_id),
-	.rx_data_len   (rx_data_len),
-	.rx_data_reg   (rx_data_reg),
-	.rx_done       (rx_done),
-	.WiFi_restart  (WiFi_restart),
-	.init_done     (WiFi_init_done)
+	.clk              (clk),
+	.rst_n            (rst_n),
+	.WiFi_rx          (WiFi_rx),
+	.WiFi_tx          (WiFi_tx),
+	.WiFi_rst_n       (WiFi_RST),
+	.send_en          (send_en),
+	.send_target_id   (tx_link_id),
+	.send_data_reg    (send_data_reg),
+	.tx_busy          (tx_busy),
+	.send_done        (send_done),
+	.send_en_ack      (send_en_ack),
+	.rx_link_id       (rx_link_id),
+	.rx_data_len      (rx_data_len),
+	.rx_data_reg      (rx_data_reg),
+	.rx_done          (rx_done),
+	.rx_data_done_ack (rx_data_done_ack),
+	.WiFi_restart     (WiFi_restart),
+	.init_done        (WiFi_init_done)
 );
 
 // 七段顯示器模組

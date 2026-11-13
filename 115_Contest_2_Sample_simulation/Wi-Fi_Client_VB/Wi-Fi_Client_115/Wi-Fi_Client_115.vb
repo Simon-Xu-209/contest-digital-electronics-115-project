@@ -265,10 +265,10 @@ Public Class Form1
             ' ---------------------------------------------------------------------
 
             If Not SendSinglePacket(packet1) Then Return
-            Thread.Sleep(200) ' 稍微間隔避免資料塞車
+            Thread.Sleep(300) ' 稍微間隔避免資料塞車
 
             If Not SendSinglePacket(packet2) Then Return
-            Thread.Sleep(100)
+            Thread.Sleep(200)
 
             'If Not SendSinglePacket(packet3) Then Return
 

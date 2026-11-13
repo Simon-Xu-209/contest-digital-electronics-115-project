@@ -15,8 +15,10 @@ module UART_rx_string #(
 	output reg  [3:0]             link_ID,         // 連線 ID 暫存器
 	output reg  [15:0]            rx_data_len,     // 資料位元組長度暫存器
 	output reg  [8*MAX_BYTES-1:0] rx_data_reg,     // 資料暫存器 (Payload)
-	output reg                    rx_done,         // 接收完成脈衝
-	output reg                    data_reg_busy    // 接收中忙碌旗標
+	
+	output reg                    rx_data_done,     // 接收完成脈衝
+	input  wire                   rx_data_done_ack, // rx_data_done 清除/確認信號
+	output reg                    rx_data_reg_busy  // 接收中忙碌旗標
 );
 
 // -------------------------------------------------------------
@@ -99,20 +101,22 @@ always @(posedge clk or negedge rst_n) begin
 		rx_data_len   <= 16'd0;
 		rx_data_reg   <= {8*MAX_BYTES{1'b0}};
 		data_cnt      <= 16'd0;
-		rx_done      <= 1'b0;
-		data_reg_busy <= 1'b0;
+		rx_data_done  <= 1'b0;
+		rx_data_reg_busy <= 1'b0;
 	end else begin
-		rx_done <= 1'b0;
+		if (rx_data_done_ack) begin
+			rx_data_done <= 1'b0; 
+		end
 
 		if (rx_byte_en) begin
 			case (parse_state)
 				S_SEARCH_PLUS: begin
 					if (rx_byte == "+") begin
-						data_reg_busy <= 1'b1;
+						rx_data_reg_busy <= 1'b1;
 						ipd_step      <= 2'd0;
 						parse_state   <= S_MATCH_IPD;
 					end else begin
-						data_reg_busy <= 1'b0;
+						rx_data_reg_busy <= 1'b0;
 					end
 				end
 
@@ -153,9 +157,9 @@ always @(posedge clk or negedge rst_n) begin
 					rx_data_reg <= {rx_data_reg[8*(MAX_BYTES-1)-1:0], rx_byte};
 
 					if (data_cnt + 1'b1 >= rx_data_len || data_cnt + 1'b1 >= MAX_BYTES) begin
-						rx_done       <= 1'b1;
-						data_reg_busy <= 1'b0;
-						parse_state   <= S_SEARCH_PLUS;
+						rx_data_done     <= 1'b1;
+						rx_data_reg_busy <= 1'b0;
+						parse_state      <= S_SEARCH_PLUS;
 					end else begin
 						data_cnt <= data_cnt + 1'b1;
 					end

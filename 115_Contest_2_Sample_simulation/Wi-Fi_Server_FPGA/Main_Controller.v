@@ -36,6 +36,7 @@ module Main_Controller #(
 	output reg  [1:0] coordinate_state,
 
 	output reg                     send_en,
+	input  wire                    send_en_ack,
 	output reg  [3:0]              send_target_id,
 	output reg  [8*MAX_TX_LEN-1:0] send_data_reg,
 	input  wire                    tx_busy,
@@ -44,7 +45,8 @@ module Main_Controller #(
 	input  wire [15:0]             rx_data_len,
 	input  wire [8*MAX_RX_LEN-1:0] rx_data_reg,
 	output reg                     WiFi_restart,
-	input  wire                    rx_done
+	input  wire                    rx_done,
+	output reg                     rx_data_done_ack
 );
 
 parameter CLK_FREQ = 50_000_000; // 50MHz 時脈
@@ -287,46 +289,50 @@ localparam WiFi_SEND_ID   = 4'd2;
 localparam WiFi_SEND_OQ   = 4'd3;
 localparam WiFi_SEND_NONE = 4'd4;
 
-reg [3:0] current_WiFi_send_state, next_WiFi_send_state;
+reg [3:0] previous_WiFi_send_state, current_WiFi_send_state, next_WiFi_send_state;
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		send_en                 <= 1'b0;
-		send_target_id          <= 4'd0;
-		send_data_reg           <= "";
-		current_WiFi_send_state <= WiFi_SEND_IDLE;
-		next_WiFi_send_state    <= WiFi_SEND_IDLE;
+		rx_data_done_ack         <= 1'b0;
+		send_en                  <= 1'b0;
+		send_target_id           <= 4'd0;
+		new_orderID_confirm      <= "";
+		send_data_reg            <= "";
+		previous_WiFi_send_state <= WiFi_SEND_IDLE;
+		current_WiFi_send_state  <= WiFi_SEND_IDLE;
+		next_WiFi_send_state     <= WiFi_SEND_IDLE;
 	end else begin
-		if (connect_done_pulse) begin
-			next_WiFi_send_state <= WiFi_SEND_ID;
-		end else if (rx_done && (detected_order_ID[31:8] == "990")) begin
-			next_WiFi_send_state <= WiFi_SEND_ID;
-		end else if (rx_done && (detected_new_order_ID == new_orderID_confirm)) begin
-			next_WiFi_send_state <= WiFi_SEND_ID;
+		if (rx_done && !rx_data_done_ack) begin
+			rx_data_done_ack <= 1'b1; // 清除 UART 接收完成旗標
 		end
 		
-		send_en <= 1'b0;
 		case(current_WiFi_send_state)
 			WiFi_SEND_IDLE: begin
+				send_en <= 1'b0;
 				if (!tx_busy) begin
-					current_WiFi_send_state <= next_WiFi_send_state;
+					if (connect_done_pulse || (rx_done && (detected_order_ID[31:16] == "99" || detected_new_order_ID != 32'd0))) begin
+						current_WiFi_send_state <= WiFi_SEND_ID;
+					end
 				end
 			end
 			
 			WiFi_SEND_ID: begin
-				if (detected_order_ID == "9903") begin
-					send_data_reg <= detected_order_ID;
-				end else if (detected_order_ID == "9902") begin
-					send_data_reg <= detected_order_ID;
-				end else if (detected_order_ID[31:16] == "99") begin
+				if (detected_order_ID[31:16] == "99") begin
 					send_data_reg <= detected_order_ID;
 				end else if (detected_new_order_ID != 32'd0) begin
-					send_data_reg <= new_orderID_confirm;
+					send_data_reg <= "0\r\n";
 				end else begin
-					send_data_reg <= "ID:0302\r\n";
+					if (detected_new_order_ID != 32'd0) begin
+						send_data_reg <= {"ID:0302", detected_new_order_ID[15:0], "\r\n"};
+					end else begin
+						send_data_reg <= "ID:0302\r\n";
+					end
 				end
-				current_WiFi_send_state <= WiFi_SEND_EN;
-				next_WiFi_send_state    <= WiFi_SEND_OQ;
+				send_en <= 1'b1;
+				if (send_en_ack) begin
+					send_en                 <= 1'b0;
+					current_WiFi_send_state <= WiFi_SEND_OQ; // 第一筆送完，自動進入第二筆
+				end
 			end
 			
 			WiFi_SEND_OQ: begin
@@ -334,15 +340,24 @@ always @(posedge clk or negedge rst_n) begin
 					send_data_reg <= {"QA:00", quantity_03_tens, quantity_03_ones, "00", amount_03_tens, amount_03_ones, "\r\n"};
 				end else if (detected_order_ID == "9902") begin
 					send_data_reg <= {"QA:00", quantity_02_tens, quantity_02_ones, "00", amount_02_tens, amount_02_ones, "\r\n"};
+				end else if (detected_order_ID == {"99", detected_new_order_ID[15:0]}) begin
+					send_data_reg <= {"QA:00", quantity_xx_tens, quantity_xx_ones, "00", amount_xx_tens, amount_xx_ones, "\r\n"};
 				end else if (detected_order_ID[31:16] == "99") begin
 					send_data_reg <= {"QA: \r\n"};
 				end else if (detected_new_order_ID != 32'd0) begin
-					send_data_reg <= {"QT: \r\n"};
+					send_data_reg <= {new_orderID_confirm, ",", detected_new_order_ID, "\r\n"};
 				end else begin
-					send_data_reg <= {"QA:00", quantity_03_tens, quantity_03_ones, "00", quantity_02_tens, quantity_02_ones, "\r\n"};
+					if (detected_new_order_ID != 32'd0) begin
+						send_data_reg <= {"QA:00", quantity_03_tens, quantity_03_ones, "00", quantity_02_tens, quantity_02_ones,  "00", quantity_xx_tens, quantity_xx_ones, "\r\n"};
+					end else begin
+						send_data_reg <= {"QA:00", quantity_03_tens, quantity_03_ones, "00", quantity_02_tens, quantity_02_ones, "\r\n"};
+					end
 				end
-				current_WiFi_send_state <= WiFi_SEND_EN;
-				next_WiFi_send_state    <= WiFi_SEND_NONE;
+				send_en <= 1'b1;
+				if (send_en_ack) begin
+					send_en                 <= 1'b0;
+					current_WiFi_send_state <= WiFi_SEND_NONE; // 第二筆送完，自動進入第三筆
+				end
 			end
 			
 			WiFi_SEND_NONE: begin
@@ -353,41 +368,42 @@ always @(posedge clk or negedge rst_n) begin
 				end else if (detected_order_ID[31:16] == "99") begin
 					send_data_reg <= {"QT:NO\r\n"};
 				end else if (detected_new_order_ID != 32'd0) begin
-					if (!order_registered_flag) begin
-						// 情況 1：目前完全沒有訂單，這是第一筆 -> 視為不重複，回傳 YES 並儲存
+					if (new_orderID_confirm != detected_new_order_ID) begin
+					// ID 不存在 -> 回傳 YES 並更新記錄
 						send_data_reg         <= {"QT:YES\r\n"};
 						new_orderID_confirm   <= detected_new_order_ID;
-						order_registered_flag <= 1'b1;
-					end else if (detected_new_order_ID == new_orderID_confirm) begin
-						// 情況 2：ID 已經存在 -> 回傳 NO
-						send_data_reg <= {"QT:NO\r\n"};
 					end else begin
-						// 情況 3：ID 不存在（不同於現有 ID） -> 回傳 YES 並更新記錄
-						send_data_reg         <= {"QT:YES\r\n"};
-						new_orderID_confirm   <= detected_new_order_ID;
+						// ID 存在（不同於現有 ID） -> 回傳 NO
+						send_data_reg         <= {"QT:NO\r\n"};
 					end
 				end else begin
 					send_data_reg <= "QT:0000\r\n";
 				end
-				current_WiFi_send_state <= WiFi_SEND_EN;
-				next_WiFi_send_state    <= WiFi_SEND_IDLE;
-			end
-			
-			WiFi_SEND_EN: begin
 				send_en <= 1'b1;
-				if (send_done)	begin
-					current_WiFi_send_state <= WiFi_SEND_IDLE;
+				if (send_en_ack) begin
+					send_en                 <= 1'b0;
+					current_WiFi_send_state <= WiFi_SEND_IDLE; // 第三筆送完，回傳流程結束，回到 IDLE
 				end
 			end
+			
+			/*WiFi_SEND_EN: begin
+				if (send_en_ack) begin
+					send_en <= 1'b0;
+					if (previous_WiFi_send_state == WiFi_SEND_ID) begin
+						next_WiFi_send_state <= WiFi_SEND_OQ; // 第一筆送完，推進到第二筆
+					end else if (previous_WiFi_send_state == WiFi_SEND_OQ) begin
+						next_WiFi_send_state <= WiFi_SEND_NONE; // 第二筆送完，推進到第三筆
+					end else begin
+						next_WiFi_send_state <= WiFi_SEND_IDLE; // 全部完成，回到 IDLE
+					end
+					current_WiFi_send_state <= WiFi_SEND_IDLE;
+				end else begin
+					send_en <= 1'b1;
+				end
+			end*/
+			
+			default: current_WiFi_send_state <= WiFi_SEND_IDLE;
 		endcase
-		
-		// 當收到新訂單 ID 且尚未註冊過時，進行第一次登記
-		if (rx_done && new_order_ID_found) begin
-			if (!order_registered_flag) begin
-				new_orderID_confirm   <= detected_new_order_ID;
-				order_registered_flag <= 1'b1; // 標記已有訂單
-			end
-		end
 	end
 end
 
@@ -411,8 +427,9 @@ reg  [31:0]           detected_order_ID;
 reg                   order_ID_found;
 
 wire [MAX_RX_LEN-1:0] new_order_ID, new_quantity_amount;
-reg  [31:0] detected_new_order_ID;
-reg  [63:0] detected_new_quantity_amount;
+reg  [31:0] detected_new_order_ID;        // 新訂單ID
+reg  [63:0] detected_new_quantity_amount; // 新訂單數量與出價金額
+
 reg  new_order_ID_found;
 reg  new_quantity_amount_found;
 
