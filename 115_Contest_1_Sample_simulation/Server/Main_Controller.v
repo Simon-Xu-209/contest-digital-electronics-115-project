@@ -10,6 +10,8 @@ module Main_Controller #(
 
 	input  wire [2:0] KEY_2x2,
 	input  wire       KEY_Pressed_2x2,
+	input  wire [3:0] KEY_3x3,
+	input  wire       KEY_Pressed_3x3,
 
 	// 搖桿輸入訊號
 	input  wire joystick_z_pulse,     // 搖桿按下脈衝
@@ -20,24 +22,54 @@ module Main_Controller #(
 
 	output reg [63:0] seven_segment_chars,
 
-	output reg  [3:0] previous_system_state, current_system_state, next_system_state,
+	output reg  [3:0]  previous_system_state, current_system_state, next_system_state,
+	output reg  [31:0] system_timer,
 	
 	output reg  [2:0] coordinate_x, coordinate_y,
 	output reg  [2:0] coordinate_state,
 	
 	output reg  [7:0] brightness,
 	
-	output reg  [7:0] detected_num,
+	input  wire [7:0] detected_num,
 	
-	output wire                    send_en,
-	output wire [3:0]              send_target_id,
-	output wire [8*MAX_TX_LEN-1:0] send_data_reg,
-	input  wire                    tx_busy,
-	input  wire [3:0]              rx_link_id,
-	input  wire [15:0]             rx_data_len,
-	input  wire [8*MAX_RX_LEN-1:0] rx_data_reg,
-	input  wire                    rx_done
+	input  wire       rx_data_done,
+	output reg  [3:0] WiFi_send_types, // Wi-Fi 連續資料流種類選擇
+	output reg        start_send,      // Wi-Fi 連續資料流開始發送旗標(高態觸發)
+	input  wire       start_send_ack,  // Wi-Fi 連續資料流開始發送旗標重置旗標
+	output reg        WiFi_restart     // Wi-Fi 強制重置訊號
 );
+
+reg KEY_Pressed_2x2_d1,      KEY_Pressed_3x3_d1;
+reg KEY_Pressed_2x2_rising,  KEY_Pressed_3x3_rising;
+reg KEY_Pressed_2x2_falling, KEY_Pressed_3x3_falling;
+reg [2:0] KEY_2x2_d1, KEY_2x2_d2;
+reg [3:0] KEY_3x3_d1, KEY_3x3_d2;
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		KEY_Pressed_2x2_d1      <= 1'b0;
+		KEY_Pressed_2x2_rising  <= 1'b0;
+		KEY_Pressed_2x2_falling <= 1'b0;
+		KEY_2x2_d1              <= 3'd7;
+		KEY_2x2_d2              <= 3'd7;
+		KEY_Pressed_3x3_d1      <= 1'b0;
+		KEY_Pressed_3x3_rising  <= 1'b0;
+		KEY_Pressed_2x2_falling <= 1'b0;
+		KEY_3x3_d1              <= 4'd15;
+		KEY_3x3_d2              <= 4'd15;
+	end else begin
+		KEY_Pressed_2x2_d1 <= KEY_Pressed_2x2;
+		KEY_2x2_d1         <= KEY_2x2;
+		KEY_2x2_d2         <= KEY_2x2_d1;
+		KEY_Pressed_3x3_d1 <= KEY_Pressed_3x3;
+		KEY_3x3_d1         <= KEY_3x3;
+		KEY_3x3_d2         <= KEY_3x3_d1;
+		
+		KEY_Pressed_2x2_rising  <= (KEY_Pressed_2x2  && !KEY_Pressed_2x2_d1); // 正緣觸發
+		KEY_Pressed_2x2_falling <= (!KEY_Pressed_2x2 && KEY_Pressed_2x2_d1);  // 負緣觸發
+		KEY_Pressed_3x3_rising  <= (KEY_Pressed_3x3  && !KEY_Pressed_3x3_d1); // 正緣觸發
+		KEY_Pressed_3x3_falling <= (!KEY_Pressed_3x3 && KEY_Pressed_3x3_d1);  // 負緣觸發
+	end
+end
 
 parameter CLK_FREQ = 50_000_000; // 50MHz 時脈
 
@@ -54,27 +86,21 @@ parameter SYS_RESET        = 4'd0,
 
 
 
-reg KEY_Pressed_2x2_d1;
-
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		previous_system_state <= SYS_RESET;
 		current_system_state  <= SYS_RESET;
-		
-		KEY_Pressed_2x2_d1 <= 0;
 	end else begin
 		previous_system_state <= current_system_state;
 		current_system_state  <= next_system_state;
-		
-		KEY_Pressed_2x2_d1 <= KEY_Pressed_2x2;
 	end
 end
 
 always @(*) begin
 	next_system_state = current_system_state;
 	
-	if (KEY_Pressed_2x2) begin
-		if (KEY_2x2 == 3'd0) begin
+	if (KEY_Pressed_2x2_falling) begin
+		if (KEY_2x2_d2 == 3'd0) begin
 			if (switch_8bit[1:0] == 2'b00) begin
 				next_system_state = SYS_TFT_LCD;
 			end else if (switch_8bit[1:0] == 2'b01) begin
@@ -84,7 +110,7 @@ always @(*) begin
 			end else if (switch_8bit[1:0] == 2'b11) begin
 				next_system_state = SYS_INTEGRATION;
 			end
-		end else if(KEY_2x2 == 3'd1) begin
+		end else if(KEY_2x2_d2 == 3'd1) begin
 			next_system_state = SYS_IDLE;
 		end
 	end
@@ -151,7 +177,7 @@ always @(posedge clk or negedge rst_n) begin
 				end
 				
 				if (coordinate_state == 3'd0) begin
-					if (rx_done) begin
+					if (rx_data_done) begin
 						if ((detected_num == "0") || (detected_num == "2") || (detected_num == "6") || (detected_num == "8")) begin
 							coordinate_state <= 3'd1;
 						end
@@ -181,7 +207,7 @@ always @(posedge clk or negedge rst_n) begin
 						coordinate_state <= 3'd4;
 					end
 				end else if (coordinate_state == 3'd2) begin
-					if (rx_done && ((detected_num == "0") || (detected_num == "2") || (detected_num == "6") || (detected_num == "8"))) begin
+					if (rx_data_done && ((detected_num == "0") || (detected_num == "2") || (detected_num == "6") || (detected_num == "8"))) begin
 						coordinate_state <= 3'd3;
 					end
 				end else begin
@@ -195,10 +221,10 @@ always @(posedge clk or negedge rst_n) begin
 						end else if (joystick_right_pulse && (coordinate_x < 6)) begin
 							coordinate_x <= coordinate_x + 3'd1;
 						end
-						if (KEY_Pressed_2x2 && !KEY_Pressed_2x2_d1) begin
-							if ((KEY_2x2 == 3'd2) && (brightness < 8'd255)) begin
+						if (KEY_Pressed_2x2_falling) begin
+							if ((KEY_2x2_d2 == 3'd2) && (brightness < 8'd255)) begin
 								brightness <= brightness + {8'd32};
-							end else if ((KEY_2x2 == 3'd3) && (brightness > 8'd32)) begin
+							end else if ((KEY_2x2_d2 == 3'd3) && (brightness > 8'd32)) begin
 								brightness <= brightness - {8'd32};
 							end
 						end
@@ -212,43 +238,5 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 
-
-// --------------------------------------------------------------------
-// UART 與 七段顯示器 邏輯
-// --------------------------------------------------------------------
-wire [7:0] bytes[0:MAX_RX_LEN-1];
-genvar g;
-generate
-	for (g = 0; g < MAX_RX_LEN; g = g + 1) begin : BYTE_ASSIGN
-		assign bytes[g] = rx_data_reg[8*g +: 8];
-	end
-endgenerate
-
-wire [MAX_RX_LEN-1:0] match_num;
-//reg  [8:0]            detected_num;
-reg                   num_found;
-
-generate
-	for (g = 0; g < MAX_RX_LEN-4; g = g + 1) begin : MATCH_GEN
-		assign match_num[g] = (bytes[g+4] == "N") && 
-									(bytes[g+3] == "u") && 
-									(bytes[g+2] == "m") && 
-									(bytes[g+1] == ":");
-	end
-endgenerate
-
-integer k;
-always @(*) begin
-	num_found    = 1'b0;
-	detected_num = 8'd0;
-	for (k = 0; k < MAX_RX_LEN; k = k + 1) begin
-		if (match_num[k] && !num_found) begin
-			num_found    = 1'b1;
-			detected_num = bytes[k];
-		end
-	end
-end
-
-assign send_en = 1'b0;
 
 endmodule

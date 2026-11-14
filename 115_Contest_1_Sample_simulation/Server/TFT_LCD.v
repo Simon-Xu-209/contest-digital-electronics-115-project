@@ -15,6 +15,7 @@ module TFT_LCD #(
 	input wire [3:0]  previous_system_state,
 	input wire [3:0]  current_system_state,
 	input wire [3:0]  next_system_state,
+	input wire [31:0] system_timer,
 	input wire [2:0]  coordinate_x, coordinate_y,
 	input wire [1:0]  coordinate_state,
 	input wire [15:0] WiFi_signal,

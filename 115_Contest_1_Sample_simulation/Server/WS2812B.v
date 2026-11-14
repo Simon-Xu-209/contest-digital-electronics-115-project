@@ -6,6 +6,7 @@ module WS2812B #(
 	
 	// 系統狀態
 	input  wire [3:0] previous_system_state, current_system_state, next_system_state,
+	input  wire [31:0] system_timer,
 	
 	input  wire [2:0] coordinate_x, coordinate_y,
 	input  wire [2:0] coordinate_state,

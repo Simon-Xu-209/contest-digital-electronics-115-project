@@ -69,10 +69,10 @@ reg        found_done, found_id, found_newid, found_newqa;
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		new_order_id <= 16'd0;
-		new_order_id_confirm  <= 16'd0;
-		connect_done_pulse <= 1'b0;
-		rx_data_done_ack   <= 1'b0;
+		new_order_id         <= 16'd0;
+		new_order_id_confirm <= 16'd0;
+		connect_done_pulse   <= 1'b0;
+		rx_data_done_ack     <= 1'b0;
 	end else begin
 		rx_data_done_ack   <= 1'b0;
 		connect_done_pulse <= 1'b0;
