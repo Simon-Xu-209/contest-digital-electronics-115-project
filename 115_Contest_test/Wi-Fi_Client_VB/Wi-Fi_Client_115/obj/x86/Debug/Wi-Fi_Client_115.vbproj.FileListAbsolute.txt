@@ -25,3 +25,15 @@ C:\Users\student\Desktop\Wi-Fi_Test\Wi-Fi_Client_VB\Wi-Fi_Client_115\bin\Debug\W
 C:\Users\student\Desktop\Wi-Fi_Test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\WindowsApplication1.Form1.resources
 C:\Users\student\Desktop\Wi-Fi_Test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\WindowsApplication1.Resources.resources
 C:\Users\student\Desktop\Wi-Fi_Test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\Wi-Fi_Client_115.vbproj.GenerateResource.Cache
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\bin\Debug\Wi-Fi_Client.exe.config
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\bin\Debug\Wi-Fi_Client.exe
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\bin\Debug\Wi-Fi_Client.pdb
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\bin\Debug\Wi-Fi_Client.xml
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\Wi-Fi_Client_115.vbproj.AssemblyReference.cache
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\WindowsApplication1.Form1.resources
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\WindowsApplication1.Resources.resources
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\Wi-Fi_Client_115.vbproj.GenerateResource.cache
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\Wi-Fi_Client_115.vbproj.CoreCompileInputs.cache
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\Wi-Fi_Client.exe
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\Wi-Fi_Client.xml
+C:\Users\student\Desktop\Project_Simon\contest-digital-electronics-115-project\115_Contest_test\Wi-Fi_Client_VB\Wi-Fi_Client_115\obj\x86\Debug\Wi-Fi_Client.pdb

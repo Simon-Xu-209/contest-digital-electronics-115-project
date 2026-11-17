@@ -16,8 +16,8 @@ module UART_rx_string #(
 	output reg  [15:0]            rx_data_len,     // 資料位元組長度暫存器
 	output reg  [8*MAX_BYTES-1:0] rx_data_reg,     // 資料暫存器 (Payload)
 	
-	output reg                    rx_data_done,     // 接收完成脈衝
-	input  wire                   rx_data_done_ack, // rx_data_done 清除/確認信號
+	output reg                    rx_data_done,     // 接收完成旗標(高態觸發)
+	input  wire                   rx_data_done_ack, // 接收完成旗標清除旗標
 	output reg                    rx_data_reg_busy  // 接收中忙碌旗標
 );
 
@@ -95,13 +95,13 @@ reg [15:0] data_cnt;
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		parse_state   <= S_SEARCH_PLUS;
-		ipd_step      <= 2'd0;
-		link_ID       <= 4'd0;
-		rx_data_len   <= 16'd0;
-		rx_data_reg   <= {8*MAX_BYTES{1'b0}};
-		data_cnt      <= 16'd0;
-		rx_data_done  <= 1'b0;
+		parse_state      <= S_SEARCH_PLUS;
+		ipd_step         <= 2'd0;
+		link_ID          <= 4'd0;
+		rx_data_len      <= 16'd0;
+		rx_data_reg      <= {8*MAX_BYTES{1'b0}};
+		data_cnt         <= 16'd0;
+		rx_data_done     <= 1'b0;
 		rx_data_reg_busy <= 1'b0;
 	end else begin
 		if (rx_data_done_ack) begin

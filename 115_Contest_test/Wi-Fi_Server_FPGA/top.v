@@ -44,13 +44,12 @@ module top (
 	output wire USB2UART_WiFi_rx  // USB to TTL 的 rx
 );
 
-
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
 		RX_TEST <= 1'b0;
 	end else begin
 		if (rx_done) begin
-			RX_TEST <= !RX_TEST; // 當接收完成脈衝到來時安全反相
+			RX_TEST <= !RX_TEST; // 當接收完成脈衝到來時反相
 		end
 	end
 end
@@ -120,6 +119,9 @@ Main_Controller #(
 	.coordinate_y         (coordinate_y),
 	.coordinate_state     (coordinate_state),
 	
+	.WiFi_send_types      (WiFi_send_types), // Wi-Fi 連續資料流種類選擇
+	.start_send           (start_send),      // Wi-Fi 連續資料流開始發送旗標(高態觸發)
+	.start_send_ack       (start_send_ack),  // Wi-Fi 連續資料流開始發送旗標重置旗標
 	.WiFi_restart         (WiFi_restart)
 );
 
@@ -197,20 +199,24 @@ WiFi_Controller #(
 	.WiFi_rx          (WiFi_rx),
 	.WiFi_tx          (WiFi_tx),
 	.WiFi_rst_n       (WiFi_RST),
-	.send_en          (send_en),
+	.send_en          (send_en),     // Wi-Fi 資料發送旗標(高態觸發)
+	.send_en_ack      (send_en_ack), // Wi-Fi 資料發送旗標重置旗標
 	.send_target_id   (tx_link_id),
 	.send_data_reg    (send_data_reg),
 	.tx_busy          (tx_busy),
 	.send_done        (send_done),
-	.send_en_ack      (send_en_ack),
 	.rx_link_id       (rx_link_id),
 	.rx_data_len      (rx_data_len),
 	.rx_data_reg      (rx_data_reg),
-	.rx_done          (rx_done),
-	.rx_data_done_ack (rx_data_done_ack),
+	.rx_data_done     (rx_data_done),     // 接收完成旗標(高態觸發)
+	.rx_data_done_ack (rx_data_done_ack), // 接收完成旗標清除旗標
 	.WiFi_restart     (WiFi_restart),
 	.init_done        (WiFi_init_done)
 );
+
+wire [3:0] WiFi_send_types;
+wire start_send;
+wire start_send_ack;
 
 WiFi_Protocol_Handler #(
 	.MAX_TX_LEN(64),
@@ -220,10 +226,12 @@ WiFi_Protocol_Handler #(
 	.rst_n              (rst_n),
 	
 	// --- 來自 Main_Controller 的業務數據與控制 ---
-	.system_state       (system_state), // 當前系統狀態
-	.trigger_sequence_id(), // 部指定要執行的「傳送劇本編號」(對應第二個 Case 的狀態)
-	.start_sequence     (), // 觸發該劇本開始執行的脈衝
-	
+	.system_state       (system_state),    // 當前系統狀態
+	/*
+	.trigger_sequence_id(WiFi_send_types), // 部指定要執行的「傳送劇本編號」(對應第二個 Case 的狀態)
+	.start_send         (start_send),      // Wi-Fi 連續資料流開始發送旗標(高態觸發)
+	.start_send_ack     (start_send_ack),  // Wi-Fi 連續資料流開始發送旗標重置旗標
+	*/
 	.orderQuantity      (orderQuantity), // 訂購數量
 	.bidAmount          (bidAmount),     // 出價金額
 	.productQuota       (productQuota),  // 商品配額
@@ -241,8 +249,8 @@ WiFi_Protocol_Handler #(
 	.rx_link_id         (rx_link_id),
 	.rx_data_len        (rx_data_len),
 	.rx_data_reg        (rx_data_reg),
-	.rx_done            (rx_done),
-	.rx_data_done_ack   (rx_data_done_ack),
+	.rx_data_done       (rx_data_done),     // 接收完成旗標(高態觸發)
+	.rx_data_done_ack   (rx_data_done_ack), // 接收完成旗標清除旗標
 	
 	// --- 輸出給 Main_Controller 的解析結果 ---
 	.detected_order_ID  (detected_order_ID),

@@ -1,4 +1,5 @@
 module Main_Controller #(
+	parameter CLK_FREQ   = 50_000_000,
 	parameter MAX_TX_LEN = 64,
 	parameter MAX_RX_LEN = 32,
 	parameter MAX_CHARS  = 32
@@ -35,32 +36,41 @@ module Main_Controller #(
 	output reg  [2:0] coordinate_x, coordinate_y,
 	output reg  [1:0] coordinate_state,
 	
-	output reg        WiFi_restart
+	output reg  [3:0] WiFi_send_types, // Wi-Fi 連續資料流種類選擇
+	output reg        start_send,      // Wi-Fi 連續資料流開始發送旗標(高態觸發)
+	input  wire       start_send_ack,  // Wi-Fi 連續資料流開始發送旗標重置旗標
+	output reg        WiFi_restart     // Wi-Fi 強制重置訊號
 );
 
-parameter CLK_FREQ = 50_000_000; // 50MHz 時脈
-
-reg KEY_Pressed_2x2_d1, KEY_Pressed_3x3_d1;
-reg KEY_Pressed_2x2_pulse, KEY_Pressed_3x3_pulse;
+reg KEY_Pressed_2x2_d1,      KEY_Pressed_3x3_d1;
+reg KEY_Pressed_2x2_rising,  KEY_Pressed_3x3_rising;
+reg KEY_Pressed_2x2_falling, KEY_Pressed_3x3_falling;
+reg [2:0] KEY_2x2_d1, KEY_2x2_d2;
+reg [3:0] KEY_3x3_d1, KEY_3x3_d2;
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		KEY_Pressed_2x2_d1    <= 1'b0;
-		KEY_Pressed_2x2_pulse <= 1'b0;
-		KEY_Pressed_3x3_d1    <= 1'b0;
-		KEY_Pressed_3x3_pulse <= 1'b0;
+		KEY_Pressed_2x2_d1      <= 1'b0;
+		KEY_Pressed_2x2_rising  <= 1'b0;
+		KEY_Pressed_2x2_falling <= 1'b0;
+		KEY_2x2_d1              <= 3'd7;
+		KEY_2x2_d2              <= 3'd7;
+		KEY_Pressed_3x3_d1      <= 1'b0;
+		KEY_Pressed_3x3_rising  <= 1'b0;
+		KEY_Pressed_2x2_falling <= 1'b0;
+		KEY_3x3_d1              <= 4'd15;
+		KEY_3x3_d2              <= 4'd15;
 	end else begin
-		KEY_Pressed_2x2_d1 <= KEY_Pressed_3x3;
+		KEY_Pressed_2x2_d1 <= KEY_Pressed_2x2;
+		KEY_2x2_d1         <= KEY_2x2;
+		KEY_2x2_d2         <= KEY_2x2_d1;
 		KEY_Pressed_3x3_d1 <= KEY_Pressed_3x3;
-		if (KEY_Pressed_2x2 && !KEY_Pressed_2x2_d1) begin
-			KEY_Pressed_2x2_pulse <= 1'b1;
-		end else begin
-			KEY_Pressed_2x2_pulse <= 1'b0;
-		end
-		if (KEY_Pressed_3x3 && !KEY_Pressed_3x3_d1) begin
-			KEY_Pressed_3x3_pulse <= 1'b1;
-		end else begin
-			KEY_Pressed_3x3_pulse <= 1'b0;
-		end
+		KEY_3x3_d1         <= KEY_3x3;
+		KEY_3x3_d2         <= KEY_3x3_d1;
+		
+		KEY_Pressed_2x2_rising  <= (KEY_Pressed_2x2  && !KEY_Pressed_2x2_d1); // 正緣觸發
+		KEY_Pressed_2x2_falling <= (!KEY_Pressed_2x2 && KEY_Pressed_2x2_d1);  // 負緣觸發
+		KEY_Pressed_3x3_rising  <= (KEY_Pressed_3x3  && !KEY_Pressed_3x3_d1); // 正緣觸發
+		KEY_Pressed_3x3_falling <= (!KEY_Pressed_3x3 && KEY_Pressed_3x3_d1);  // 負緣觸發
 	end
 end
 
@@ -122,17 +132,20 @@ always @(posedge clk or negedge rst_n) begin
 		seven_segment_chars <= "";
 		system_timer        <= 32'd0;
 		
-		WiFi_restart <= 1'b0;
+		WiFi_restart    <= 1'b0;
 		
 		// 訂單ID03, 訂單ID02, 訂單IDxx
 		orderQuantity <= {8'd55, 8'd30, 8'd0};    // 訂購數量
 		bidAmount     <= {8'd80, 8'd50, 8'd0};    // 出價金額
 		productQuota  <= {8'd0,  8'd0,  8'd0};    // 商品配額
 		
-		coordinate_x        <= 3'd0;
-		coordinate_y        <= 3'd0;
-		coordinate_state    <= 2'd0;
 	end else begin
+		if ((switch_8bit == 8'b0010_0000) && (KEY_3x3 == 8) && KEY_Pressed_3x3_rising) begin
+			WiFi_restart <= 1'b1;
+		end else begin
+			WiFi_restart <= 1'b0;
+		end
+		
 		if (next_system_state != current_system_state) begin
 			system_timer <= 32'd0;
 		end else if ((current_system_state == SYS_EDIT_ORDER_03) || (current_system_state == SYS_EDIT_ORDER_02) || (current_system_state == SYS_EDIT_ORDER_xx)) begin
@@ -157,7 +170,7 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			
 			SYS_EDIT_ORDER_03: begin
-				if (KEY_Pressed_3x3_pulse) begin
+				if (KEY_Pressed_3x3_rising) begin
 					case (KEY_3x3)
 						// +10
 						4'd0: begin
@@ -185,7 +198,7 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			
 			SYS_EDIT_ORDER_02: begin
-				if (KEY_Pressed_3x3_pulse) begin
+				if (KEY_Pressed_3x3_rising) begin
 					case (KEY_3x3)
 						// +10
 						4'd0: begin
@@ -213,7 +226,7 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			
 			SYS_EDIT_ORDER_xx: begin
-				if (KEY_Pressed_3x3_pulse) begin
+				if (KEY_Pressed_3x3_rising) begin
 					case (KEY_3x3)
 						// +10
 						4'd0: begin
@@ -253,45 +266,23 @@ end
 
 
 
-// orderQuantity 的十位數與個位數 ASCII
-wire [7:0] quantity_03_tens = "0" + (orderQuantity[23:16] / 10);
-wire [7:0] quantity_03_ones = "0" + (orderQuantity[23:16] % 10);
-wire [7:0] quantity_02_tens = "0" + (orderQuantity[15:8]  / 10);
-wire [7:0] quantity_02_ones = "0" + (orderQuantity[15:8]  % 10);
-wire [7:0] quantity_xx_tens = "0" + (orderQuantity[7:0]   / 10);
-wire [7:0] quantity_xx_ones = "0" + (orderQuantity[7:0]   % 10);
+/*
+always @(posedge clk or negedge rst_n) begin
+	if (!rst_n) begin
+		WiFi_send_types <= 4'd0;
+		start_send      <= 1'b0;
+	end else begin
+		if (KEY_Pressed_3x3_falling) begin
+			WiFi_send_types <= KEY_3x3_d2;
+			start_send      <= 1'b1;
+		end else if (start_send_ack) begin // 將 start_send 歸零
+			WiFi_send_types <= 4'd0;
+			start_send      <= 1'b0;
+		end
+	end
+end*/
 
-// bidAmount 的十位數與個位數 ASCII
-wire [7:0] amount_03_tens = "0" + (bidAmount[23:16] / 10);
-wire [7:0] amount_03_ones = "0" + (bidAmount[23:16] % 10);
-wire [7:0] amount_02_tens = "0" + (bidAmount[15:8]  / 10);
-wire [7:0] amount_02_ones = "0" + (bidAmount[15:8]  % 10);
-wire [7:0] amount_xx_tens = "0" + (bidAmount[7:0]   / 10);
-wire [7:0] amount_xx_ones = "0" + (bidAmount[7:0]   % 10);
 
-// productQuota 的十位數與個位數 ASCII
-wire [7:0] quota_03_tens = "0" + (productQuota[23:16] / 10);
-wire [7:0] quota_03_ones = "0" + (productQuota[23:16] % 10);
-wire [7:0] quota_02_tens = "0" + (productQuota[15:8]  / 10);
-wire [7:0] quota_02_ones = "0" + (productQuota[15:8]  % 10);
-wire [7:0] quota_xx_tens = "0" + (productQuota[7:0]   / 10);
-wire [7:0] quota_xx_ones = "0" + (productQuota[7:0]   % 10);
-
-// grandTotal 的十位數與個位數 ASCII
-wire [7:0] total_03_thousands = "0" + ((grandTotal[47:32] % 10000) / 1000);
-wire [7:0] total_03_hundreds  = "0" + ((grandTotal[47:32] % 1000) / 100);
-wire [7:0] total_03_tens      = "0" + ((grandTotal[47:32] % 100) / 10);
-wire [7:0] total_03_ones      = "0" + (grandTotal[47:32]  % 10);
-
-wire [7:0] total_02_thousands = "0" + ((grandTotal[31:16] % 10000) / 1000);
-wire [7:0] total_02_hundreds  = "0" + ((grandTotal[31:16] % 1000) / 100);
-wire [7:0] total_02_tens      = "0" + ((grandTotal[31:16] % 100) / 10);
-wire [7:0] total_02_ones      = "0" + (grandTotal[31:16]  % 10);
-
-wire [7:0] total_xx_thousands = "0" + ((grandTotal[15:0] % 10000) / 1000);
-wire [7:0] total_xx_hundreds  = "0" + ((grandTotal[15:0] % 1000) / 100);
-wire [7:0] total_xx_tens      = "0" + ((grandTotal[15:0] % 100) / 10);
-wire [7:0] total_xx_ones      = "0" + (grandTotal[15:0]  % 10);
 
 assign grandTotal[47:32] = productQuota[23:16] * bidAmount[23:16];
 assign grandTotal[31:16] = productQuota[15:8] * bidAmount[15:8];
