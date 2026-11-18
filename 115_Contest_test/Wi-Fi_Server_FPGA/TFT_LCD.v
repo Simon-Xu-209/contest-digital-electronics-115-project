@@ -22,7 +22,7 @@ module TFT_LCD #(
 	input [23:0] bidAmount,     // 出價金額
 	input [23:0] productQuota,  // 商品配額
 	input [47:0] grandTotal,    // 付款總額
-	input [31:0] new_orderID_confirm,
+	input [15:0] new_order_id_confirm,
 	
 	input wire [2:0]  coordinate_x, coordinate_y,
 	input wire [1:0]  coordinate_state,
@@ -172,8 +172,8 @@ always @(posedge clk or negedge rst_n) begin
 					char_color[i] <= COLOR_BLACK;
 				end
 				char_ascii[0]  <= "I"; char_ascii[1] <= "D";
-				char_ascii[2]  <= new_orderID_confirm[15:8];
-				char_ascii[3]  <= new_orderID_confirm[7:0];
+				char_ascii[2]  <= new_order_id_confirm[15:8];
+				char_ascii[3]  <= new_order_id_confirm[7:0];
 				char_ascii[4]  <= "O"; char_ascii[5] <= "Q";
 				char_ascii[6]  <= "0" + (orderQuantity[7:0] / 10);
 				char_ascii[7]  <= "0" + (orderQuantity[7:0] % 10);

@@ -2,39 +2,42 @@ module WiFi_Protocol_Handler #(
 	parameter MAX_TX_LEN = 64,
 	parameter MAX_RX_LEN = 32
 )(
-	input  wire                   clk,
-	input  wire                   rst_n,
+	input  wire                    clk,
+	input  wire                    rst_n,
 	
 	// --- 來自 Main_Controller 的業務數據與控制 ---
-	input  wire [3:0]             system_state,       // 當前系統狀態
+	input  wire [3:0]              system_state,       // 當前系統狀態
 	/*
-	input  wire [3:0]             trigger_sequence_id,// Wi-Fi 連續資料流種類選擇
-	input  wire                   start_send,         // Wi-Fi 連續資料流開始發送旗標(高態觸發)
-	output reg                    start_send_ack,     // Wi-Fi 連續資料流開始發送旗標重置旗標
+	input  wire [3:0]              trigger_sequence_id,// Wi-Fi 連續資料流種類選擇
+	input  wire                    start_send,         // Wi-Fi 連續資料流開始發送旗標(高態觸發)
+	output reg                     start_send_ack,     // Wi-Fi 連續資料流開始發送旗標重置旗標
 	*/
-	input  wire [23:0]            orderQuantity,      // 訂購數量
-	input  wire [23:0]            bidAmount,          // 出價金額
-	input  wire [23:0]            productQuota,       // 商品配額
-	input  wire [47:0]            grandTotal,         // 付款總額
+	input  wire [23:0]             orderQuantity,      // 訂購數量
+	input  wire [23:0]             bidAmount,          // 出價金額
+	input  wire [23:0]             productQuota,       // 商品配額
+	input  wire [47:0]             grandTotal,         // 付款總額
+	
+	output reg  [7:0]              new_orderQuantity_xx,
+	output reg  [7:0]              new_bidAmount_xx,
 	
 	// --- 介面至 WiFi_Controller ---
-	output reg                    send_en,        // Wi-Fi 資料發送旗標(高態觸發)
-	input  wire                   send_en_ack,    // Wi-Fi 資料發送旗標重置旗標
-	output reg  [3:0]             send_target_id,
+	output reg                     send_en,        // Wi-Fi 資料發送旗標(高態觸發)
+	input  wire                    send_en_ack,    // Wi-Fi 資料發送旗標重置旗標
+	output reg  [3:0]              send_target_id,
 	output reg  [8*MAX_TX_LEN-1:0] send_data_reg,
-	input  wire                   tx_busy,
-	input  wire                   send_done,
+	input  wire                    tx_busy,
+	input  wire                    send_done,
 	
 	// --- 來自 WiFi_Controller 的接收資料 ---
-	input  wire [3:0]             rx_link_id,
-	input  wire [15:0]            rx_data_len,
+	input  wire [3:0]              rx_link_id,
+	input  wire [15:0]             rx_data_len,
 	input  wire [8*MAX_RX_LEN-1:0] rx_data_reg,
-	input  wire                   rx_data_done,
-	output reg                    rx_data_done_ack,
+	input  wire                    rx_data_done,
+	output reg                     rx_data_done_ack,
 	
 	// --- 輸出給 Main_Controller 的解析結果 ---
-	output reg  [15:0]            detected_order_ID,
-	output reg                    connect_done_pulse
+	output reg  [15:0]             new_order_id_confirm,
+	output reg                     connect_done_pulse
 );
 
 parameter CLK_FREQ = 50_000_000;
@@ -64,7 +67,8 @@ reg        found_done, found_id, found_newid, found_newqa;
 
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		detected_order_ID  <= 16'd0;
+		new_order_id <= 16'd0;
+		new_order_id_confirm  <= 16'd0;
 		connect_done_pulse <= 1'b0;
 		rx_data_done_ack   <= 1'b0;
 	end else begin
@@ -124,8 +128,12 @@ always @(posedge clk or negedge rst_n) begin
 		end
 		
 		if (found_done) begin
+			if (new_order_id == 16'd0) begin
+				trigger_sequence_id <= 4'd1;
+			end else begin
+				trigger_sequence_id <= 4'd2;
+			end
 			connect_done_pulse  <= 1'b1;
-			trigger_sequence_id <= 4'd1;
 			start_send          <= 1'b1;
 		end
 		
@@ -138,13 +146,25 @@ always @(posedge clk or negedge rst_n) begin
 				"02": begin
 					trigger_sequence_id <= 4'd4;
 				end
-				"01": begin
+				new_order_id_confirm: begin
 					trigger_sequence_id <= 4'd5;
 				end
 				default: begin
 					trigger_sequence_id <= 4'd7;
 				end
 			endcase
+		end
+		
+		if (found_newid && found_newqa) begin
+			start_send <= 1'b1;
+			if (((new_order_id == 16'd0) || (new_order_id != new_order_id_confirm)) && (new_order_id != "03") && (new_order_id != "02")) begin
+				trigger_sequence_id  <= 4'd6;
+				new_order_id_confirm <= new_order_id;
+				new_orderQuantity_xx <= (new_quantity_xx_tens - "0")*10 + (new_quantity_xx_ones - "0");
+				new_bidAmount_xx     <= (new_amount_xx_tens - "0")*10 + (new_amount_xx_ones - "0");
+			end else begin
+				trigger_sequence_id <= 4'd7;
+			end
 		end
 		
 		if (start_send_ack) begin
@@ -210,7 +230,7 @@ function [8*MAX_TX_LEN-1:0] get_message_string;
 		case (msg_type)
 			4'd1:    get_message_string = "ID:0302\r\n";
 			
-			4'd2:    get_message_string = {"ID:0302", "01", "\r\n"};
+			4'd2:    get_message_string = {"ID:0302", new_order_id_confirm, "\r\n"};
 			
 			4'd3:    get_message_string = {"QA:00", quantity_03_tens, quantity_03_ones, "00", quantity_02_tens, quantity_02_tens, "\r\n"};
 			
@@ -420,7 +440,7 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			
 			S_DELAY: begin
-				if ((delay_cnt >= CLK_FREQ / 50) || send_done) begin // 20ms 延遲
+				if ((delay_cnt >= CLK_FREQ / 10) || send_done) begin // 100ms 延遲
 					delay_cnt <= 32'd0;
 					tx_state  <= S_FETCH_MSG;
 				end else begin

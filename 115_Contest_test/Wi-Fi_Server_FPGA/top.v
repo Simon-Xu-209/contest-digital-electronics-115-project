@@ -80,7 +80,7 @@ wire [23:0] orderQuantity; // 訂購數量
 wire [23:0] bidAmount;     // 出價金額
 wire [23:0] productQuota;  // 商品配額
 wire [47:0] grandTotal;    // 付款總額
-wire [31:0] new_orderID_confirm;
+wire [31:0] new_order_id_confirm;
 
 // 專案主控制電路
 Main_Controller #(
@@ -113,7 +113,9 @@ Main_Controller #(
 	.bidAmount            (bidAmount),
 	.productQuota         (productQuota),
 	.grandTotal           (grandTotal),
-	.new_orderID_confirm  (new_orderID_confirm),
+	.new_order_id_confirm (new_order_id_confirm),
+	.new_orderQuantity_xx (new_orderQuantity_xx),
+	.new_bidAmount_xx     (new_bidAmount_xx),
 	
 	.coordinate_x         (coordinate_x),
 	.coordinate_y         (coordinate_y),
@@ -218,43 +220,48 @@ wire [3:0] WiFi_send_types;
 wire start_send;
 wire start_send_ack;
 
+wire [7:0] new_orderQuantity_xx, new_bidAmount_xx;
+
 WiFi_Protocol_Handler #(
 	.MAX_TX_LEN(64),
 	.MAX_RX_LEN(32)
 ) WiFi_Protocol_Handler_u1 (
-	.clk                (clk),
-	.rst_n              (rst_n),
+	.clk                 (clk),
+	.rst_n               (rst_n),
 	
 	// --- 來自 Main_Controller 的業務數據與控制 ---
-	.system_state       (system_state),    // 當前系統狀態
+	.system_state        (system_state),    // 當前系統狀態
 	/*
-	.trigger_sequence_id(WiFi_send_types), // 部指定要執行的「傳送劇本編號」(對應第二個 Case 的狀態)
-	.start_send         (start_send),      // Wi-Fi 連續資料流開始發送旗標(高態觸發)
-	.start_send_ack     (start_send_ack),  // Wi-Fi 連續資料流開始發送旗標重置旗標
+	.trigger_sequence_id (WiFi_send_types), // 部指定要執行的「傳送劇本編號」(對應第二個 Case 的狀態)
+	.start_send          (start_send),      // Wi-Fi 連續資料流開始發送旗標(高態觸發)
+	.start_send_ack      (start_send_ack),  // Wi-Fi 連續資料流開始發送旗標重置旗標
 	*/
-	.orderQuantity      (orderQuantity), // 訂購數量
-	.bidAmount          (bidAmount),     // 出價金額
-	.productQuota       (productQuota),  // 商品配額
-	.grandTotal         (grandTotal),    // 付款總額
+	.orderQuantity       (orderQuantity), // 訂購數量
+	.bidAmount           (bidAmount),     // 出價金額
+	.productQuota        (productQuota),  // 商品配額
+	.grandTotal          (grandTotal),    // 付款總額
+	
+	.new_orderQuantity_xx(new_orderQuantity_xx),
+	.new_bidAmount_xx    (new_bidAmount_xx),
 	
 	// --- 介面至 WiFi_Controller ---
-	.send_en            (send_en),
-	.send_en_ack        (send_en_ack),
-	.send_target_id     (send_target_id),
-	.send_data_reg      (send_data_reg),
-	.tx_busy            (tx_busy),
-	.send_done          (send_done),
+	.send_en             (send_en),
+	.send_en_ack         (send_en_ack),
+	.send_target_id      (send_target_id),
+	.send_data_reg       (send_data_reg),
+	.tx_busy             (tx_busy),
+	.send_done           (send_done),
 	
 	// --- 來自 WiFi_Controller 的接收資料 ---
-	.rx_link_id         (rx_link_id),
-	.rx_data_len        (rx_data_len),
-	.rx_data_reg        (rx_data_reg),
-	.rx_data_done       (rx_data_done),     // 接收完成旗標(高態觸發)
-	.rx_data_done_ack   (rx_data_done_ack), // 接收完成旗標清除旗標
+	.rx_link_id          (rx_link_id),
+	.rx_data_len         (rx_data_len),
+	.rx_data_reg         (rx_data_reg),
+	.rx_data_done        (rx_data_done),     // 接收完成旗標(高態觸發)
+	.rx_data_done_ack    (rx_data_done_ack), // 接收完成旗標清除旗標
 	
 	// --- 輸出給 Main_Controller 的解析結果 ---
-	.detected_order_ID  (detected_order_ID),
-	.connect_done_pulse ()
+	.new_order_id_confirm(new_order_id_confirm),
+	.connect_done_pulse  ()
 );
 
 
@@ -309,7 +316,7 @@ TFT_LCD #(
 	.bidAmount            (bidAmount),
 	.productQuota         (productQuota),
 	.grandTotal           (grandTotal),
-	.new_orderID_confirm  (new_orderID_confirm),
+	.new_order_id_confirm (new_order_id_confirm),
 	.coordinate_x         (coordinate_x),
 	.coordinate_y         (coordinate_y),
 	.coordinate_state     (coordinate_state),

@@ -31,7 +31,9 @@ module Main_Controller #(
 	output reg  [23:0] bidAmount,     // 出價金額
 	output reg  [23:0] productQuota,  // 商品配額
 	output wire [47:0] grandTotal,    // 付款總額
-	output reg  [31:0] new_orderID_confirm,
+	input  wire [15:0] new_order_id_confirm,
+	input  wire [7:0]  new_orderQuantity_xx,
+	input  wire [7:0]  new_bidAmount_xx,
 	
 	output reg  [2:0] coordinate_x, coordinate_y,
 	output reg  [1:0] coordinate_state,
@@ -112,7 +114,7 @@ always @(*) begin
 				next_system_state = SYS_EDIT_ORDER_03;
 			end else if (switch_8bit[3:0] == 4'b0010) begin
 				next_system_state = SYS_EDIT_ORDER_02;
-			end else if (switch_8bit[3:0] == new_orderID_confirm[7:0] - "0") begin
+			end else if (switch_8bit[3:0] == new_order_id_confirm[7:0] - "0") begin
 				next_system_state = SYS_EDIT_ORDER_xx;
 			end
 		end
@@ -135,9 +137,9 @@ always @(posedge clk or negedge rst_n) begin
 		WiFi_restart    <= 1'b0;
 		
 		// 訂單ID03, 訂單ID02, 訂單IDxx
-		orderQuantity <= {8'd55, 8'd30, 8'd0};    // 訂購數量
-		bidAmount     <= {8'd80, 8'd50, 8'd0};    // 出價金額
-		productQuota  <= {8'd0,  8'd0,  8'd0};    // 商品配額
+		orderQuantity <= {8'd55, 8'd30, 8'd0}; // 訂購數量
+		bidAmount     <= {8'd80, 8'd50, 8'd0}; // 出價金額
+		productQuota  <= {8'd0,  8'd0,  8'd0}; // 商品配額
 		
 	end else begin
 		if ((switch_8bit == 8'b0010_0000) && (KEY_3x3 == 8) && KEY_Pressed_3x3_rising) begin
@@ -166,7 +168,13 @@ always @(posedge clk or negedge rst_n) begin
 			end
 			
 			SYS_INIT_DONE: begin
-				seven_segment_chars <= "80-50-00";
+				seven_segment_chars[63:16] <= "80-50-";
+				if (bidAmount[7:0] != 8'd0) begin
+					seven_segment_chars[15:8] <= (bidAmount[7:0] / 10) + "0";
+					seven_segment_chars[7:0]  <= (bidAmount[7:0] % 10) + "0";
+				end else begin
+					seven_segment_chars[15:0] <= "00";
+				end
 			end
 			
 			SYS_EDIT_ORDER_03: begin
@@ -261,6 +269,9 @@ always @(posedge clk or negedge rst_n) begin
 			
 			default: ;
 		endcase
+		
+		orderQuantity[7:0] <= new_orderQuantity_xx;
+		bidAmount[7:0]     <= new_bidAmount_xx;
 	end
 end
 
