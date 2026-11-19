@@ -54,6 +54,9 @@ module top (
 	input  wire ISD2100_GPIO5,    // ISD2100 語音模組通用腳位 GPIO5 (未使用時建議設 input 防衝突)
 	output wire ISD2100_SSB,      // ISD2100 語音模組 SPI 片選 (低電位有效)
 	
+	output wire [3:0] L293D_IN, // L293D 馬達驅動晶片 IN4, IN3, IN2, IN1 通道輸入
+	output wire [1:0] L293D_EN, // L293D 馬達驅動晶片 EN2, EN1 通道致能
+	
 	output wire WiFi_tx,      // ESP8266 Wi-Fi 的 rx
 	input  wire WiFi_rx,      // ESP8266 Wi-Fi 的 tx
 	output wire WiFi_RST,     // ESP8266 Wi-Fi 的 RST

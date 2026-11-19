@@ -161,4 +161,10 @@ set_location_assignment PIN_171 -to ISD2100_MOSI
 set_location_assignment PIN_187 -to ISD2100_RDY_BSYB
 set_location_assignment PIN_176 -to ISD2100_SCLK
 set_location_assignment PIN_195 -to ISD2100_SSB
+set_location_assignment PIN_94 -to L293D_EN[1]
+set_location_assignment PIN_98 -to L293D_EN[0]
+set_location_assignment PIN_100 -to L293D_IN[3]
+set_location_assignment PIN_106 -to L293D_IN[2]
+set_location_assignment PIN_110 -to L293D_IN[1]
+set_location_assignment PIN_112 -to L293D_IN[0]
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
