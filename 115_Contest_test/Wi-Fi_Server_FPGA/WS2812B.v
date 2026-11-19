@@ -23,12 +23,12 @@ module WS2812B #(
 );
 
 // -------------------------------------------------------------
-// 時序參數定義 (50MHz 下: 1 cycle = 20ns)
+// 時序參數定義 (基準時脈 50MHz -> 1 clock cycle = 20ns)
 // -------------------------------------------------------------
-localparam T0H_CYCLES = 17;   // 0.34us
-localparam T1H_CYCLES = 35;   // 0.70us
-localparam BIT_CYCLES = 62;   // 1.24us
-localparam RST_CYCLES = 3000; // 60us Reset (Frame 刷新間隔)
+localparam T0H_CYCLES = 17;    // 邏輯 '0' 高電位寬度: 17 * 20ns = 0.34us (規格: 0.35us ±150ns)
+localparam T1H_CYCLES = 35;    // 邏輯 '1' 高電位寬度: 35 * 20ns = 0.70us (規格: 0.70us ±150ns)
+localparam BIT_CYCLES = 62;    // 單一 Bit 完整週期:   62 * 20ns = 1.24us (規格: 1.25us ±150ns)
+localparam RST_CYCLES = 15000; // 基礎 Reset 單位:   15000 * 20ns = 300us (規格要求 > 50us，但 50us 太快了，不要用)
 
 parameter SYS_RESET           = 4'd0,
 			 SYS_INITIAL         = 4'd1,
@@ -41,11 +41,16 @@ parameter SYS_RESET           = 4'd0,
 
 
 
-// WS2812B 顏色定義
-localparam COLOR_OFF   = 24'h00_00_00;
-localparam COLOR_RED   = 24'h00_1F_00;
-localparam COLOR_GREEN = 24'h1F_00_00;
-localparam COLOR_BLUE  = 24'h00_00_1F;
+// WS2812B 顏色定義           -GG-RR-BB-
+localparam COLOR_OFF    = 24'h00_00_00; // 全暗
+localparam COLOR_RED    = 24'h00_1F_00; // 紅色
+localparam COLOR_GREEN  = 24'h1F_00_00; // 綠色
+localparam COLOR_BLUE   = 24'h00_00_1F; // 藍色
+localparam COLOR_YELLOW = 24'h1F_1F_00; // 黃色
+localparam COLOR_PURPLE = 24'h00_1F_1F; // 紫色
+localparam COLOR_CYAN   = 24'h1F_1F_1F; // 青色
+
+
 
 // -------------------------------------------------------------
 // 動畫與內部控制邏輯
@@ -90,9 +95,9 @@ end
 // -------------------------------------------------------------
 reg [5:0]  led_cnt;     // 當前發送第幾顆 LED (0~63)
 reg [4:0]  bit_cnt;     // 當前發送第幾個 bit (0~23)
-reg [12:0] clk_cnt;     // pulse timing counter
+reg [13:0] clk_cnt;     // pulse timing counter
 reg [23:0] current_color; // 當前正在發送的 LED 顏色
-reg [1:0]  state;
+reg [1:0]  WS2812B_state; // WS2812B 繪製狀態
 
 
 
@@ -339,56 +344,61 @@ end
 // 發送波形控制
 always @(posedge clk or negedge rst_n) begin
 	if (!rst_n) begin
-		state           <= ST_IDLE;
+		WS2812B_state   <= ST_IDLE;
 		WS2812B_8x8_DIN <= 1'b0;
-		clk_cnt         <= 13'd0;
+		clk_cnt         <= 14'd0;
 		bit_cnt         <= 5'd0;
 		led_cnt         <= 6'd0;
 	end else begin
-		case (state)
+		case (WS2812B_state)
+			// [狀態 0: 準備與歸零] 初始化計數器，準備發送新一輪 64 顆 LED 影格
 			ST_IDLE: begin
 				WS2812B_8x8_DIN <= 1'b0;
-				clk_cnt         <= 13'd0;
+				clk_cnt         <= 14'd0;
 				bit_cnt         <= 5'd0;
 				led_cnt         <= 6'd0;
-				state           <= ST_SEND;
+				WS2812B_state   <= ST_SEND;
 			end
-
+			
+			// [狀態 1: 逐位元發送 PWM 波形] 依序發送 64 顆 LED x 24 bits = 1536 bits
 			ST_SEND: begin
-				// 根據目前 bit (MSB first) 輸出波形
+				// 1. 產生單一 bit 的歸零碼波形 (MSB 高位元優先發送: bit 23 -> bit 0)
+				//    透過比較器產生工作週期 (Duty Cycle)，剩餘週期自動補 0 (低電位)
 				if (current_color[23 - bit_cnt]) begin
-					WS2812B_8x8_DIN <= (clk_cnt < T1H_CYCLES);
+					WS2812B_8x8_DIN <= (clk_cnt < T1H_CYCLES); // Bit=1: 前 0.70us 為 1，後 0.54us 為 0
 				end else begin
-					WS2812B_8x8_DIN <= (clk_cnt < T0H_CYCLES);
+					WS2812B_8x8_DIN <= (clk_cnt < T0H_CYCLES); // Bit=0: 前 0.34us 為 1，後 0.90us 為 0
 				end
-
+				// 2. 三層巢狀計數器推進邏輯 (Clock -> Bit -> LED)
 				if (clk_cnt < BIT_CYCLES - 1) begin
-					clk_cnt <= clk_cnt + 1'b1;
+					clk_cnt <= clk_cnt + 1'b1; // 尚未滿 1.24us，繼續計數當前 bit 寬度
 				end else begin
-					clk_cnt <= 13'd0;
+					clk_cnt <= 14'd0; // 滿 1.24us，歸零準備下一個 bit
 					if (bit_cnt < 23) begin
-						bit_cnt <= bit_cnt + 1'b1;
+						bit_cnt <= bit_cnt + 1'b1; // 當前 LED 尚未送完 24 bits (G8-R8-B8)
 					end else begin
-						bit_cnt <= 5'd0;
+						bit_cnt <= 5'd0; // 單顆 LED 24 bits 發送完畢，切換下一顆
 						if (led_cnt < 63) begin
-							led_cnt <= led_cnt + 1'b1;
+							led_cnt <= led_cnt + 1'b1; // 尚未送完 64 顆燈珠 (0~63)
 						end else begin
-							state <= ST_RESET;
+							WS2812B_state <= ST_RESET; // 64 顆全數送完，進入 Reset 鎖存階段
 						end
 					end
 				end
 			end
-
+			
+			// [狀態 2: 影格鎖存 (Latch / Reset)] 維持低電位讓內部 IC 將暫存資料更新至燈珠
 			ST_RESET: begin
 				WS2812B_8x8_DIN <= 1'b0;
-				if (clk_cnt < 2*RST_CYCLES - 1) begin
+				// 維持 7500 cycles (150us > 50us 規格下限)，確保燈珠穩定鎖存不閃爍
+				if (clk_cnt < RST_CYCLES - 1) begin
 					clk_cnt <= clk_cnt + 1'b1;
 				end else begin
-					state <= ST_IDLE; // 自動循環刷新
+					WS2812B_state <= ST_IDLE; // 鎖存完成，跳回 IDLE 自動刷新下一張畫面
 				end
 			end
 
-			default: state <= ST_IDLE;
+			default: WS2812B_state <= ST_IDLE;
 		endcase
 	end
 end

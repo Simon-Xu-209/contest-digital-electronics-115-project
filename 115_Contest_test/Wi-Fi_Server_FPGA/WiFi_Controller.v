@@ -15,24 +15,23 @@ module WiFi_Controller #(
 	// 上層控制與發送暫存器介面
 	input  wire                     send_en,        // Wi-Fi 資料發送旗標(高態觸發)
 	output reg                      send_en_ack,    // Wi-Fi 資料發送旗標重置旗標
-	input  wire [3:0]               send_target_id,
-	input  wire [8*MAX_TX_LEN-1:0]  send_data_reg,  // 將要傳送給 EPS8266 的資料
-	output wire                     tx_busy,
-	output reg                      send_done,
+	input  wire [3:0]               send_target_id, // 目標連線 ID 暫存器
+	input  wire [8*MAX_TX_LEN-1:0]  send_data_reg,  // 傳送資料暫存器
+	output wire                     tx_busy,        // 資料傳送中旗標
+	output reg                      send_done,      // 資料傳送完成脈衝
 	
 	// 上層接收暫存器介面
-	output wire [3:0]               rx_link_id,       // 連線 ID 暫存器
-	output wire [15:0]              rx_data_len,      // 資料位元組長度暫存器
-	output wire [8*MAX_RX_LEN-1:0]  rx_data_reg,      // 資料暫存器
+	output wire [3:0]               rx_link_id,       // 接收連線 ID 暫存器
+	output wire [15:0]              rx_data_len,      // 接收資料位元組長度暫存器
+	output wire [8*MAX_RX_LEN-1:0]  rx_data_reg,      // 接收資料暫存器
 	output wire                     rx_data_done,     // 接收完成旗標(高態觸發)
 	input  wire                     rx_data_done_ack, // 接收完成旗標清除旗標
+	output wire                     rx_data_reg_busy, // 資料接收中旗標
 	
-	output wire                     rx_data_reg_busy,
-	
-	input  wire                     WiFi_restart,
+	input  wire                     WiFi_restart, // 強制重啟 Wi-Fi 初始化
 	
 	// 狀態輸出
-	output reg                      init_done
+	output reg                      init_done // Wi-Fi 結束初始化訊號
 );
 
 assign WiFi_rst_n = 1'b1;
@@ -65,12 +64,12 @@ UART_rx_string #(
 	.UART_rx          (WiFi_rx_sync2),
 	.rx_byte_en       (rx_byte_en),
 	.rx_byte          (rx_byte),
-	.link_ID          (rx_link_id),
-	.rx_data_len      (rx_data_len),
-	.rx_data_reg      (rx_data_reg),
-	.rx_data_done     (rx_data_done),
-	.rx_data_done_ack (rx_data_done_ack),
-	.rx_data_reg_busy ()
+	.link_ID          (rx_link_id),       // 接收連線 ID 暫存器
+	.rx_data_len      (rx_data_len),      // 接收資料位元組長度暫存器
+	.rx_data_reg      (rx_data_reg),      // 接收資料暫存器
+	.rx_data_done     (rx_data_done),     // 接收完成旗標(高態觸發)
+	.rx_data_done_ack (rx_data_done_ack), // 接收完成旗標清除旗標
+	.rx_data_reg_busy (rx_data_reg_busy)  // 資料接收中旗標
 );
 
 // -------------------------------------------------------------

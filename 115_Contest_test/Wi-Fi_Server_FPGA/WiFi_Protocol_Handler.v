@@ -6,7 +6,9 @@ module WiFi_Protocol_Handler #(
 	input  wire                    rst_n,
 	
 	// --- 來自 Main_Controller 的業務數據與控制 ---
-	input  wire [3:0]              system_state,       // 當前系統狀態
+	input  wire [3:0]              previous_system_state,
+	input  wire [3:0]              current_system_state,
+	input  wire [3:0]              next_system_state,
 	/*
 	input  wire [3:0]              trigger_sequence_id,// Wi-Fi 連續資料流種類選擇
 	input  wire                    start_send,         // Wi-Fi 連續資料流開始發送旗標(高態觸發)

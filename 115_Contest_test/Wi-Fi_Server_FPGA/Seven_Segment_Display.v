@@ -6,7 +6,7 @@ module Seven_Segment_Display (
 	// 8 個位數的 ASCII 字元 (每個字元 8-bit, 8 * 8-bit = 64-bit)
 	// 支援：數字 '0'~'9'、英文字母 'A'~'Z' / 'a'~'z'、空白 ' '
 	// 若最高位元 (ASCII[7]) 為 1，則會點亮該位數的小數點 (.)
-	input  wire [63:0] display_chars,       
+	input  wire [63:0] display_chars,  // 顯示字串
 	input  wire [7:0]  brightness_pwm, // 亮度控制 (0 ~ 255, 0 表示最暗/關閉，255 最亮)
 	
 	// 硬體腳位輸出 (共陰極)
