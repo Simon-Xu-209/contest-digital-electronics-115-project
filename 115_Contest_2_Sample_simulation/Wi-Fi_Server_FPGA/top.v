@@ -16,24 +16,47 @@ module top (
 	input  wire ADS1115_ALRT, // ADS1115 ADC ALERT (可不接)
 	input  wire Joystick_SW,  // 搖桿按鈕 (z 軸)
 	
+	input  wire MPU6050_INT, // MPU-6050 中斷輸出 (可暫時不接)
+	output wire MPU6050_AD0, // MPU-6050 I²C 位址選擇腳
+	output wire MPU6050_XCL, // MPU-6050 輔助 I²C 時脈線 (未使用外部磁力計，設為高阻抗 1'bz 浮空即可)
+	output wire MPU6050_XDA, // MPU-6050 輔助 I²C 資料線 (未使用外部磁力計，設為高阻抗 1'bz 浮空即可)
+	inout  wire MPU6050_SDA, // MPU-6050 I²C 資料線
+	output wire MPU6050_SCL, // MPU-6050 I²C 時脈線
+	
+	input  wire        OV2640_PCLK,  // OV2640 鏡頭輸出之像素時脈
+	input  wire        OV2640_HREF,  // OV2640 鏡頭場同步
+	input  wire        OV2640_VSYNC, // OV2640 鏡頭垂直同步/影格同步訊號
+	input  wire [9:0]  OV2640_Y,     // OV2640 鏡頭 8Bit 資料(僅 7~0 有效)
+	inout  wire        OV2640_SIO_D, // OV2640 鏡頭 SCCB Data
+	output wire        OV2640_SIO_C, // OV2640 鏡頭 SCCB Clock
+	output wire        OV2640_PWDN,  // OV2640 鏡頭 Power Down
+	output wire        OV2640_RESET, // OV2640 鏡頭 Reset
+	output wire        OV2640_XCLK,  // OV2640 鏡頭主時脈
+	
 	output wire [7:0] seven_segment_Seg, // 七段顯示器資料腳位 (.gfedcba)
 	output wire [7:0] seven_segment_Com, // 七段顯示器位數腳位 (Dig1 ~ Dig8)
 	
 	output wire WS2812B_8x8_DIN,  // WS2812B 8x8 BRG LED 矩陣 DIN
 	input  wire WS2812B_8x8_DOUT, // WS2812B 8x8 BRG LED 矩陣 DOUT (末端溢位資料 可不接)
 	
-	output wire ST7735S_SCL, // ST7735S 128x160 RGB TFT LCD 各接腳
-	output wire ST7735S_SDA,
-	output wire ST7735S_RES,
-	output wire ST7735S_DC,
-	output wire ST7735S_CS,
-	output wire ST7735S_BLK,
+	output wire ST7735S_SCL, // ST7735S 128x160 RGB TFT LCD 螢幕 SPI 時脈
+	output wire ST7735S_SDA, // ST7735S 128x160 RGB TFT LCD 螢幕 SPI 資料/指令輸入
+	output wire ST7735S_RES, // ST7735S 128x160 RGB TFT LCD 螢幕硬體重設 (低電為 0 觸發)
+	output wire ST7735S_DC,  // ST7735S 128x160 RGB TFT LCD 螢幕資料/指令選擇 (0:指令, 1:資料)
+	output wire ST7735S_CS,  // ST7735S 128x160 RGB TFT LCD 螢幕晶片致能 (低電為 0 觸發)
+	output wire ST7735S_BLK, // ST7735S 128x160 RGB TFT LCD 螢幕背光板 (可使用 PWM 調整亮度)
+	
+	output wire ISD2100_MOSI,     // ISD2100 語音模組 SPI 資料發送 (可設為 GPIO0)
+	output wire ISD2100_SCLK,     // ISD2100 語音模組時脈 (可設為 GPI1)
+	input  wire ISD2100_MISO,     // ISD2100 語音模組 SPI 資料接收 (可設為 GPIO2)
+	input  wire ISD2100_INTB,     // ISD2100 語音模組中斷 (低電位觸發，可設為 GPIO3)
+	input  wire ISD2100_RDY_BSYB, // ISD2100 語音模組忙碌狀態 (1:就緒 / 0:忙碌，可設為 GPIO4)
+	input  wire ISD2100_GPIO5,    // ISD2100 語音模組通用腳位 GPIO5 (未使用時建議設 input 防衝突)
+	output wire ISD2100_SSB,      // ISD2100 語音模組 SPI 片選 (低電位有效)
 	
 	output wire WiFi_tx,      // ESP8266 Wi-Fi 的 rx
 	input  wire WiFi_rx,      // ESP8266 Wi-Fi 的 tx
 	output wire WiFi_RST,     // ESP8266 Wi-Fi 的 RST
-	
-	output reg  RX_TEST,
 	
 	output wire [2:0] KEY_2x2,   // 2x2 無段式開關 按鍵數值
 	output wire KEY_Pressed_2x2, // 2x2 無段式開關 偵測按下
@@ -44,25 +67,14 @@ module top (
 	output wire USB2UART_WiFi_rx  // USB to TTL 的 rx
 );
 
-
-always @(posedge clk or negedge rst_n) begin
-	if (!rst_n) begin
-		RX_TEST <= 1'b0;
-	end else begin
-		if (rx_done) begin
-			RX_TEST <= !RX_TEST; // 當接收完成脈衝到來時安全反相
-		end
-	end
-end
-
 parameter CLK_FREQ      = 50_000_000; // 50MHz
 parameter BAUD          = 115200;     // UART 鮑率
 parameter MAX_TX_LEN    = 64;         // UART 最大可接收的 AT 指令/資料位元數
 parameter MAX_RX_LEN    = 32;         // UART 最大可接收的資料位元數
 parameter LCD_MAX_CHARS = 12;         // LCD 最多可顯示的 ASCII 碼數量
 
-assign USB2UART_WiFi_tx = WiFi_tx;
-assign USB2UART_WiFi_rx = WiFi_rx;
+assign USB2UART_WiFi_tx = WiFi_tx; // 監控 Wi-Fi rx 資料
+assign USB2UART_WiFi_rx = WiFi_rx; // 監控 Wi-Fi rx 資料
 
 // 內部控制線路連線
 wire [3:0] previous_system_state, current_system_state, next_system_state;
@@ -81,7 +93,7 @@ wire [23:0] orderQuantity; // 訂購數量
 wire [23:0] bidAmount;     // 出價金額
 wire [23:0] productQuota;  // 商品配額
 wire [47:0] grandTotal;    // 付款總額
-wire [31:0] new_orderID_confirm;
+wire [31:0] new_order_id_confirm;
 
 // 專案主控制電路
 Main_Controller #(
@@ -103,35 +115,29 @@ Main_Controller #(
 	.joystick_right_pulse (joystick_right_pulse),
 	.joystick_left_pulse  (joystick_left_pulse),
 	
-	.seven_segment_chars  (seven_segment_chars),
+	.seven_segment_chars  (seven_segment_chars), // 七段顯示器顯示字串
 	
-	.previous_system_state(previous_system_state),
-	.current_system_state (current_system_state),
-	.next_system_state    (next_system_state),
-	.system_timer         (system_timer),
+	.previous_system_state(previous_system_state), // 前一刻系統狀態
+	.current_system_state (current_system_state),  // 當前系統狀態
+	.next_system_state    (next_system_state),     // 下一刻系統狀態
+	.system_timer         (system_timer),          // 系統計時器
 	
 	.orderQuantity        (orderQuantity),
 	.bidAmount            (bidAmount),
 	.productQuota         (productQuota),
 	.grandTotal           (grandTotal),
-	.new_orderID_confirm  (new_orderID_confirm),
+	.new_order_id_confirm (new_order_id_confirm),
+	.new_orderQuantity_xx (new_orderQuantity_xx),
+	.new_bidAmount_xx     (new_bidAmount_xx),
 	
 	.coordinate_x         (coordinate_x),
 	.coordinate_y         (coordinate_y),
 	.coordinate_state     (coordinate_state),
 	
-	.send_en              (send_en),
-	.send_en_ack          (send_en_ack),
-	.send_target_id       (rx_link_id),
-	.send_data_reg        (send_data_reg),
-	.tx_busy              (tx_busy),
-	.send_done            (send_done),
-	.rx_link_id           (rx_link_id),
-	.rx_data_len          (rx_data_len),
-	.rx_data_reg          (rx_data_reg),
-	.WiFi_restart         (WiFi_restart),
-	.rx_done              (rx_done),
-	.rx_data_done_ack     (rx_data_done_ack)
+	.WiFi_send_types      (WiFi_send_types), // Wi-Fi 連續資料流種類選擇
+	.start_send           (start_send),      // Wi-Fi 連續資料流開始發送旗標(高態觸發)
+	.start_send_ack       (start_send_ack),  // Wi-Fi 連續資料流開始發送旗標重置旗標
+	.WiFi_restart         (WiFi_restart)     // 強制重啟 Wi-Fi 初始化
 );
 
 // 鍵盤掃描模組
@@ -161,14 +167,14 @@ wire        joystick_z;
 Joystick Joystick_u1 (
 	.clk            (clk),
 	.rst_n          (rst_n),
-	.ADS1115_SCL    (ADS1115_SCL),
-	.ADS1115_SDA    (ADS1115_SDA),
-	.ADS1115_ALRT   (ADS1115_ALRT),
-	.Joystick_SW    (Joystick_SW),
+	.ADS1115_SCL    (ADS1115_SCL),  // ADS1115 ADC SCL
+	.ADS1115_SDA    (ADS1115_SDA),  // ADS1115 ADC SDA   (用於輸出搖桿數值)
+	.ADS1115_ALRT   (ADS1115_ALRT), // ADS1115 ADC ALERT (可不接)
+	.Joystick_SW    (Joystick_SW),  // 搖桿 z 軸按鍵
 	
-	.joystick_x     (joystick_x),
-	.joystick_y     (joystick_y),
-	.joystick_z     (joystick_z),
+	.joystick_x     (joystick_x), // 搖桿 x 軸數值
+	.joystick_y     (joystick_y), // 搖桿 y 軸數值
+	.joystick_z     (joystick_z), // 搖桿 z 軸按鍵(按下為 1)
 	
 	.joystick_up    (joystick_up),
 	.joystick_down  (joystick_down),
@@ -194,6 +200,7 @@ wire [15:0]     rx_data_len;
 wire [8*32-1:0] rx_data_reg;
 wire            rx_done;
 wire            rx_data_done_ack;
+wire            rx_data_reg_busy;
 wire            WiFi_restart;
 wire            WiFi_init_done;
 
@@ -208,20 +215,72 @@ WiFi_Controller #(
 	.WiFi_rx          (WiFi_rx),
 	.WiFi_tx          (WiFi_tx),
 	.WiFi_rst_n       (WiFi_RST),
-	.send_en          (send_en),
-	.send_target_id   (tx_link_id),
-	.send_data_reg    (send_data_reg),
-	.tx_busy          (tx_busy),
-	.send_done        (send_done),
-	.send_en_ack      (send_en_ack),
-	.rx_link_id       (rx_link_id),
-	.rx_data_len      (rx_data_len),
-	.rx_data_reg      (rx_data_reg),
-	.rx_done          (rx_done),
-	.rx_data_done_ack (rx_data_done_ack),
-	.WiFi_restart     (WiFi_restart),
-	.init_done        (WiFi_init_done)
+	.send_en          (send_en),          // Wi-Fi 資料發送旗標(高態觸發)
+	.send_en_ack      (send_en_ack),      // Wi-Fi 資料發送旗標重置旗標
+	.send_target_id   (tx_link_id),       // 目標連線 ID 暫存器
+	.send_data_reg    (send_data_reg),    // 傳送資料暫存器
+	.tx_busy          (tx_busy),          // 資料傳送中旗標
+	.send_done        (send_done),        // 資料傳送完成脈衝
+	.rx_link_id       (rx_link_id),       // 接收連線 ID 暫存器
+	.rx_data_len      (rx_data_len),      // 接收資料位元組長度暫存器
+	.rx_data_reg      (rx_data_reg),      // 接收資料暫存器
+	.rx_data_done     (rx_data_done),     // 接收完成旗標(高態觸發)
+	.rx_data_done_ack (rx_data_done_ack), // 接收完成旗標清除旗標
+	.rx_data_reg_busy (rx_data_reg_busy), // 資料接收中旗標
+	.WiFi_restart     (WiFi_restart),     // 強制重啟 Wi-Fi 初始化
+	.init_done        (WiFi_init_done)    // Wi-Fi 結束初始化訊號
 );
+
+wire [3:0] WiFi_send_types;
+wire start_send;
+wire start_send_ack;
+
+wire [7:0] new_orderQuantity_xx, new_bidAmount_xx;
+
+WiFi_Protocol_Handler #(
+	.MAX_TX_LEN(64),
+	.MAX_RX_LEN(32)
+) WiFi_Protocol_Handler_u1 (
+	.clk                 (clk),
+	.rst_n               (rst_n),
+	
+	// --- 來自 Main_Controller 的業務數據與控制 ---
+	.previous_system_state(previous_system_state), // 前一刻系統狀態
+	.current_system_state (current_system_state),  // 當前系統狀態
+	.next_system_state    (next_system_state),     // 下一刻系統狀態
+	/*
+	.trigger_sequence_id (WiFi_send_types), // 部指定要執行的「傳送劇本編號」(對應第二個 Case 的狀態)
+	.start_send          (start_send),      // Wi-Fi 連續資料流開始發送旗標(高態觸發)
+	.start_send_ack      (start_send_ack),  // Wi-Fi 連續資料流開始發送旗標重置旗標
+	*/
+	.orderQuantity       (orderQuantity),        // 訂購數量
+	.bidAmount           (bidAmount),            // 出價金額
+	.productQuota        (productQuota),         // 商品配額
+	.grandTotal          (grandTotal),           // 付款總額
+	.new_orderQuantity_xx(new_orderQuantity_xx), // 第三訂單的新訂單數量
+	.new_bidAmount_xx    (new_bidAmount_xx),     // 第三訂單的新出價金額
+	
+	// --- 介面至 WiFi_Controller ---
+	.send_en             (send_en),        // Wi-Fi 資料發送旗標(高態觸發)
+	.send_en_ack         (send_en_ack),    // Wi-Fi 資料發送旗標重置旗標
+	.send_target_id      (send_target_id), // 目標連線 ID 暫存器
+	.send_data_reg       (send_data_reg),  // 傳送資料暫存器
+	.tx_busy             (tx_busy),        // 資料傳送中旗標
+	.send_done           (send_done),      // 資料傳送完成脈衝
+	
+	// --- 來自 WiFi_Controller 的接收資料 ---
+	.rx_link_id          (rx_link_id),       // 接收連線 ID 暫存器
+	.rx_data_len         (rx_data_len),      // 接收資料位元組長度暫存器
+	.rx_data_reg         (rx_data_reg),      // 接收資料暫存器
+	.rx_data_done        (rx_data_done),     // 接收完成旗標(高態觸發)
+	.rx_data_done_ack    (rx_data_done_ack), // 接收完成旗標清除旗標
+	
+	// --- 輸出給 Main_Controller 的解析結果 ---
+	.new_order_id_confirm(new_order_id_confirm),
+	.connect_done_pulse  ()
+);
+
+
 
 // 七段顯示器模組
 wire [63:0] seven_segment_chars;
@@ -230,10 +289,10 @@ wire [7:0]  brightness_pwm = 8'd255;
 Seven_Segment_Display Seven_Segment_Display_u1(
 	.clk              (clk),
 	.rst_n            (rst_n),
-	.display_chars    (seven_segment_chars),
-	.brightness_pwm   (brightness_pwm),
-	.seven_segment_Seg(seven_segment_Seg),
-	.seven_segment_Com(seven_segment_Com)
+	.display_chars    (seven_segment_chars), // 七段顯示器顯示字串
+	.brightness_pwm   (brightness_pwm),      // 七段顯示器 PWM 亮度
+	.seven_segment_Seg(seven_segment_Seg),   // 七段顯示器資料腳位 (.gfedcba)
+	.seven_segment_Com(seven_segment_Com)    // 七段顯示器位數腳位 (Dig1 ~ Dig8)
 );
 
 // WS2812B 8x8 LED 矩陣模組
@@ -242,10 +301,10 @@ WS2812B #(
 ) WS2812B_u1 (
 	.clk                  (clk),
 	.rst_n                (rst_n),
-	.previous_system_state(previous_system_state),
-	.current_system_state (current_system_state),
-	.next_system_state    (next_system_state),
-	.system_timer         (system_timer),
+	.previous_system_state(previous_system_state), // 前一刻系統狀態
+	.current_system_state (current_system_state),  // 當前系統狀態
+	.next_system_state    (next_system_state),     // 下一刻系統狀態
+	.system_timer         (system_timer),          // 系統計時器
 	.coordinate_x         (coordinate_x),
 	.coordinate_y         (coordinate_y),
 	.coordinate_state     (coordinate_state),
@@ -253,8 +312,8 @@ WS2812B #(
 	.bidAmount            (bidAmount),
 	.productQuota         (productQuota),
 	.grandTotal           (grandTotal),
-	.WS2812B_8x8_DIN      (WS2812B_8x8_DIN),
-	.WS2812B_8x8_DOUT     (WS2812B_8x8_DOUT)
+	.WS2812B_8x8_DIN      (WS2812B_8x8_DIN), // WS2812B 8x8 BRG LED 矩陣 DIN
+	.WS2812B_8x8_DOUT     (WS2812B_8x8_DOUT) // WS2812B 8x8 BRG LED 矩陣 DOUT (末端溢位資料 可不接)
 );
 
 // ST7735S TFT LCD 模組
@@ -265,24 +324,24 @@ TFT_LCD #(
 	.rst_n                (rst_n),
 	.KEY_2x2              (KEY_2x2),
 	.KEY_Pressed_2x2      (KEY_Pressed_2x2),
-	.previous_system_state(previous_system_state),
-	.current_system_state (current_system_state),
-	.next_system_state    (next_system_state),
-	.system_timer         (system_timer),
+	.previous_system_state(previous_system_state), // 前一刻系統狀態
+	.current_system_state (current_system_state),  // 當前系統狀態
+	.next_system_state    (next_system_state),     // 下一刻系統狀態
+	.system_timer         (system_timer),          // 系統計時器
 	.orderQuantity        (orderQuantity),
 	.bidAmount            (bidAmount),
 	.productQuota         (productQuota),
 	.grandTotal           (grandTotal),
-	.new_orderID_confirm  (new_orderID_confirm),
+	.new_order_id_confirm (new_order_id_confirm),
 	.coordinate_x         (coordinate_x),
 	.coordinate_y         (coordinate_y),
 	.coordinate_state     (coordinate_state),
-	.SCL                  (ST7735S_SCL),
-	.SDA                  (ST7735S_SDA),
-	.RES                  (ST7735S_RES),
-	.DC                   (ST7735S_DC),
-	.CS                   (ST7735S_CS),
-	.BLK                  (ST7735S_BLK)
+	.SCL                  (ST7735S_SCL), // ST7735S 128x160 RGB TFT LCD SPI 時脈
+	.SDA                  (ST7735S_SDA), // ST7735S 128x160 RGB TFT LCD SPI 資料/指令輸入
+	.RES                  (ST7735S_RES), // ST7735S 128x160 RGB TFT LCD 硬體重設 (低電為 0 觸發)
+	.DC                   (ST7735S_DC),  // ST7735S 128x160 RGB TFT LCD 資料/指令選擇 (0:指令, 1:資料)
+	.CS                   (ST7735S_CS),  // ST7735S 128x160 RGB TFT LCD 螢幕晶片致能 (低電為 0 觸發)
+	.BLK                  (ST7735S_BLK)  // ST7735S 128x160 RGB TFT LCD 背光板 (可使用 PWM 調整亮度)
 );
 
 endmodule

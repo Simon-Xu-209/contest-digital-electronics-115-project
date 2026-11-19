@@ -22,12 +22,11 @@ module TFT_LCD #(
 	input [23:0] bidAmount,     // 出價金額
 	input [23:0] productQuota,  // 商品配額
 	input [47:0] grandTotal,    // 付款總額
-	input [31:0] new_orderID_confirm,
+	input [15:0] new_order_id_confirm,
 	
 	input wire [2:0]  coordinate_x, coordinate_y,
 	input wire [1:0]  coordinate_state,
 	
-	input wire [15:0] WiFi_signal,
 	output reg  SCL, SDA, RES, DC, CS, BLK
 );
 
@@ -71,11 +70,11 @@ reg [15:0] LCD_BACKGROUND;
 // 0~3: 上方英文字母 (紅色)
 // 4~8: 下方座標文字 (藍色，格式: "[", row, ",", col, "]")
 // =========================================================================
-reg [7:0]  char_ascii [0:MAX_CHARS-1]; 
-reg [7:0]  char_x     [0:MAX_CHARS-1]; 
-reg [7:0]  char_y     [0:MAX_CHARS-1]; 
-reg [15:0] char_color [0:MAX_CHARS-1]; 
-reg [3:0]  char_scale [0:MAX_CHARS-1]; 
+reg [7:0]  char_ascii [0:MAX_CHARS-1]; // ASCII 可顯示字元設定
+reg [7:0]  char_x     [0:MAX_CHARS-1]; // ASCII 文字顯示 x 軸 (中心在文字左上角)
+reg [7:0]  char_y     [0:MAX_CHARS-1]; // ASCII 文字顯示 y 軸 (中心在文字左上角)
+reg [15:0] char_color [0:MAX_CHARS-1]; // ASCII 文字顏色設定 (RGB)
+reg [3:0]  char_scale [0:MAX_CHARS-1]; // ASCII 文字大小設定
 
 
 
@@ -172,8 +171,8 @@ always @(posedge clk or negedge rst_n) begin
 					char_color[i] <= COLOR_BLACK;
 				end
 				char_ascii[0]  <= "I"; char_ascii[1] <= "D";
-				char_ascii[2]  <= new_orderID_confirm[15:8];
-				char_ascii[3]  <= new_orderID_confirm[7:0];
+				char_ascii[2]  <= new_order_id_confirm[15:8];
+				char_ascii[3]  <= new_order_id_confirm[7:0];
 				char_ascii[4]  <= "O"; char_ascii[5] <= "Q";
 				char_ascii[6]  <= "0" + (orderQuantity[7:0] / 10);
 				char_ascii[7]  <= "0" + (orderQuantity[7:0] % 10);
@@ -374,8 +373,8 @@ parameter ARG_X_END        = 8'd127 + ARG_X_OFFSET;
 parameter ARG_Y_START      = 8'd0 + ARG_Y_OFFSET;
 parameter ARG_Y_END        = 8'd159 + ARG_Y_OFFSET;
 
-parameter ARG_X_OFFSET     = 8'd0;   // X 軸偏移
-parameter ARG_Y_OFFSET     = 8'd0;   // Y 軸偏移
+parameter ARG_X_OFFSET     = 8'd0; // X 軸偏移
+parameter ARG_Y_OFFSET     = 8'd0; // Y 軸偏移
 
 reg [7:0] font_rom [0:1519];
 initial begin

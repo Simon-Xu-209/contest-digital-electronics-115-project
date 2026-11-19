@@ -40,7 +40,7 @@ Partial Class Form1
         Me.Button9 = New System.Windows.Forms.Button()
         Me.none1 = New System.Windows.Forms.Button()
         Me.Button0 = New System.Windows.Forms.Button()
-        Me.none2 = New System.Windows.Forms.Button()
+        Me.WiFi_initial = New System.Windows.Forms.Button()
         Me.clear = New System.Windows.Forms.Button()
         Me.search = New System.Windows.Forms.Button()
         Me.connect = New System.Windows.Forms.Button()
@@ -48,6 +48,7 @@ Partial Class Form1
         Me.log_Group = New System.Windows.Forms.GroupBox()
         Me.log = New System.Windows.Forms.TextBox()
         Me.SerialPort1 = New System.IO.Ports.SerialPort(Me.components)
+        Me.ComboBoxPorts = New System.Windows.Forms.ComboBox()
         Me.orderID_Group.SuspendLayout()
         Me.quantityAndPrice_Group.SuspendLayout()
         Me.quotasAndTotalPaymentAmounts_Group.SuspendLayout()
@@ -107,7 +108,7 @@ Partial Class Form1
         '
         'Button1
         '
-        Me.Button1.Location = New System.Drawing.Point(321, 350)
+        Me.Button1.Location = New System.Drawing.Point(321, 359)
         Me.Button1.Name = "Button1"
         Me.Button1.Size = New System.Drawing.Size(40, 40)
         Me.Button1.TabIndex = 3
@@ -116,7 +117,7 @@ Partial Class Form1
         '
         'Button2
         '
-        Me.Button2.Location = New System.Drawing.Point(367, 350)
+        Me.Button2.Location = New System.Drawing.Point(367, 359)
         Me.Button2.Name = "Button2"
         Me.Button2.Size = New System.Drawing.Size(40, 40)
         Me.Button2.TabIndex = 4
@@ -125,7 +126,7 @@ Partial Class Form1
         '
         'Button3
         '
-        Me.Button3.Location = New System.Drawing.Point(413, 350)
+        Me.Button3.Location = New System.Drawing.Point(413, 359)
         Me.Button3.Name = "Button3"
         Me.Button3.Size = New System.Drawing.Size(40, 40)
         Me.Button3.TabIndex = 5
@@ -134,7 +135,7 @@ Partial Class Form1
         '
         'Button4
         '
-        Me.Button4.Location = New System.Drawing.Point(321, 396)
+        Me.Button4.Location = New System.Drawing.Point(321, 405)
         Me.Button4.Name = "Button4"
         Me.Button4.Size = New System.Drawing.Size(40, 40)
         Me.Button4.TabIndex = 8
@@ -143,7 +144,7 @@ Partial Class Form1
         '
         'Button5
         '
-        Me.Button5.Location = New System.Drawing.Point(367, 396)
+        Me.Button5.Location = New System.Drawing.Point(367, 405)
         Me.Button5.Name = "Button5"
         Me.Button5.Size = New System.Drawing.Size(40, 40)
         Me.Button5.TabIndex = 7
@@ -152,7 +153,7 @@ Partial Class Form1
         '
         'Button6
         '
-        Me.Button6.Location = New System.Drawing.Point(413, 396)
+        Me.Button6.Location = New System.Drawing.Point(413, 405)
         Me.Button6.Name = "Button6"
         Me.Button6.Size = New System.Drawing.Size(40, 40)
         Me.Button6.TabIndex = 6
@@ -161,7 +162,7 @@ Partial Class Form1
         '
         'Button7
         '
-        Me.Button7.Location = New System.Drawing.Point(321, 442)
+        Me.Button7.Location = New System.Drawing.Point(321, 451)
         Me.Button7.Name = "Button7"
         Me.Button7.Size = New System.Drawing.Size(40, 40)
         Me.Button7.TabIndex = 11
@@ -170,7 +171,7 @@ Partial Class Form1
         '
         'Button8
         '
-        Me.Button8.Location = New System.Drawing.Point(367, 442)
+        Me.Button8.Location = New System.Drawing.Point(367, 451)
         Me.Button8.Name = "Button8"
         Me.Button8.Size = New System.Drawing.Size(40, 40)
         Me.Button8.TabIndex = 10
@@ -179,7 +180,7 @@ Partial Class Form1
         '
         'Button9
         '
-        Me.Button9.Location = New System.Drawing.Point(413, 442)
+        Me.Button9.Location = New System.Drawing.Point(413, 451)
         Me.Button9.Name = "Button9"
         Me.Button9.Size = New System.Drawing.Size(40, 40)
         Me.Button9.TabIndex = 9
@@ -188,7 +189,7 @@ Partial Class Form1
         '
         'none1
         '
-        Me.none1.Location = New System.Drawing.Point(321, 488)
+        Me.none1.Location = New System.Drawing.Point(321, 497)
         Me.none1.Name = "none1"
         Me.none1.Size = New System.Drawing.Size(40, 40)
         Me.none1.TabIndex = 14
@@ -196,24 +197,24 @@ Partial Class Form1
         '
         'Button0
         '
-        Me.Button0.Location = New System.Drawing.Point(367, 488)
+        Me.Button0.Location = New System.Drawing.Point(367, 497)
         Me.Button0.Name = "Button0"
         Me.Button0.Size = New System.Drawing.Size(40, 40)
         Me.Button0.TabIndex = 13
         Me.Button0.Text = "0"
         Me.Button0.UseVisualStyleBackColor = True
         '
-        'none2
+        'WiFi_initial
         '
-        Me.none2.Location = New System.Drawing.Point(413, 488)
-        Me.none2.Name = "none2"
-        Me.none2.Size = New System.Drawing.Size(40, 40)
-        Me.none2.TabIndex = 12
-        Me.none2.UseVisualStyleBackColor = True
+        Me.WiFi_initial.Location = New System.Drawing.Point(413, 497)
+        Me.WiFi_initial.Name = "WiFi_initial"
+        Me.WiFi_initial.Size = New System.Drawing.Size(40, 40)
+        Me.WiFi_initial.TabIndex = 12
+        Me.WiFi_initial.UseVisualStyleBackColor = True
         '
         'clear
         '
-        Me.clear.Location = New System.Drawing.Point(459, 350)
+        Me.clear.Location = New System.Drawing.Point(459, 359)
         Me.clear.Name = "clear"
         Me.clear.Size = New System.Drawing.Size(73, 40)
         Me.clear.TabIndex = 15
@@ -222,7 +223,7 @@ Partial Class Form1
         '
         'search
         '
-        Me.search.Location = New System.Drawing.Point(459, 396)
+        Me.search.Location = New System.Drawing.Point(459, 405)
         Me.search.Name = "search"
         Me.search.Size = New System.Drawing.Size(73, 40)
         Me.search.TabIndex = 16
@@ -231,7 +232,7 @@ Partial Class Form1
         '
         'connect
         '
-        Me.connect.Location = New System.Drawing.Point(459, 442)
+        Me.connect.Location = New System.Drawing.Point(459, 451)
         Me.connect.Name = "connect"
         Me.connect.Size = New System.Drawing.Size(73, 40)
         Me.connect.TabIndex = 17
@@ -240,7 +241,7 @@ Partial Class Form1
         '
         'order
         '
-        Me.order.Location = New System.Drawing.Point(459, 488)
+        Me.order.Location = New System.Drawing.Point(459, 497)
         Me.order.Name = "order"
         Me.order.Size = New System.Drawing.Size(73, 40)
         Me.order.TabIndex = 18
@@ -272,11 +273,20 @@ Partial Class Form1
         'SerialPort1
         '
         '
+        'ComboBoxPorts
+        '
+        Me.ComboBoxPorts.FormattingEnabled = True
+        Me.ComboBoxPorts.Location = New System.Drawing.Point(321, 330)
+        Me.ComboBoxPorts.Name = "ComboBoxPorts"
+        Me.ComboBoxPorts.Size = New System.Drawing.Size(211, 23)
+        Me.ComboBoxPorts.TabIndex = 21
+        '
         'Form1
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(8.0!, 15.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(615, 577)
+        Me.Controls.Add(Me.ComboBoxPorts)
         Me.Controls.Add(Me.log_Group)
         Me.Controls.Add(Me.order)
         Me.Controls.Add(Me.connect)
@@ -284,7 +294,7 @@ Partial Class Form1
         Me.Controls.Add(Me.clear)
         Me.Controls.Add(Me.none1)
         Me.Controls.Add(Me.Button0)
-        Me.Controls.Add(Me.none2)
+        Me.Controls.Add(Me.WiFi_initial)
         Me.Controls.Add(Me.Button7)
         Me.Controls.Add(Me.Button8)
         Me.Controls.Add(Me.Button9)
@@ -326,7 +336,7 @@ Partial Class Form1
     Friend WithEvents Button9 As System.Windows.Forms.Button
     Friend WithEvents none1 As System.Windows.Forms.Button
     Friend WithEvents Button0 As System.Windows.Forms.Button
-    Friend WithEvents none2 As System.Windows.Forms.Button
+    Friend WithEvents WiFi_initial As System.Windows.Forms.Button
     Friend WithEvents clear As System.Windows.Forms.Button
     Friend WithEvents search As System.Windows.Forms.Button
     Friend WithEvents connect As System.Windows.Forms.Button
@@ -334,5 +344,5 @@ Partial Class Form1
     Friend WithEvents log_Group As System.Windows.Forms.GroupBox
     Friend WithEvents SerialPort1 As System.IO.Ports.SerialPort
     Friend WithEvents log As System.Windows.Forms.TextBox
-
+    Friend WithEvents ComboBoxPorts As ComboBox
 End Class

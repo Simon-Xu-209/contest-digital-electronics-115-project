@@ -20,25 +20,48 @@ Public Class Form1
     Private ServerPort As String = "80"
 
     Private Sub Form1_Load(ByVal sender As Object, ByVal e As EventArgs) Handles MyBase.Load
-        SerialPort1.PortName = "COM4"
-        SerialPort1.BaudRate = 115200
-        SerialPort1.DataBits = 8
-        SerialPort1.StopBits = StopBits.One
-        SerialPort1.Parity = Parity.None
-        SerialPort1.Encoding = Encoding.ASCII
-        SerialPort1.NewLine = vbCrLf
+        ' 自動偵測電腦上所有可用的序列埠並填入 ComboBoxPorts
+        ComboBoxPorts.Items.Clear()
+        For Each sp As String In SerialPort.GetPortNames()
+            ComboBoxPorts.Items.Add(sp)
+        Next
 
-        SerialPort1.Open()
+        If ComboBoxPorts.Items.Count > 0 Then
+            ComboBoxPorts.SelectedIndex = 0 ' 預設選擇第一個
+        End If
 
         quotasAndTotalPaymentAmounts.Text = "0000"
 
-        StepTimer.Interval = 200 ' 200ms/0.2s 檢查一次 (VB 最小等待時間單位)
+        StepTimer.Interval = 200 ' 200ms/0.2s 檢查一次
         AddHandler StepTimer.Tick, AddressOf StepTimer_Tick
     End Sub
 
-    Private Sub connect_Click(ByVal sender As Object, ByVal e As EventArgs) Handles connect.Click
+    '=========================================
+    ' [WiFi_initial] 按鈕邏輯 (負責硬體初始化與 TCP 連線)
+    '=========================================
+    Private Sub WiFi_initial_Click(ByVal sender As Object, ByVal e As EventArgs) Handles WiFi_initial.Click
         Try
-            connect.Enabled = False
+            If SerialPort1.IsOpen Then
+                SerialPort1.Close()
+            End If
+
+            ' 檢查是否有選擇序列埠
+            If ComboBoxPorts.SelectedItem Is Nothing Then
+                MessageBox.Show("請先選擇序列埠（ComPort）！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                Return
+            End If
+
+            ' 設定使用者自行選擇的序列埠
+            SerialPort1.PortName = ComboBoxPorts.SelectedItem.ToString()
+            SerialPort1.BaudRate = 115200
+            SerialPort1.DataBits = 8
+            SerialPort1.StopBits = StopBits.One
+            SerialPort1.Parity = Parity.None
+            SerialPort1.Encoding = Encoding.ASCII
+            SerialPort1.NewLine = vbCrLf
+
+            SerialPort1.Open()
+            WiFi_initial.Enabled = False
             SerialPort1.DiscardInBuffer()
             responseBuffer = ""
 
@@ -46,8 +69,30 @@ Public Class Form1
             StepTimer.Start()
 
         Catch ex As Exception
-            AppendLog(vbCrLf & "[錯誤] 開啟串口失敗：" & ex.Message & vbCrLf)
-            connect.Enabled = True
+            AppendLog(vbCrLf & "[錯誤] 開啟串口或初始化失敗：" & ex.Message & vbCrLf)
+            WiFi_initial.Enabled = True
+        End Try
+    End Sub
+
+    '=========================================
+    ' [connect] 按鈕邏輯 (現在僅負責傳送 "Done" 提示給 FPGA)
+    '=========================================
+    Private Sub connect_Click(ByVal sender As Object, ByVal e As EventArgs) Handles connect.Click
+        Try
+            If Not SerialPort1.IsOpen Then
+                AppendLog(vbCrLf & "[提示] 請先執行 Wi-Fi 初始化並開啟序列埠！" & vbCrLf)
+                Return
+            End If
+
+            ' 透過共用函式傳送 "Done"
+            If SendSinglePacket("Done") Then
+                AppendLog(vbCrLf & "[系統提示] 已成功發送 Done 提示給 FPGA！" & vbCrLf)
+            Else
+                AppendLog(vbCrLf & "[錯誤] 發送 Done 失敗！" & vbCrLf)
+            End If
+
+        Catch ex As Exception
+            AppendLog(vbCrLf & "[傳送異常] " & ex.Message & vbCrLf)
         End Try
     End Sub
 
@@ -80,18 +125,11 @@ Public Class Form1
                         stepIndex = 3
                     ElseIf responseBuffer.Contains("ERROR") Then
                         FailAndStop("AT+CWMODE=1 失敗")
-                        orderID.Text = ""
-                        quantityAndPrice.Text = ""
-                        quotasAndTotalPaymentAmounts.Text = "9595"
                     Else
                         waitCounter += 1
                         If waitCounter > 15 Then
                             FailAndStop("AT+CWMODE回應超時 (硬體可能未連接)")
-                            orderID.Text = ""
-                            quantityAndPrice.Text = ""
-                            quotasAndTotalPaymentAmounts.Text = "9595"
                         End If
-
                     End If
 
                 Case 3
@@ -110,11 +148,7 @@ Public Class Form1
                         waitCounter += 1
                         If waitCounter > 50 Then
                             FailAndStop("Wi-Fi 連線超時 (約10秒)")
-                            orderID.Text = ""
-                            quantityAndPrice.Text = ""
-                            quotasAndTotalPaymentAmounts.Text = "9595"
                         End If
-
                     End If
 
                 Case 4
@@ -125,56 +159,20 @@ Public Class Form1
 
                 Case 104
                     If responseBuffer.Contains("OK") OrElse responseBuffer.Contains("CONNECT") Then
+                        StepTimer.Stop()
+                        WiFi_initial.Enabled = True
                         connect.Enabled = True
                         waitCounter = 0
-                        stepIndex = 5
+                        AppendLog(vbCrLf & "[系統提示] Wi-Fi 初始化與 TCP 連線成功！現在可點擊連線按鍵傳送 Done。" & vbCrLf)
                     ElseIf responseBuffer.Contains("ERROR") OrElse responseBuffer.Contains("CLOSED") Then
                         FailAndStop("無法連線至目標 TCP Server")
-                        orderID.Text = ""
-                        quantityAndPrice.Text = ""
-                        quotasAndTotalPaymentAmounts.Text = "9595"
                     Else
                         waitCounter += 1
                         If waitCounter > 25 Then FailAndStop("TCP 連線超時")
                     End If
 
-                Case 5
-                    responseBuffer = ""
-                    waitCounter = 0
-                    SerialPort1.WriteLine("AT+CIPSEND=6")
-                    stepIndex = 105
-
-                Case 105
-                    If responseBuffer.Contains(">") Then
-                        waitCounter = 0
-                        stepIndex = 6
-                    ElseIf responseBuffer.Contains("FAIL") OrElse responseBuffer.Contains("ERROR") Then
-                        FailAndStop("Wi-Fi 連線失敗")
-                    Else
-                        waitCounter += 1
-                        If waitCounter > 25 Then FailAndStop("CIPSEND 等待超時")
-                    End If
-
-                Case 6
-                    responseBuffer = ""
-                    waitCounter = 0
-                    SerialPort1.WriteLine("Done")
-                    stepIndex = 106
-
-                Case 106
-                    If responseBuffer.Contains("SEND OK") OrElse responseBuffer.Contains("Recv") Then
-                        StepTimer.Stop()
-                        AppendLog(vbCrLf & "[系統提示] TCP Client 連線成功！" & vbCrLf)
-                    ElseIf responseBuffer.Contains("FAIL") OrElse responseBuffer.Contains("ERROR") Then
-                        FailAndStop("傳送 Done 失敗")
-                    Else
-                        waitCounter += 1
-                        If waitCounter > 25 Then FailAndStop("SEND OK 等待超時")
-                    End If
-
             End Select
         Catch ex As Exception
-            ' 當硬體被拔掉導致 SerialPort 寫入失敗時，安全攔截並恢復按鈕功能
             FailAndStop("硬體通訊異常或已斷線：" & ex.Message)
         End Try
     End Sub
@@ -185,7 +183,7 @@ Public Class Form1
     Private Sub search_Click(ByVal sender As Object, ByVal e As EventArgs) Handles search.Click
         Try
             If Not SerialPort1.IsOpen Then
-                AppendLog(vbCrLf & "[提示] 請先執行連線！" & vbCrLf)
+                AppendLog(vbCrLf & "[提示] 請先執行初始化！" & vbCrLf)
                 Return
             End If
 
@@ -205,10 +203,9 @@ Public Class Form1
             SerialPort1.WriteLine(cmd)
 
             Dim ready As Boolean = False
-            ' 使用較短且安全的迴圈防呆，避免硬體拔除時計畫面完全凍結
             For i As Integer = 1 To 10
                 Thread.Sleep(50)
-                Application.DoEvents() ' 保持介面順暢，不卡死
+                Application.DoEvents()
                 If responseBuffer.Contains(">") Then
                     ready = True
                     Exit For
@@ -228,51 +225,29 @@ Public Class Form1
 
     ' =========================================================================
     ' 【重要】訂單按鈕邏輯 (order_Click)
-    ' 說明：當點擊「訂單」按鈕時，依序連續傳送三筆資料至 FPGA：
-    '       1. 訂單 ID (ID:)
-    '       2. 訂購數量與出價金額 (QA:)
-    '       3. (可依需求擴充第三筆或組合格式)
     ' =========================================================================
     Private Sub order_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles order.Click
         Try
-            ' 1. 【安全防呆判斷】：檢查序列埠是否已經開啟
             If Not SerialPort1.IsOpen Then
-                AppendLog(vbCrLf & "[提示] 請先執行連線！" & vbCrLf)
+                AppendLog(vbCrLf & "[提示] 請先執行初始化！" & vbCrLf)
                 Return
             End If
 
-            ' 2. 【欄位資料讀取】：分別取得三個主要欄位的原始文字
             Dim rawID As String = orderID.Text.Trim()
             Dim rawQA As String = quantityAndPrice.Text.Trim()
-            Dim rawQT As String = quotasAndTotalPaymentAmounts.Text.Trim()
 
-            ' 3. 【防呆檢核】：檢查最基本的訂單 ID 是否為空
             If rawID = "" Then
                 AppendLog(vbCrLf & "[提示] 請輸入訂單 ID！" & vbCrLf)
                 Return
             End If
 
-            ' 4. 【組合連續三筆要傳送的資料封包字串】
-            '    根據您的需求，將三個欄位分別打包成帶有前綴標頭的格式：
-            Dim packet1 As String = "NewID:" & rawID & vbCrLf              ' 第一筆：訂單 ID
-            Dim packet2 As String = "NewQA:" & (If(rawQA = "", "00000000", rawQA)) & vbCrLf ' 第二筆：數量與價格
-            'Dim packet3 As String = "NewQT:" & (If(rawQT = "", "0000", rawQT)) & vbCrLf     ' 第三筆：配額與總額
+            ' 將兩筆資料合併成一包傳送
+            Dim combinedPacket As String = "NewID:" & rawID & vbCrLf &
+                                           "NewQA:" & (If(rawQA = "", "00000000", rawQA)) & vbCrLf
 
-            ' ---------------------------------------------------------------------
-            ' 5. 【依序連續發送流程 (迴圈或依序呼叫子發送程序)】
-            '    由於 ESP8266 每次傳送都需要經過「送 CIPSEND 指令 -> 等待 > -> 送實際資料」
-            '    這裡我們撰寫一個共用的內部發送小函式來依序發送這三筆資料。
-            ' ---------------------------------------------------------------------
-
-            If Not SendSinglePacket(packet1) Then Return
-            Thread.Sleep(300) ' 稍微間隔避免資料塞車
-
-            If Not SendSinglePacket(packet2) Then Return
-            Thread.Sleep(200)
-
-            'If Not SendSinglePacket(packet3) Then Return
-
-            AppendLog(vbCrLf & "[系統提示] 訂單資料已全部傳送完成！" & vbCrLf)
+            If SendSinglePacket(combinedPacket) Then
+                AppendLog(vbCrLf & "[系統提示] 完整訂單資料已一次發送完成！" & vbCrLf)
+            End If
 
         Catch ex As Exception
             AppendLog(vbCrLf & "[傳送失敗錯誤] " & ex.Message & vbCrLf)
@@ -281,17 +256,14 @@ Public Class Form1
 
     ' =========================================================================
     ' 【輔助運算函式】單一封包發送子程序 (SendSinglePacket)
-    ' 說明：封裝 ESP8266 的 CIPSEND 標準交握流程（發送長度 -> 等待 > -> 寫入資料）
     ' =========================================================================
     Private Function SendSinglePacket(ByVal dataStr As String) As Boolean
         Try
-            ' 1. 計算該筆資料的長度並組合 AT 指令
             Dim cmd As String = "AT+CIPSEND=" & dataStr.Length.ToString()
 
             responseBuffer = ""
             SerialPort1.WriteLine(cmd)
 
-            ' 2. 等待 ESP8266 回覆 '>' 提示符號（加入防呆超時機制與 DoEvents 避免畫面卡死）
             Dim ready As Boolean = False
             For i As Integer = 1 To 10
                 Thread.Sleep(50)
@@ -302,7 +274,6 @@ Public Class Form1
                 End If
             Next
 
-            ' 3. 如果收到準備就緒訊號，則正式將資料寫入序列埠
             If ready Then
                 responseBuffer = ""
                 SerialPort1.Write(dataStr)
@@ -329,7 +300,7 @@ Public Class Form1
 
             Me.Invoke(Sub()
                           AppendLog(raw)
-                          ProcessAllPackets() ' 呼叫運算解析區塊
+                          ProcessAllPackets()
                       End Sub)
         Catch ex As Exception
         End Try
@@ -337,52 +308,55 @@ Public Class Form1
 
     ' =========================================================================
     ' 【重要】資料判別與運算解析區塊 (ProcessAllPackets)
-    ' 說明：利用規則表達式 (Regex) 解析接收緩衝區內的黏包資料，並進行邏輯派發
     ' =========================================================================
     Private Sub ProcessAllPackets()
-        ' ---------------------------------------------------------------------
-        ' 1. 定義規則表達式 (Regex) 樣式：
-        '    "(ID:|QA:|QT:)([0-9a-zA-Z#\$]+)"
-        '    - "(ID:|QA:|QT:)" 為第 1 個捕捉群組 (Group 1)：比對資料的標頭類型。
-        '    - "([0-9a-zA-Z#\$]+)" 為第 2 個捕捉群組 (Group 2)：比對該標頭後方的實際數值內容，
-        '      這裡擴充加入了 `#` 與 `\$`（因為 $ 在 regex 中有特殊意義，需加上反斜線跳脫），
-        '      以確保包含特殊符號的 QT 資料能夠被完整抓取。
-        ' ---------------------------------------------------------------------
-        Dim pattern As String = "(ID:|QA:|QT:)([0-9a-zA-Z#\$]+)"
+        Try
+            If responseBuffer.Contains("ID:") Then
+                Dim idx As Integer = responseBuffer.IndexOf("ID:")
+                If responseBuffer.Length >= idx + 7 Then
+                    orderID.Text = responseBuffer.Substring(idx + 3, 4)
+                End If
+            End If
 
-        ' 2. 執行運算：在 responseBuffer 中找出所有符合 pattern 的配對集合
-        Dim matches As System.Text.RegularExpressions.MatchCollection = System.Text.RegularExpressions.Regex.Matches(responseBuffer, pattern)
+            If responseBuffer.Contains("QA:") Then
+                Dim idx As Integer = responseBuffer.IndexOf("QA:")
+                Dim subStr As String = responseBuffer.Substring(idx + 3)
+                Dim endIdx As Integer = subStr.IndexOfAny(New Char() {vbCr, vbLf})
+                If endIdx > 0 Then
+                    quantityAndPrice.Text = subStr.Substring(0, endIdx).Trim()
+                Else
+                    quantityAndPrice.Text = subStr.Trim()
+                End If
+            End If
 
-        ' 3. 判斷運算結果：若找到一個以上的有效封包
-        If matches.Count > 0 Then
-            ' 迴圈遍歷所有被抓出來的獨立資料片段
-            For Each m As System.Text.RegularExpressions.Match In matches
-                ' 取得前綴標頭 (例如 "ID:", "QA:", "QT:")
-                Dim prefix As String = m.Groups(1).Value
+            If responseBuffer.Contains("QT:") Then
+                Dim idx As Integer = responseBuffer.IndexOf("QT:")
+                Dim subStr As String = responseBuffer.Substring(idx + 3)
+                Dim endIdx As Integer = subStr.IndexOfAny(New Char() {vbCr, vbLf})
 
-                ' 取得對應的實際數值字串 (例如 "0302", "00550030", "0000")
-                Dim val As String = m.Groups(2).Value
+                Dim qtVal As String = ""
+                If endIdx > 0 Then
+                    qtVal = subStr.Substring(0, endIdx).Trim()
+                Else
+                    qtVal = subStr.Trim()
+                End If
 
-                ' 【欄位顯示區塊】依照前綴標頭的運算結果，派發並更新至對應的 UI 文字框
-                Select Case prefix
-                    Case "ID:"
-                        orderID.Text = val                  ' 更新「訂單 ID」欄位
-                    Case "QA:"
-                        quantityAndPrice.Text = val         ' 更新「數量與價格」欄位
-                    Case "QT:"
-                        quotasAndTotalPaymentAmounts.Text = val ' 更新「配額與總額」欄位
-                End Select
-            Next
+                quotasAndTotalPaymentAmounts.Text = qtVal
+            End If
 
-            ' 4. 運算完成後清理：清空暫存緩衝區，避免重複運算或處理舊資料
-            responseBuffer = ""
-        End If
+            If responseBuffer.Length > 1000 Then
+                responseBuffer = ""
+            End If
+
+        Catch ex As Exception
+        End Try
     End Sub
 
     Private Sub FailAndStop(ByVal reason As String)
         StepTimer.Stop()
         AppendLog(vbCrLf & "[設定失敗] " & reason & vbCrLf)
-        connect.Enabled = True ' 確保連線按鈕重新解鎖
+        WiFi_initial.Enabled = True
+        connect.Enabled = True
     End Sub
 
     Private Sub AppendLog(ByVal text As String)
@@ -402,23 +376,21 @@ Public Class Form1
     End Sub
 
     ' =========================================================================
-    ' 【重要】按鍵判斷與輸入區塊 (NumButton_Click)
-    ' 說明：處理虛擬數字按鍵 (0~9) 的點擊事件，並依據目前焦點欄位進行智慧填入
+    ' 虛擬數字按鍵 (0~9)
     ' =========================================================================
     Private Sub NumButton_Click(ByVal sender As Object, ByVal e As EventArgs) Handles _
         Button0.Click, Button1.Click, Button2.Click, Button3.Click, Button4.Click,
         Button5.Click, Button6.Click, Button7.Click, Button8.Click, Button9.Click
 
-        ' 取得目前被點擊的按鈕物件
         Dim btn As Button = CType(sender, Button)
-        ' 讀取按鈕上的文字 (即對應的數字字串 '0' ~ '9')
-        Dim numStr As String = btn.Text ' 變數對應
 
-        ' 根據最後點選的文字框來決定寫入哪裡
+        ' 【修正】將 C# 的變數宣告格式 "String numStr = ..." 改為 VB.NET 的 "Dim numStr As String = ..."
+        Dim numStr As String = btn.Text
+
         If lastSelectedBox IsNot Nothing Then
             lastSelectedBox.AppendText(numStr)
         Else
-            orderID.AppendText(numStr) ' 預設防呆
+            orderID.AppendText(numStr)
         End If
     End Sub
 

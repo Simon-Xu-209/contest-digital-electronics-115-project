@@ -8,31 +8,30 @@ module WiFi_Controller #(
 	input  wire                     rst_n,
 	
 	// 硬體外設腳位
-	input  wire                     WiFi_rx,
-	output wire                     WiFi_tx,
-	output wire                     WiFi_rst_n,
+	input  wire                     WiFi_rx,    // ESP8266 Wi-Fi 的 tx
+	output wire                     WiFi_tx,    // ESP8266 Wi-Fi 的 rx
+	output wire                     WiFi_rst_n, // ESP8266 Wi-Fi 的 RST
 	
 	// 上層控制與發送暫存器介面
-	input  wire                     send_en,        // 資料傳送脈衝
-	output reg                      send_en_ack,
-	input  wire [3:0]               send_target_id,
-	input  wire [8*MAX_TX_LEN-1:0]  send_data_reg,  // 將要傳送給 EPS8266 的資料
-	output wire                     tx_busy,
-	output reg                      send_done,
+	input  wire                     send_en,        // Wi-Fi 資料發送旗標(高態觸發)
+	output reg                      send_en_ack,    // Wi-Fi 資料發送旗標重置旗標
+	input  wire [3:0]               send_target_id, // 目標連線 ID 暫存器
+	input  wire [8*MAX_TX_LEN-1:0]  send_data_reg,  // 傳送資料暫存器
+	output wire                     tx_busy,        // 資料傳送中旗標
+	output reg                      send_done,      // 資料傳送完成脈衝
 	
 	// 上層接收暫存器介面
-	output wire [3:0]               rx_link_id,       // 連線 ID 暫存器
-	output wire [15:0]              rx_data_len,      // 資料位元組長度暫存器
-	output wire [8*MAX_RX_LEN-1:0]  rx_data_reg,      // 資料暫存器
-	output wire                     rx_done,          // 接收完成脈衝
-	input  wire                     rx_data_done_ack, // rx_data_done 清除/確認信號
+	output wire [3:0]               rx_link_id,       // 接收連線 ID 暫存器
+	output wire [15:0]              rx_data_len,      // 接收資料位元組長度暫存器
+	output wire [8*MAX_RX_LEN-1:0]  rx_data_reg,      // 接收資料暫存器
+	output wire                     rx_data_done,     // 接收完成旗標(高態觸發)
+	input  wire                     rx_data_done_ack, // 接收完成旗標清除旗標
+	output wire                     rx_data_reg_busy, // 資料接收中旗標
 	
-	output wire                     rx_data_reg_busy,
-	
-	input  wire                     WiFi_restart,
+	input  wire                     WiFi_restart, // 強制重啟 Wi-Fi 初始化
 	
 	// 狀態輸出
-	output reg                      init_done
+	output reg                      init_done // Wi-Fi 結束初始化訊號
 );
 
 assign WiFi_rst_n = 1'b1;
@@ -65,12 +64,12 @@ UART_rx_string #(
 	.UART_rx          (WiFi_rx_sync2),
 	.rx_byte_en       (rx_byte_en),
 	.rx_byte          (rx_byte),
-	.link_ID          (rx_link_id),
-	.rx_data_len      (rx_data_len),
-	.rx_data_reg      (rx_data_reg),
-	.rx_data_done     (rx_done),
-	.rx_data_done_ack (rx_data_done_ack),
-	.rx_data_reg_busy ()
+	.link_ID          (rx_link_id),       // 接收連線 ID 暫存器
+	.rx_data_len      (rx_data_len),      // 接收資料位元組長度暫存器
+	.rx_data_reg      (rx_data_reg),      // 接收資料暫存器
+	.rx_data_done     (rx_data_done),     // 接收完成旗標(高態觸發)
+	.rx_data_done_ack (rx_data_done_ack), // 接收完成旗標清除旗標
+	.rx_data_reg_busy (rx_data_reg_busy)  // 資料接收中旗標
 );
 
 // -------------------------------------------------------------
@@ -139,8 +138,10 @@ always @(posedge clk or negedge rst_n) begin
 		rst_wait_cnt   <= 28'd0;
 	end else begin
 		if (WiFi_restart) begin
-			init_done <= 1'b0;
-			init_step <= 4'd0;
+			init_done    <= 1'b0;
+			init_step    <= 4'd0;
+			boot_cnt     <= 28'd0;
+			rst_wait_cnt <= 28'd0;
 		end else if (!init_done) begin
 			tx_start    <= 1'b0;
 			case (init_step)
@@ -230,7 +231,7 @@ always @(posedge clk or negedge rst_n) begin
 			case (tx_fsm_state)
 				TX_IDLE: begin
 					if (send_en && !tx_busy) begin
-						send_en_ack <= 1'b1; // send_done 清除旗標
+						send_en_ack <= 1'b1; // send_en 清除旗標
 						
 						// 當 send_en 到來的瞬間，立即將資料鎖存到內部暫存器
 						internal_send_data <= send_data_reg;
