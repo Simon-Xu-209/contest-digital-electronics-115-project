@@ -90,13 +90,13 @@ Main_Controller #(
 	.MAX_RX_LEN(MAX_RX_LEN),
 	.MAX_CHARS(LCD_MAX_CHARS)
 ) Main_Controller_u1 (
-	.clk             (clk),
-	.rst_n           (rst_n),
-	.switch_8bit     (switch_8bit),
-	.KEY_2x2         (KEY_2x2),
-	.KEY_Pressed_2x2 (KEY_Pressed_2x2),
-	.KEY_3x3         (KEY_3x3),
-	.KEY_Pressed_3x3 (KEY_Pressed_3x3),
+	.clk                  (clk),
+	.rst_n                (rst_n),
+	.switch_8bit          (switch_8bit),
+	.KEY_2x2              (KEY_2x2),
+	.KEY_Pressed_2x2      (KEY_Pressed_2x2),
+	.KEY_3x3              (KEY_3x3),
+	.KEY_Pressed_3x3      (KEY_Pressed_3x3),
 	
 	.joystick_z_pulse     (joystick_z_pulse),
 	.joystick_up_pulse    (joystick_up_pulse),
@@ -104,14 +104,14 @@ Main_Controller #(
 	.joystick_right_pulse (joystick_right_pulse),
 	.joystick_left_pulse  (joystick_left_pulse),
 	
-	.seven_segment_chars(seven_segment_chars), // 七段顯示器顯示字串
+	.seven_segment_chars  (seven_segment_chars), // 七段顯示器顯示字串
 	
 	.previous_system_state(previous_system_state), // 前一刻系統狀態
 	.current_system_state (current_system_state),  // 當前系統狀態
 	.next_system_state    (next_system_state),     // 下一刻系統狀態
 	.system_timer         (system_timer),          // 系統計時器
 	
-	.rx_data_done         (rx_data_done),     // 接收完成旗標(高態觸發)
+	.rx_data_done         (rx_data_done),    // 接收完成旗標(高態觸發)
 	.WiFi_send_types      (WiFi_send_types), // Wi-Fi 連續資料流種類選擇
 	.start_send           (start_send),      // Wi-Fi 連續資料流開始發送旗標(高態觸發)
 	.start_send_ack       (start_send_ack),  // Wi-Fi 連續資料流開始發送旗標重置旗標
@@ -145,23 +145,23 @@ Keyboard_3x3 Keyboard_3x3_u1 (
 wire [15:0] joystick_x;
 wire [15:0] joystick_y;
 wire        joystick_z;
-/*
+
 Joystick Joystick_u1 (
-	.clk            (clk),
-	.rst_n          (rst_n),
-	.ADS1115_SCL    (ADS1115_SCL),  // ADS1115 ADC SCL
-	.ADS1115_SDA    (ADS1115_SDA),  // ADS1115 ADC SDA   (用於輸出搖桿數值)
-	.ADS1115_ALRT   (ADS1115_ALRT), // ADS1115 ADC ALERT (可不接)
-	.Joystick_SW    (Joystick_SW),  // 搖桿 z 軸按鍵
+	.clk                 (clk),
+	.rst_n               (rst_n),
+	.ADS1115_SCL         (ADS1115_SCL),  // ADS1115 ADC SCL
+	.ADS1115_SDA         (ADS1115_SDA),  // ADS1115 ADC SDA   (用於輸出搖桿數值)
+	.ADS1115_ALRT        (ADS1115_ALRT), // ADS1115 ADC ALERT (可不接)
+	.Joystick_SW         (Joystick_SW),  // 搖桿 z 軸按鍵
 	
-	.joystick_x     (joystick_x), // 搖桿 x 軸數值
-	.joystick_y     (joystick_y), // 搖桿 y 軸數值
-	.joystick_z     (joystick_z), // 搖桿 z 軸按鍵(按下為 1)
+	.joystick_x          (joystick_x), // 搖桿 x 軸數值
+	.joystick_y          (joystick_y), // 搖桿 y 軸數值
+	.joystick_z          (joystick_z), // 搖桿 z 軸按鍵(按下為 1)
 	
-	.joystick_up    (joystick_up),
-	.joystick_down  (joystick_down),
-	.joystick_right (joystick_right),
-	.joystick_left  (joystick_left),
+	.joystick_up         (joystick_up),
+	.joystick_down       (joystick_down),
+	.joystick_right      (joystick_right),
+	.joystick_left       (joystick_left),
 	
 	.joystick_z_pulse    (joystick_z_pulse),
 	.joystick_up_pulse   (joystick_up_pulse),
@@ -169,7 +169,7 @@ Joystick Joystick_u1 (
 	.joystick_right_pulse(joystick_right_pulse),
 	.joystick_left_pulse (joystick_left_pulse)
 );
-*/
+
 
 
 // ESP8266 Wi-Fi 主控制器
@@ -256,7 +256,7 @@ WiFi_Protocol_Handler #(
 // 七段顯示器模組
 wire [63:0] seven_segment_chars;
 wire [7:0]  brightness_pwm = 8'd255;
-/*
+
 Seven_Segment_Display Seven_Segment_Display_u1(
 	.clk              (clk),
 	.rst_n            (rst_n),
@@ -278,9 +278,6 @@ WS2812B #(
 	.current_system_state (current_system_state),  // 當前系統狀態
 	.next_system_state    (next_system_state),     // 下一刻系統狀態
 	.system_timer         (system_timer),          // 系統計時器
-	.coordinate_x         (coordinate_x),
-	.coordinate_y         (coordinate_y),
-	.coordinate_state     (coordinate_state),
 	.brightness           (brightness),
 	.detected_num         (detected_num),
 	.WS2812B_8x8_DIN      (WS2812B_8x8_DIN), // WS2812B 8x8 BRG LED 矩陣 DIN
@@ -299,9 +296,6 @@ TFT_LCD #(
 	.current_system_state (current_system_state),  // 當前系統狀態
 	.next_system_state    (next_system_state),     // 下一刻系統狀態
 	.system_timer         (system_timer),          // 系統計時器
-	.coordinate_x         (coordinate_x),
-	.coordinate_y         (coordinate_y),
-	.coordinate_state     (coordinate_state),
 	.SCL                  (ST7735S_SCL), // ST7735S 128x160 RGB TFT LCD SPI 時脈
 	.SDA                  (ST7735S_SDA), // ST7735S 128x160 RGB TFT LCD SPI 資料/指令輸入
 	.RES                  (ST7735S_RES), // ST7735S 128x160 RGB TFT LCD 硬體重設 (低電為 0 觸發)
@@ -309,7 +303,7 @@ TFT_LCD #(
 	.CS                   (ST7735S_CS),  // ST7735S 128x160 RGB TFT LCD 螢幕晶片致能 (低電為 0 觸發)
 	.BLK                  (ST7735S_BLK)  // ST7735S 128x160 RGB TFT LCD 背光板 (可使用 PWM 調整亮度)
 );
-*/
+
 
 
 endmodule

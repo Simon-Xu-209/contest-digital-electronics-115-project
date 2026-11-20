@@ -16,9 +16,6 @@ module TFT_LCD #(
 	input wire [3:0]  current_system_state,
 	input wire [3:0]  next_system_state,
 	input wire [31:0] system_timer,
-	input wire [2:0]  coordinate_x, coordinate_y,
-	input wire [1:0]  coordinate_state,
-	input wire [15:0] WiFi_signal,
 	output reg  SCL, SDA, RES, DC, CS, BLK
 );
 
@@ -47,14 +44,16 @@ end
 // =========================================================================
 // 基本參數配置
 // =========================================================================
+parameter COLOR_WHITE  = 16'hFFFF; // 白色 (RGB565)
+parameter COLOR_BLACK  = 16'h0000; // 黑色 (RGB565)
 parameter COLOR_RED    = 16'hF800; // 紅色 (RGB565)
 parameter COLOR_GREEN  = 16'h07E0; // 綠色 (RGB565)
 parameter COLOR_BLUE   = 16'h001F; // 藍色 (RGB565)
 parameter COLOR_YELLOW = 16'hFFE0; // 黃色 (RGB565)
-parameter COLOR_WHITE  = 16'hFFFF; // 白色 (RGB565)
-parameter COLOR_BLACK  = 16'h0000; // 黑色 (RGB565)
+parameter COLOR_PURPLE = 16'hF81F; // 紫色 (RGB565)
+parameter COLOR_CYAN   = 16'h0EFF; // 青色 (RGB565)
 
-reg [15:0] LCD_BACKGROUND;
+reg [15:0] LCD_BACKGROUND; // LCD 背景顏色設定
 
 
 
@@ -73,11 +72,7 @@ reg [3:0]  char_scale [0:MAX_CHARS-1];
 
 parameter SYS_RESET        = 4'd0,
 			 SYS_INITIAL      = 4'd1,
-			 SYS_IDLE         = 4'd2,
-			 SYS_TFT_LCD      = 4'd3,
-			 SYS_WiFi_CONNECT = 4'd4,
-			 SYS_JOYSTICK     = 4'd5,
-			 SYS_INTEGRATION  = 4'd6;
+			 SYS_IDLE         = 4'd2;
 
 
 
@@ -105,94 +100,10 @@ always @(posedge clk or negedge rst_n) begin
 		
 	end else begin
 		if (next_system_state != current_system_state) begin
-			if (next_system_state == SYS_TFT_LCD) begin
-				char_cnt  <= 0;
-				coord_row <= 8;
-				coord_col <= 8;
-				frame_cnt <= 0;
-			end
+			
 		end
 		
 		case(current_system_state)
-		
-			SYS_TFT_LCD: begin
-				for (i = 0; i < 9; i = i + 1) begin
-					char_scale[i] <= 4'd2;
-					if (i < 4) begin
-						char_x[i]     <= 8'd13 + (i % 4) * (FONT_W * 4'd2 + 13);
-						char_y[i]     <= 8'd5;
-						char_color[i] <= COLOR_WHITE;
-					end else if ((i >= 4) && (i < 9)) begin
-						char_x[i]     <= 8'd24 + ((i - 4) % 5) * (FONT_W * 4'd2);
-						char_y[i]     <= 8'd50;
-						char_color[i] <= COLOR_BLUE;
-					end
-				end
-				
-				if (one_sec_pulse) begin
-					if (char_cnt < 31) begin
-						char_cnt <= char_cnt + 1;
-						char_ascii[0] <= ((char_cnt > 3) && (char_cnt < 30)) ? "A" + char_cnt - 4 : " ";
-						char_ascii[1] <= ((char_cnt > 2) && (char_cnt < 29)) ? "A" + char_cnt - 3 : " ";
-						char_ascii[2] <= ((char_cnt > 1) && (char_cnt < 28)) ? "A" + char_cnt - 2 : " ";
-						char_ascii[3] <= ((char_cnt > 0) && (char_cnt < 27)) ? "A" + char_cnt - 1 : " ";
-					end else begin
-						for (i = 0; i < 4; i = i + 1) begin
-							char_ascii[i] <= " ";
-						end
-					end
-					
-					if (coord_row > 1) begin
-						coord_row <= coord_row - 1;
-					end else begin
-						coord_row <= 8;
-						if (coord_col > 1) begin
-							coord_col <= coord_col - 1;
-						end else begin
-							coord_col <= 8;
-						end
-					end
-					
-					char_ascii[4] <= "["; char_ascii[6] <= ","; char_ascii[8] <= "]";
-					// 將數字轉為 ASCII 碼 (加上 8'd48/"0")
-					char_ascii[5] <= "0" + coord_row;
-					char_ascii[7] <= "0" + coord_col;
-					
-					frame_cnt <= frame_cnt + 1;
-				end
-			end
-			
-			SYS_JOYSTICK: begin
-				for (i = 0; i < 9; i = i + 1) begin
-					char_scale[i] <= 4'd0;
-				end
-			end
-			
-			SYS_INTEGRATION: begin
-				if (coordinate_state != 2'd0) begin
-					for (i = 0; i < 9; i = i + 1) begin
-						char_scale[i] <= 4'd2;
-						if (i < 4) begin
-							char_x[i]     <= 8'd13 + (i % 4) * (FONT_W * 4'd2 + 13);
-							char_y[i]     <= 8'd5;
-							char_color[i] <= COLOR_WHITE;
-						end else if ((i >= 4) && (i < 9)) begin
-							char_x[i]     <= 8'd24 + ((i - 4) % 5) * (FONT_W * 4'd2);
-							char_y[i]     <= 8'd50;
-							char_color[i] <= COLOR_BLUE;
-						end
-					end
-					char_ascii[0] <= "X"; char_ascii[1] <= "X"; char_ascii[2] <= "Y"; char_ascii[3] <= "Y";
-					char_ascii[4] <= "["; char_ascii[6] <= ","; char_ascii[8] <= "]";
-					char_ascii[5] <= (coordinate_state == 2'd2) ? "0" : "1" + coordinate_x;
-					char_ascii[7] <= (coordinate_state == 2'd2) ? "0" : "1" + coordinate_y;
-				end else begin
-					for (i = 0; i < 9; i = i + 1) begin
-						char_ascii[i] <= "";
-					end
-				end
-			end
-			
 			default:;
 		endcase
 	end
@@ -247,89 +158,7 @@ always @(*) begin
 	if (hit_text && bits[4'd7 - active_lx]) begin
 		pixel_color = active_color; 
 	end else begin
-		if (current_system_state == SYS_TFT_LCD) begin
-			if (y_cnt <= 40) begin
-				pixel_color = COLOR_RED;
-			end else begin
-				pixel_color = COLOR_WHITE;
-			end
-			
-			case(frame_cnt)
-				2'd0: begin
-					if ((x_cnt < 64) && (x_cnt >= 32) && (y_cnt < 118) && (y_cnt >= 86)) begin
-						pixel_color = COLOR_RED;
-					end
-					if ((x_cnt < 96) && (x_cnt >= 64) && (y_cnt < 118) && (y_cnt >= 86)) begin
-						pixel_color = COLOR_GREEN;
-					end
-					if ((x_cnt < 64) && (x_cnt >= 32) && (y_cnt < 150) && (y_cnt >= 118)) begin
-						pixel_color = COLOR_BLUE;
-					end
-					if ((x_cnt < 96) && (x_cnt >= 64) && (y_cnt < 150) && (y_cnt >= 118)) begin
-						pixel_color = COLOR_YELLOW;
-					end
-				end
-				2'd1: begin
-					if ((x_cnt < 64) && (x_cnt >= 32) && (y_cnt < 118) && (y_cnt >= 86)) begin
-						pixel_color = COLOR_BLUE;
-					end
-					if ((x_cnt < 96) && (x_cnt >= 64) && (y_cnt < 118) && (y_cnt >= 86)) begin
-						pixel_color = COLOR_RED;
-					end
-					if ((x_cnt < 64) && (x_cnt >= 32) && (y_cnt < 150) && (y_cnt >= 118)) begin
-						pixel_color = COLOR_YELLOW;
-					end
-					if ((x_cnt < 96) && (x_cnt >= 64) && (y_cnt < 150) && (y_cnt >= 118)) begin
-						pixel_color = COLOR_GREEN;
-					end
-				end
-				2'd2: begin
-					if ((x_cnt < 64) && (x_cnt >= 32) && (y_cnt < 118) && (y_cnt >= 86)) begin
-						pixel_color = COLOR_YELLOW;
-					end
-					if ((x_cnt < 96) && (x_cnt >= 64) && (y_cnt < 118) && (y_cnt >= 86)) begin
-						pixel_color = COLOR_BLUE;
-					end
-					if ((x_cnt < 64) && (x_cnt >= 32) && (y_cnt < 150) && (y_cnt >= 118)) begin
-						pixel_color = COLOR_GREEN;
-					end
-					if ((x_cnt < 96) && (x_cnt >= 64) && (y_cnt < 150) && (y_cnt >= 118)) begin
-						pixel_color = COLOR_RED;
-					end
-				end
-				2'd3: begin
-					if ((x_cnt < 64) && (x_cnt >= 32) && (y_cnt < 118) && (y_cnt >= 86)) begin
-						pixel_color = COLOR_GREEN;
-					end
-					if ((x_cnt < 96) && (x_cnt >= 64) && (y_cnt < 118) && (y_cnt >= 86)) begin
-						pixel_color = COLOR_YELLOW;
-					end
-					if ((x_cnt < 64) && (x_cnt >= 32) && (y_cnt < 150) && (y_cnt >= 118)) begin
-						pixel_color = COLOR_RED;
-					end
-					if ((x_cnt < 96) && (x_cnt >= 64) && (y_cnt < 150) && (y_cnt >= 118)) begin
-						pixel_color = COLOR_BLUE;
-					end
-				end
-			endcase
-		end else if (current_system_state == SYS_JOYSTICK) begin
-			pixel_color = COLOR_RED;
-		end else if ((current_system_state == SYS_INTEGRATION) && (coordinate_state != 2'd0)) begin
-			if (y_cnt <= 40) begin
-				pixel_color = COLOR_GREEN;
-			end else begin
-				pixel_color = COLOR_WHITE;
-			end
-			
-			if ((x_cnt < 32 + 7 + coordinate_x * 8) && (x_cnt >= 32 + coordinate_x * 8) && (y_cnt < 86 + 7 + coordinate_y * 8) && (y_cnt >= 86 + coordinate_y * 8)) begin
-				pixel_color = COLOR_RED;
-			end else if ((x_cnt < 32 + 7 + coordinate_x * 8 + 8) && (x_cnt >= 32 + coordinate_x * 8 + 8) && (y_cnt < 86 + 7 + coordinate_y * 8) && (y_cnt >= 86 + coordinate_y * 8)) begin
-				pixel_color = COLOR_GREEN;
-			end if ((x_cnt < 32 + 7 + coordinate_x * 8) && (x_cnt >= 32 + coordinate_x * 8) && (y_cnt < 86 + 7 + coordinate_y * 8 + 8) && (y_cnt >= 86 + coordinate_y * 8 + 8)) begin
-				pixel_color = COLOR_BLUE;
-			end else if ((x_cnt < 32 + 7 + coordinate_x * 8 + 8) && (x_cnt >= 32 + coordinate_x * 8 + 8) && (y_cnt < 86 + 7 + coordinate_y * 8 + 8) && (y_cnt >= 86 + coordinate_y * 8 + 8)) begin
-				pixel_color = COLOR_YELLOW;
-			end
+		if (current_system_state == SYS_INITIAL) begin
 			
 		end else begin
 			pixel_color = COLOR_WHITE;

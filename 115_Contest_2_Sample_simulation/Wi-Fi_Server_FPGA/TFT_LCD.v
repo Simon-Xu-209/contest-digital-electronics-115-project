@@ -55,11 +55,14 @@ end
 // =========================================================================
 // 基本參數配置
 // =========================================================================
-parameter COLOR_RED   = 16'hF800; // 紅色 (RGB565)
-parameter COLOR_GREEN = 16'h07E0; // 綠色 (RGB565)
-parameter COLOR_BLUE  = 16'h001F; // 藍色 (RGB565)
-parameter COLOR_WHITE = 16'hFFFF; // 白色 (RGB565)
-parameter COLOR_BLACK = 16'h0000; // 黑色 (RGB565)
+parameter COLOR_WHITE  = 16'hFFFF; // 白色 (RGB565)
+parameter COLOR_BLACK  = 16'h0000; // 黑色 (RGB565)
+parameter COLOR_RED    = 16'hF800; // 紅色 (RGB565)
+parameter COLOR_GREEN  = 16'h07E0; // 綠色 (RGB565)
+parameter COLOR_BLUE   = 16'h001F; // 藍色 (RGB565)
+parameter COLOR_YELLOW = 16'hFFE0; // 黃色 (RGB565)
+parameter COLOR_PURPLE = 16'hF81F; // 紫色 (RGB565)
+parameter COLOR_CYAN   = 16'h0EFF; // 青色 (RGB565)
 
 reg [15:0] LCD_BACKGROUND;
 

@@ -42,13 +42,14 @@ parameter SYS_RESET           = 4'd0,
 
 
 // WS2812B 顏色定義           -GG-RR-BB-
+localparam COLOR_WHITE  = 24'h1F_1F_1F; // 白色
 localparam COLOR_OFF    = 24'h00_00_00; // 全暗
 localparam COLOR_RED    = 24'h00_1F_00; // 紅色
 localparam COLOR_GREEN  = 24'h1F_00_00; // 綠色
 localparam COLOR_BLUE   = 24'h00_00_1F; // 藍色
 localparam COLOR_YELLOW = 24'h1F_1F_00; // 黃色
-localparam COLOR_PURPLE = 24'h00_1F_1F; // 紫色
-localparam COLOR_CYAN   = 24'h1F_1F_1F; // 青色
+localparam COLOR_PURPLE = 24'h1F_00_1F; // 紫色
+localparam COLOR_CYAN   = 24'h00_1F_1F; // 青色
 
 
 
